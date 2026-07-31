@@ -1596,7 +1596,7 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
             TrackTemporaryUnitMicro(oBomber, 60) --60s is redundancy
 
 
-            if not(oBomber[M28UnitInfo.refbEasyBrain]) then
+            if not(oBomber[M28UnitInfo.refbEasyBrain]) or EntityCategoryContains(categories.EXPERIMENTAL, oBomber.UnitId) then
                 while GetGameTimeSeconds() - iStartTime < iMaxMicroTime do
                     iCurTick = iCurTick + 1
 
@@ -1682,7 +1682,10 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
         local bAdjustHoverMicroCount = false
         local iStraightLineLeeway
         local bContinue = true
-        if aiBrain[refiMaxUnitsToHoverMicroAtOnce] then
+        if not(M28Utilities.bFAFActive) or (oBomber[M28UnitInfo.refbEasyBrain] and not(EntityCategoryContains(categories.EXPERIMENTAL, oBomber.UnitId))) then
+            bContinue = false
+            if bDebugMessages == true then LOG(sFunctionRef..': Wont try bomber micro as not sure it will work') end
+        elseif aiBrain[refiMaxUnitsToHoverMicroAtOnce] then
             if aiBrain[refiCurUnitsHoverMicroing] >= aiBrain[refiMaxUnitsToHoverMicroAtOnce] then
                 M28Orders.IssueTrackedAttack(oBomber, oTarget, false, 'NoMiAtck', false)
                 bContinue = false
@@ -1886,6 +1889,8 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
                 oBomber[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds()
                 if bDebugMessages == true then LOG(sFunctionRef..': Turning off special micro5') end
             end
+        else
+            M28Orders.IssueTrackedAttack(oBomber, oTarget, false, 'NoMicrAt', false)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2797,6 +2802,7 @@ function T1OrT3HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinue
         local iBomberSpeed
         local iTimeSinceLastFiredBomb
         if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, bAbortForGroundAA='..tostring(bAbortForGroundAA or false)..'; iStartTime='..iStartTime..'; Cur time='..GetGameTimeSeconds()..'; iMaxMicroTime='..iMaxMicroTime..'; Is bomber valid='..tostring(M28UnitInfo.IsUnitValid(oBomber) )..'; Is target valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; iMinTimeAfterFiringBeforeGivingNewOrders='..(iMinTimeAfterFiringBeforeGivingNewOrders or 'nil')..'; Does bomber fire salv='..tostring(M28UnitInfo.DoesBomberFireSalvo(oBomber) or false)) end
+        local bM28EasyOrNotFAF = (oBomber[M28UnitInfo.refbEasyBrain] and not(EntityCategoryContains(categories.EXPERIMENTAL, oBomber.UnitId))) or not(M28Utilities.bFAFActive)
         while GetGameTimeSeconds() - iStartTime < iMaxMicroTime and M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) do
             --Abort if recently dropped bomb and we think it will kill the target
             iTimeSinceLastFiredBomb = GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0)
@@ -2820,109 +2826,113 @@ function T1OrT3HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinue
                         break
                     end
                 end
-                iCurDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oTarget:GetPosition())
-                iCurAngleToTarget = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oTarget:GetPosition())
-                iCurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oBomber)
-                iCurAngleDif = M28Utilities.GetAngleDifference(iCurAngleToTarget, iCurFacingAngle)
-                iBomberSpeed = M28UnitInfo.GetUnitSpeed(oBomber)
-                bManualAttack = false
-
-                --Are we facing the target? if not, then turn towards them
-                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToTarget='..iCurDistToTarget..'; iCurAngleToTarget='..iCurAngleToTarget..'; iCurFacingAngle='..iCurFacingAngle..'; iCurAngleDif='..iCurAngleDif..'; Target unit state='..M28UnitInfo.GetUnitState(oTarget)..'; Dist from ground='..(oTarget:GetPosition()[2] - GetSurfaceHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3]))..'; Time since last fired weapon='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0)..'; time since last fired bomb='..(GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0))..'; oBomber[M28UnitInfo.refiTimeBetweenBombs]='..(oBomber[M28UnitInfo.refiTimeBetweenBombs] or 'nil')..'; iHalfDistThreshold='..iHalfDistThreshold) end
-                if iCurAngleDif > 15 then
-                    if iBomberSpeed <= 0.1 and iCurDistToTarget > iQuarterDistThreshold and (iBomberSpeed <= 0.05 or iCurDistToTarget >= iHalfDistThreshold) then
-                        iReorderDist = 1
-                    else
-                        iReorderDist = 0.1
-                    end
-                    --Turn towards target - decide which is closest way
-
-                    if iCurAngleToTarget > iCurFacingAngle then
-                        if iCurAngleToTarget - iCurFacingAngle > 180 then
-                            --Clockwise means increasing our cur facing angle; however if gap between the angles is more than 180 would be better to decrease our facing angle
-                            bTurnClockwise = false
-                        else
-                            bTurnClockwise = true
-                        end
-                    else --curfacingangle is >= angle to target
-                        if iCurFacingAngle - iCurAngleToTarget > 180 then
-                            --Gap between the two is so large, that increasing our facing angle should get us to the target quicker
-                            bTurnClockwise = true
-                        else
-                            bTurnClockwise = false
-                        end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will turn towards target, bTurnClockwise='..tostring(bTurnClockwise)) end
-
-                    if iTimeSinceLastFiredBomb > iMaxTimeBetweenShotsWanted then
-                        if iCurDistToTarget >= 10 then
-                            iDistToMoveTowardsTarget = math.max(2, iCurDistToTarget * 0.3)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will move 30% towards target') end
-                        else
-                            bManualAttack = true --issues with asfs not turning properly when facing a target when they have got too close, so if we are close to a taret and facing the wrong direction, will switch to a manual attack
-                        end
-                        iAngleToMove = 15
-                    elseif (iCurDistToTarget >= 30 and iCurAngleDif <= 60 and iBomberSpeed <= 5) and (iCurDistToTarget >= 60 or (oBomber[M28UnitInfo.refiLastBombFired] and iMaxTimeBetweenShotsWanted - iTimeSinceLastFiredBomb  <= 2)) then
-                        iDistToMoveTowardsTarget = 10
-                        iAngleToMove = 15
-                    else
-                        iDistToMoveTowardsTarget = 0.1
-                        iAngleToMove = 15
-                    end
-                    if bManualAttack then
-                        tMoveViaPoint = nil
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will switch to manual attack as been a while since we have moved') end
-                    else
-                        if bTurnClockwise then
-                            tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurFacingAngle + iAngleToMove, iDistToMoveTowardsTarget, true, false, false)
-                        else
-                            tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurFacingAngle - iAngleToMove, iDistToMoveTowardsTarget, true, false, false)
-                        end
-                        if bDebugMessages == true then
-                            LOG(sFunctionRef..': Dist to tMoveViaPoint='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tMoveViaPoint)..'; Angle='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tMoveViaPoint)..'; Time between shots='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0)..'; iMaxTimeBetweenShotsWanted='..iMaxTimeBetweenShotsWanted..'; iDistToMoveTowardsTarget='..iDistToMoveTowardsTarget)
-                            --M28Utilities.DrawLocation(oBomber:GetPosition(), 2)
-                            --M28Utilities.DrawLocation(tMoveViaPoint, 1)
-                        end
-                    end
-                    --We are facing the target, if we are able to fire then drop a bomb, otherwise slowly approach
-                elseif GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) > iMaxTimeBetweenShotsWanted then
-                    --Are facing the right direction and able to fire
-                    --First time we are at the right angle - consider slowing down slightly if we dont have that far to reach target and are going quite fast
-                    if not(iFurthestDistWhenAtCorrectAngle) then iFurthestDistWhenAtCorrectAngle = iCurDistToTarget end
-                    iSlowestSpeedWhenAtCorrectAngle = math.min((iSlowestSpeedWhenAtCorrectAngle or 100), iBomberSpeed)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy at right angle, and we should be able to fire bomb, so switching to manual attack unless want to slow down, iFurthestDistWhenAtCorrectAngle='..iFurthestDistWhenAtCorrectAngle..'; iFastSpeedDistThreshold='..iFastSpeedDistThreshold..'; iSlowestSpeedWhenAtCorrectAngle='..iSlowestSpeedWhenAtCorrectAngle) end
-                    if iFurthestDistWhenAtCorrectAngle < iFastSpeedDistThreshold and iSlowestSpeedWhenAtCorrectAngle > iFastSpeedThreshold then
-                        --Want to slow down
-                        iReorderDist = 0.1
-                        if iCurDistToTarget > iQuarterDistThreshold and iBomberSpeed <= 4 then iReorderDist = 4 end
-                        tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurAngleToTarget, iReorderDist, true, false, false)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will move towards unti by 0.1 distance, with the correct angle, to slow down') end
-                    else
-                        --if iBomberSpeed < iFastestSpeedWhenAtCorreectAngle
-                        bManualAttack = true
-
-                    end
+                if bM28EasyOrNotFAF then
+                    bManualAttack = true
                 else
-                    --Facing the right direction but unable to fire, so move closer
-                    if iCurDistToTarget > oBomber[M28UnitInfo.refiBomberRange] + 5 then
-                        bManualAttack = true
-                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy at right angle, and outside bomber range, so will do manual attack') end
-                    elseif iCurDistToTarget < iHalfDistThreshold then
-                        --Move a fraction of the way towards target, unless we are greater than quarter dist and moving slow
-                        iReorderDist = 0.1
-                        if iCurDistToTarget > iQuarterDistThreshold and iBomberSpeed <= 4 then iReorderDist = 4 end
-                        tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurAngleToTarget, iReorderDist, true, false, false)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will move towards unti by 0.1 distance but with the correct angle') end
-                    elseif iBomberSpeed <= 4 and (iCurDistToTarget >= 60 or (oBomber[M28UnitInfo.refiLastBombFired] and iMaxTimeBetweenShotsWanted - iTimeSinceLastFiredBomb  <= 2) or (iMaxTimeBetweenShotsWanted - iTimeSinceLastFiredBomb) <= 3 and iBomberSpeed <= 0.5) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': We are going slowly and cant yet fire our bomb so want to move to target and not reissue order if last order was to do the same') end
-                        iReorderDist = math.min(iCurDistToTarget * 0.2, iCurDistToTarget - iHalfDistThreshold)
-                        tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurAngleToTarget, iReorderDist, true, false, false)
+                    iCurDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oTarget:GetPosition())
+                    iCurAngleToTarget = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oTarget:GetPosition())
+                    iCurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oBomber)
+                    iCurAngleDif = M28Utilities.GetAngleDifference(iCurAngleToTarget, iCurFacingAngle)
+                    iBomberSpeed = M28UnitInfo.GetUnitSpeed(oBomber)
+                    bManualAttack = false
+
+                    --Are we facing the target? if not, then turn towards them
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToTarget='..iCurDistToTarget..'; iCurAngleToTarget='..iCurAngleToTarget..'; iCurFacingAngle='..iCurFacingAngle..'; iCurAngleDif='..iCurAngleDif..'; Target unit state='..M28UnitInfo.GetUnitState(oTarget)..'; Dist from ground='..(oTarget:GetPosition()[2] - GetSurfaceHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3]))..'; Time since last fired weapon='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0)..'; time since last fired bomb='..(GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0))..'; oBomber[M28UnitInfo.refiTimeBetweenBombs]='..(oBomber[M28UnitInfo.refiTimeBetweenBombs] or 'nil')..'; iHalfDistThreshold='..iHalfDistThreshold) end
+                    if iCurAngleDif > 15 then
+                        if iBomberSpeed <= 0.1 and iCurDistToTarget > iQuarterDistThreshold and (iBomberSpeed <= 0.05 or iCurDistToTarget >= iHalfDistThreshold) then
+                            iReorderDist = 1
+                        else
+                            iReorderDist = 0.1
+                        end
+                        --Turn towards target - decide which is closest way
+
+                        if iCurAngleToTarget > iCurFacingAngle then
+                            if iCurAngleToTarget - iCurFacingAngle > 180 then
+                                --Clockwise means increasing our cur facing angle; however if gap between the angles is more than 180 would be better to decrease our facing angle
+                                bTurnClockwise = false
+                            else
+                                bTurnClockwise = true
+                            end
+                        else --curfacingangle is >= angle to target
+                            if iCurFacingAngle - iCurAngleToTarget > 180 then
+                                --Gap between the two is so large, that increasing our facing angle should get us to the target quicker
+                                bTurnClockwise = true
+                            else
+                                bTurnClockwise = false
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will turn towards target, bTurnClockwise='..tostring(bTurnClockwise)) end
+
+                        if iTimeSinceLastFiredBomb > iMaxTimeBetweenShotsWanted then
+                            if iCurDistToTarget >= 10 then
+                                iDistToMoveTowardsTarget = math.max(2, iCurDistToTarget * 0.3)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will move 30% towards target') end
+                            else
+                                bManualAttack = true --issues with asfs not turning properly when facing a target when they have got too close, so if we are close to a taret and facing the wrong direction, will switch to a manual attack
+                            end
+                            iAngleToMove = 15
+                        elseif (iCurDistToTarget >= 30 and iCurAngleDif <= 60 and iBomberSpeed <= 5) and (iCurDistToTarget >= 60 or (oBomber[M28UnitInfo.refiLastBombFired] and iMaxTimeBetweenShotsWanted - iTimeSinceLastFiredBomb  <= 2)) then
+                            iDistToMoveTowardsTarget = 10
+                            iAngleToMove = 15
+                        else
+                            iDistToMoveTowardsTarget = 0.1
+                            iAngleToMove = 15
+                        end
+                        if bManualAttack then
+                            tMoveViaPoint = nil
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will switch to manual attack as been a while since we have moved') end
+                        else
+                            if bTurnClockwise then
+                                tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurFacingAngle + iAngleToMove, iDistToMoveTowardsTarget, true, false, false)
+                            else
+                                tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurFacingAngle - iAngleToMove, iDistToMoveTowardsTarget, true, false, false)
+                            end
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Dist to tMoveViaPoint='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tMoveViaPoint)..'; Angle='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tMoveViaPoint)..'; Time between shots='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0)..'; iMaxTimeBetweenShotsWanted='..iMaxTimeBetweenShotsWanted..'; iDistToMoveTowardsTarget='..iDistToMoveTowardsTarget)
+                                --M28Utilities.DrawLocation(oBomber:GetPosition(), 2)
+                                --M28Utilities.DrawLocation(tMoveViaPoint, 1)
+                            end
+                        end
+                        --We are facing the target, if we are able to fire then drop a bomb, otherwise slowly approach
+                    elseif GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) > iMaxTimeBetweenShotsWanted then
+                        --Are facing the right direction and able to fire
+                        --First time we are at the right angle - consider slowing down slightly if we dont have that far to reach target and are going quite fast
+                        if not(iFurthestDistWhenAtCorrectAngle) then iFurthestDistWhenAtCorrectAngle = iCurDistToTarget end
+                        iSlowestSpeedWhenAtCorrectAngle = math.min((iSlowestSpeedWhenAtCorrectAngle or 100), iBomberSpeed)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy at right angle, and we should be able to fire bomb, so switching to manual attack unless want to slow down, iFurthestDistWhenAtCorrectAngle='..iFurthestDistWhenAtCorrectAngle..'; iFastSpeedDistThreshold='..iFastSpeedDistThreshold..'; iSlowestSpeedWhenAtCorrectAngle='..iSlowestSpeedWhenAtCorrectAngle) end
+                        if iFurthestDistWhenAtCorrectAngle < iFastSpeedDistThreshold and iSlowestSpeedWhenAtCorrectAngle > iFastSpeedThreshold then
+                            --Want to slow down
+                            iReorderDist = 0.1
+                            if iCurDistToTarget > iQuarterDistThreshold and iBomberSpeed <= 4 then iReorderDist = 4 end
+                            tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurAngleToTarget, iReorderDist, true, false, false)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will move towards unti by 0.1 distance, with the correct angle, to slow down') end
+                        else
+                            --if iBomberSpeed < iFastestSpeedWhenAtCorreectAngle
+                            bManualAttack = true
+
+                        end
                     else
-                        --Move 25% towards target
-                        iReorderDist = math.min(iCurDistToTarget * 0.25, iCurDistToTarget - iHalfDistThreshold)
-                        tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurAngleToTarget, iReorderDist, true, false, false)
-                        if iReorderDist > 5 then iReorderDist = 5 end
-                        if bDebugMessages == true then LOG(sFunctionRef..': will move 25% of the way towards the target') end
+                        --Facing the right direction but unable to fire, so move closer
+                        if iCurDistToTarget > oBomber[M28UnitInfo.refiBomberRange] + 5 then
+                            bManualAttack = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy at right angle, and outside bomber range, so will do manual attack') end
+                        elseif iCurDistToTarget < iHalfDistThreshold then
+                            --Move a fraction of the way towards target, unless we are greater than quarter dist and moving slow
+                            iReorderDist = 0.1
+                            if iCurDistToTarget > iQuarterDistThreshold and iBomberSpeed <= 4 then iReorderDist = 4 end
+                            tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurAngleToTarget, iReorderDist, true, false, false)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will move towards unti by 0.1 distance but with the correct angle') end
+                        elseif iBomberSpeed <= 4 and (iCurDistToTarget >= 60 or (oBomber[M28UnitInfo.refiLastBombFired] and iMaxTimeBetweenShotsWanted - iTimeSinceLastFiredBomb  <= 2) or (iMaxTimeBetweenShotsWanted - iTimeSinceLastFiredBomb) <= 3 and iBomberSpeed <= 0.5) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': We are going slowly and cant yet fire our bomb so want to move to target and not reissue order if last order was to do the same') end
+                            iReorderDist = math.min(iCurDistToTarget * 0.2, iCurDistToTarget - iHalfDistThreshold)
+                            tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurAngleToTarget, iReorderDist, true, false, false)
+                        else
+                            --Move 25% towards target
+                            iReorderDist = math.min(iCurDistToTarget * 0.25, iCurDistToTarget - iHalfDistThreshold)
+                            tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurAngleToTarget, iReorderDist, true, false, false)
+                            if iReorderDist > 5 then iReorderDist = 5 end
+                            if bDebugMessages == true then LOG(sFunctionRef..': will move 25% of the way towards the target') end
+                        end
                     end
                 end
                 if bManualAttack then
