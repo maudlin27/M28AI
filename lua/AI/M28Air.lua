@@ -4357,7 +4357,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                     end
                     local bEnemyHasTooMuchAA = false
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy air units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]))..'; iAlongPathAAThreshold='..iAlongPathAAThreshold..'; Mod dist%='..(tLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; SValue='..tLZTeamData[M28Map.subrefLZSValue]..'; iMaxModDist='..(iMaxModDist or 'nil')..'; ModDist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; iGroundAAThreshold='..(iGroundAAThreshold or 'nil')..'; subrefLZOrWZThreatAllyGroundAA='..tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]) end
-                    if M28Utilities.IsTableEmpty(toOptionalUnitOverride or tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false and (not(iMaxModDist) or tLZTeamData[M28Map.refiModDistancePercent] <= iMaxModDist or tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] >= 4000) then
+                    if M28Utilities.IsTableEmpty(toOptionalUnitOverride or tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false and (not(iMaxModDist) or tLZTeamData[M28Map.refiModDistancePercent] <= iMaxModDist or (tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] >= 4000 and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] > tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and tLZTeamData[M28Map.subrefLZbCoreBase])))) then
                         --Add units from here unless there is too much AA
                         local bUseDetailedCheck = false
                         if tLZTeamData[M28Map.subrefLZSValue] > 10 and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 then bUseDetailedCheck = true end --More precise check if we have friendly structures in the zone
@@ -4691,18 +4691,15 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                 end
                             end
                         end
-                        if not(bAdjacentToCoreZone) then
-                            --if have equiv of 7 t3 maa (just under 4 sams) then still engage
-                            if (tUnitLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tUnitLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) <= 5500 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will avoid enemy airaa unless adjacent to core zone with large groundAA threat, bAdjacentToCoreZone='..tostring(bAdjacentToCoreZone)..'; Airtoground threat='..tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; SValue='..tUnitLZOrWZTeamData[M28Map.subrefLZSValue]..'; Mex by tech='..repru(tUnitLZOrWZTeamData[M28Map.subrefMexCountByTech])) end
+                        if (not(bAdjacentToCoreZone) and (tUnitLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tUnitLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) <= 5500) --if have equiv of 7 t3 maa (just under 4 sams) then still engage
+                        --Dont ignore all enemy airaa if large enemy airaa threat unless high value zone
+                        or not(((tUnitLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tUnitLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= 2 or tUnitLZOrWZTeamData[M28Map.subrefLZSValue] >= 6000) and ((tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > (tUnitLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0))))
+                         then
                                 bAvoidAAThreat = true
-                            end
                         end
 
                     end
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil')) end
-                if not(bAvoidAAThreat) and bAvoidGroundAA and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < 1.1*(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering further adj to say we should avoid aa threat, mod dist% for priority unit='..tUnitLZOrWZTeamData[M28Map.refiModDistancePercent]) end
                 end
 
                 local iPriorityAASearchType
