@@ -163,6 +163,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbEnemyHasTeleport = 'M28EHsT' --True if we think enemy has or is getting teleport
     refbEnemyHasT2PlusTransport = 'M28EHsTn' --true if enemy has t2+ transport
 
+    reftoFriendlyLandExperimentals = 'M28FrLE' --table of land experimentals owned by M28 brains
     subrefiAlliedDFThreat = 'M28TeamDFThreat' --Total DF threat
     subrefiAlliedIndirectThreat = 'M28TeamIndirectThreat' --Total indirect threat
     subrefiAlliedGroundAAThreat = 'M28TeamGroundAAThreat' --Total MAA and structure threat
@@ -2196,6 +2197,16 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
 
                             else
+                                --M28Ally only:
+                                if oUnit:GetAIBrain().M28Team == aiBrain.M28Team and aiBrain.M28AI then
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then
+                                        if not(tTeamData[aiBrain.M28Team][reftoFriendlyLandExperimentals]) then tTeamData[aiBrain.M28Team][reftoFriendlyLandExperimentals] = {} end
+                                        bDebugMessages = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of friendly land experimentals') end
+                                        table.insert(tTeamData[aiBrain.M28Team][reftoFriendlyLandExperimentals], oUnit)
+                                    end
+                                end
+
                                 --M28 (non-ally) specific
 
                                 --Air staging - clear any engineers in other zones constructing them if we dont ahve T3 air
