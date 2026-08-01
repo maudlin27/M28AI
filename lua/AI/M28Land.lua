@@ -13740,16 +13740,33 @@ function ConsiderAssigningMAABodyguardToFatboy(oMAA, oFatboy, bJustReturnIfWantM
     if bJustReturnIfWantMoreMAAOrNot then return bWantToAssign end
 end
 
-function ConsiderAssigningMAABodyguardToACU(oMAA)
-    local oACU = oMAA:GetAIBrain()[M28ACU.refoPrimaryACU]
-    if M28UnitInfo.IsUnitValid(oACU) and not(M28Conditions.IsTableOfUnitsStillValid(oACU[reftoAssignedMAAGuards])) then
+function ConsiderAssigningMAABodyguardToACUOrLandExp(oMAA, bAlsoConsiderAssigningToLandExperimental, bDontAssignToACU)
+    local aiBrain = oMAA:GetAIBrain()
+    local oACU = aiBrain[M28ACU.refoPrimaryACU]
+    local iTeam = aiBrain.M28Team
+
+    if not(bDontAssignToACU) and M28UnitInfo.IsUnitValid(oACU) and not(M28Conditions.IsTableOfUnitsStillValid(oACU[reftoAssignedMAAGuards])) then
         --if enemy has T2+ air or air to ground threat then assign
-        local iTeam = oMAA:GetAIBrain().M28Team
         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 2 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0) > 0 then
             --Want to assign
             if not(oACU[reftoAssignedMAAGuards]) then oACU[reftoAssignedMAAGuards] = {} end
             table.insert(oACU[reftoAssignedMAAGuards], oMAA)
             oMAA[refoAssignedUnitToGuard] = oACU
+        end
+    end
+    if bAlsoConsiderAssigningToLandExperimental and not(oMAA[refoAssignedUnitToGuard]) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftoFriendlyLandExperimentals]) then
+        local oClosestExp
+        local iPlateauWanted = NavUtils.GetLabel(M28Map.refPathingTypeHover, oMAA:GetPosition())
+        if iPlateauWanted then
+            local iIslandWanted
+            if not(EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oMAA.UnitId)) then iIslandWanted = NavUtils.GetLabel(M28Map.refPathingTypeLand, oMAA:GetPosition()) end
+            oClosestExp = GetClosestExperimentalWantingMAAGuards(iPlateauWanted, iIslandWanted, iTeam, oMAA:GetPosition(), 200)
+
+            if oClosestExp then
+                if not(oClosestExp[reftoAssignedMAAGuards]) then oClosestExp[reftoAssignedMAAGuards] = {} end
+                table.insert(oClosestExp[reftoAssignedMAAGuards], oMAA)
+                oMAA[refoAssignedUnitToGuard] = oClosestExp
+            end
         end
     end
 end
@@ -14959,4 +14976,22 @@ function ClearUnitRaiderStatus(oUnit, iTeam, bOnlyRemoveFromCurTargetZone, oOpti
         end
     end
     if not(bOnlyRemoveFromCurTargetZone) then oUnit[refbFlaggedForPriorityScout] = nil end
+end
+
+function GetClosestExperimentalWantingMAAGuards(iPlateauWanted, iIslandWanted, iTeam, tPosition, iMinPosition)
+    local iClosestExp = iMinPosition
+    local oClosestExp, iCurDist
+    for iExp, oExp in M28Team.tTeamData[iTeam][M28Team.reftoFriendlyLandExperimentals] do
+        if oExp[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateauWanted and (not(iIslandWanted) or NavUtils.GetLabel(M28Map.refPathingTypeLand, oExp:GetPosition()) == iIslandWanted)
+                and not(EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oExp.UnitId)) then
+            if not(M28Conditions.IsTableOfUnitsStillValid(oExp[reftoAssignedMAAGuards])) or table.getn(oExp[reftoAssignedMAAGuards]) < 4 then
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(oExp:GetPosition(), tPosition)
+                if iCurDist < iClosestExp then
+                    iClosestExp = iCurDist
+                    oClosestExp = oExp
+                end
+            end
+        end
+    end
+    return oClosestExp
 end
