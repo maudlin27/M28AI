@@ -5220,7 +5220,10 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
 
                 if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack -  Finished searhcing but before overrides for oManualAttackTarget='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')) end
-                if not(oManualAttackTarget) and oEnemyWeAreInRangeOf then oManualAttackTarget = oEnemyWeAreInRangeOf bMoveTowardsTarget = true end
+                if not(oManualAttackTarget) and oEnemyWeAreInRangeOf then
+                    oManualAttackTarget = oEnemyWeAreInRangeOf
+                    bMoveTowardsTarget = true
+                end
                 --non-kiting experimental specific (i.e. GC, Ythotha, Megalith) - if are in a dif zone to the assigned zone then do getunitsaroundpoint to check no enemy experimentals or ACUs almost within range
                 if not(oManualAttackTarget) then
                     if not(oUnit[M28UnitInfo.refbCanKite]) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) and not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
@@ -5389,7 +5392,16 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if bDebugMessages == true then LOG(sFunctionRef..': oManualAttackTarget after check='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')) end
             end
         end
-        --Cant see unit and its mobile and not under construction - move towards target
+        --Move towards target if it is a skirmisher unit
+        if oManualAttackTarget and not(bMoveTowardsTarget) and oUnit[M28UnitInfo.refiCombatRange] <= 64 and not(EntityCategoryContains(M28UnitInfo.refCategoryMegalith + M28UnitInfo.refCategoryFatboy, oUnit.UnitId)) then
+            if (oManualAttackTarget[M28UnitInfo.refiCombatRange] or 0) > (oUnit[M28UnitInfo.refiCombatRange] or 0) and EntityCategoryContains(M28UnitInfo.refCategorySniperBot + M28UnitInfo.refCategoryIndirect, oManualAttackTarget.UnitId) then
+                bMoveTowardsTarget = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to move towards enemy sniperbots and t3 arti') end
+            elseif oUnit.UnitId == 'xsl0401' and not(EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId)) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oManualAttackTarget:GetPosition()) >= 10 then
+                bMoveTowardsTarget = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Want ythotha to move towards target') end
+            end
+        end
         if bDebugMessages == true then
             if oManualAttackTarget then
                 LOG(sFunctionRef..': Extra check to make sure we can see oManualAttackTarget if we have it, before visibility check oManualAttackTarget='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')..'; CanSeeUnit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oManualAttackTarget, false))..'; Fraction complete='..oManualAttackTarget:GetFractionComplete()..'; is oManualAttackTarget mobile='..tostring(EntityCategoryContains(categories.MOBILE, oManualAttackTarget.UnitId))..'; bMoveTowardsTarget='..tostring(bMoveTowardsTarget))
@@ -5397,9 +5409,19 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 LOG(sFunctionRef..': Dont have oManualAttackTarget')
             end
         end
+        --Cant see unit and its mobile and not under construction - move towards target
         if oManualAttackTarget and not(bMoveTowardsTarget) and EntityCategoryContains(categories.MOBILE, oManualAttackTarget.UnitId) and not(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oManualAttackTarget, false)) and oManualAttackTarget:GetFractionComplete() == 1 and (not(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack) or not(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oManualAttackTarget)) then
             if bDebugMessages == true then LOG(sFunctionRef..': We cant see the target we want to manually attack so will flag we want to move towards target') end
             bMoveTowardsTarget = true
+        end
+
+        --Exception - ythotha - charge to enemy base to do lightning storm damage instead
+        if oManualAttackTarget and oUnit.UnitId == 'xsl0401' and not(EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel + categories.COMMAND, oManualAttackTarget.UnitId)) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to suicide ythotha into enemy base, dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])) end
+            local tEnemyBaseToSuicideInto = GetNearbyEnemyBaseLocationToSuicideYthotha(oUnit, tLZTeamData[M28Map.reftClosestEnemyBase], 80, iTeam)
+            if tEnemyBaseToSuicideInto then
+                ForkThread(M28Micro.SuicideYthothaIntoEnemyBase, oUnit, tLZTeamData[M28Map.reftClosestEnemyBase], 80, iTeam, tEnemyBaseToSuicideInto)
+            end
         end
         return oManualAttackTarget, bMoveTowardsTarget
     end
@@ -8672,13 +8694,16 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                                             if not(oTargetToManuallyAttack) then
                                                                                 oTargetToManuallyAttack = M28Utilities.GetNearestUnit(tNearbyHighValueUnits, oUnit:GetPosition())
                                                                             end
+                                                                            if oTargetToManuallyAttack and not(bMoveNotAttack) and oUnit.UnitId == 'xsl0401' and not(EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oTargetToManuallyAttack.UnitId)) then
+                                                                                bMoveNotAttack = true
+                                                                            end
                                                                         end
                                                                         if oTargetToManuallyAttack and not(oTargetToManuallyAttack:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oTargetToManuallyAttack)) then
                                                                             if not(bMoveNotAttack) and M28Utilities.GetDistanceBetweenPositions(oTargetToManuallyAttack:GetPosition(), oUnit:GetPosition()) <= (oUnit[M28UnitInfo.refiDFRange] or 0) + 1 then
                                                                                 DoManualAttack(oUnit, oTargetToManuallyAttack, 'SRManX')
                                                                                 --M28Orders.IssueTrackedAttack(oUnit, oTargetToManuallyAttack, false, 'SRManA', false)
                                                                             else
-                                                                                M28Orders.IssueTrackedMove(oUnit, oTargetToManuallyAttack:GetPosition(), 10, 'SRxpTO', false)
+                                                                                M28Orders.IssueTrackedMove(oUnit, oTargetToManuallyAttack:GetPosition(), 10, false, 'SRxpTO')
                                                                             end
                                                                             if bDebugMessages == true then LOG(sFunctionRef..': Targeting oTargetToManuallyAttack='..oTargetToManuallyAttack.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTargetToManuallyAttack)) end
                                                                         else
@@ -14994,4 +15019,39 @@ function GetClosestExperimentalWantingMAAGuards(iPlateauWanted, iIslandWanted, i
         end
     end
     return oClosestExp
+end
+
+function GetNearbyEnemyBaseLocationToSuicideYthotha(oUnit, tClosestEnemyBase, iMaxDistFromBase, iTeam)
+    --Returns the location to suicide ythotha into enemy base, if we want to
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetNearbyEnemyBaseLocationToSuicideYthotha'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to tClosestEnemyBase='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tClosestEnemyBase)..'; iMaxDistFromBase='..iMaxDistFromBase) end
+    if M28UnitInfo.IsUnitValid(oUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tClosestEnemyBase) <= iMaxDistFromBase then
+        --Check unit is in the same zone as enemy base (so can cehck for enemy experimentals nearby)
+        local iBasePlateau, iBaseZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tClosestEnemyBase)
+        if bDebugMessages == true then LOG(sFunctionRef..': Unit recorded against P'..(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or 'nil')..'Z'..(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')..'; Enemy base is in iBasePlateau='..(iBasePlateau or 'nil')..'; iBaseZone='..(iBaseZone or 'nil')) end
+        if iBasePlateau and iBaseZone and iBasePlateau > 0 and iBasePlateau == oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] and iBaseZone == oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] then
+            --Check enemy has significant mass in buildings here
+            local tBaseLZData = M28Map.tAllPlateaus[iBasePlateau][M28Map.subrefPlateauLandZones][iBaseZone]
+            local tBaseLZTeamData = tBaseLZData[M28Map.subrefLZTeamData][iTeam]
+            if bDebugMessages == true then LOG(sFunctionRef..': subrefThreatEnemyStructureTotalMass]'..(tBaseLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0)) end
+            if (tBaseLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) >= 15000 then
+                local aiBrain = oUnit:GetAIBrain()
+                --Lightning storm has radius of 20, so go with 18 aoe since might be blocked by buildings
+                --GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor, bIncludePreviouslySeenEnemies)
+                local tBestTarget, iDamage = M28Logic.GetBestAOETarget(aiBrain, tClosestEnemyBase, 18, 40000, false, nil, nil, nil, 0.5, 0.5, 6, 0.05, nil, nil, false)
+                if bDebugMessages == true then LOG(sFunctionRef..': iDamage from best aoe target='..iDamage) end
+                if iDamage >= 10000 and tBestTarget then
+                    local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBestTarget)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iDistToTarget='..iDistToTarget) end
+                    if iDistToTarget <= 25 or iDamage >= 15000 or iDamage >= 10000+ 5000 * (iDistToTarget - 25) / (iMaxDistFromBase - 25) then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return tBestTarget
+                    end
+                end
+            end
+        end
+    end
 end

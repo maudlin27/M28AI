@@ -3030,7 +3030,13 @@ function SuicideExperimentalIntoEnemyACU(oUnit, oClosestACUNearUnit, iOrigDistFr
         if M28UnitInfo.IsUnitValid(oUnit) then
             oUnit[M28UnitInfo.refbSpecialMicroActive] = false
             --Use megalith weapon prioritisation as a proxy for what we are likely to want
-            M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMegalith, false)
+            if EntityCategoryContains(M28UnitInfo.refCategoryMegalith, oUnit.UnitId) then
+                M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMegalith, false)
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) then
+                M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityFatboy, false)
+            else
+                M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityExpNormal, false)
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3156,6 +3162,16 @@ function MoveLandUnitNearACU(oUnit, oACU)
             if M28UnitInfo.IsUnitValid(oUnit) then
                 oUnit[M28UnitInfo.refbSpecialMicroActive] = false
                 oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds()
+                --Reset target priorities
+                if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMegalith, oUnit.UnitId) then
+                        M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMegalith, false)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) then
+                        M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityFatboy, false)
+                    else
+                        M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityExpNormal, false)
+                    end
+                end
             end
         end
     end
@@ -3500,4 +3516,68 @@ function IsTargetRunningAway(oPotentialTarget, oUnit, iCurSpeed, iOurMaxSpeed, i
     if bDebugMessages == true then LOG(sFunctionRef..': Target is suitable') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
+end
+
+function SuicideYthothaIntoEnemyBase(oUnit, tEnemyBaseToSuicideInto, iMaxDistFromBase, iTeam, tFirstTargetLocation)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SuicideYthothaIntoEnemyBase'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+        local iCurDist
+        local iBasePlateau, iBaseZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tEnemyBaseToSuicideInto)
+        local tBaseLZData = M28Map.tAllPlateaus[iBasePlateau][M28Map.subrefPlateauLandZones][iBaseZone]
+        local tBaseLZTeamData = tBaseLZData[M28Map.subrefLZTeamData][iTeam]
+        if tBaseLZTeamData then
+            EnableUnitMicroUntilManuallyTurnOff(oUnit, false)
+            while M28UnitInfo.IsUnitValid(oUnit) do
+
+                local tLocationToSuicideInto
+                if tFirstTargetLocation then
+                    tLocationToSuicideInto = tFirstTargetLocation
+                else
+                    tLocationToSuicideInto = M28Land.GetNearbyEnemyBaseLocationToSuicideYthotha(oUnit, tEnemyBaseToSuicideInto, iMaxDistFromBase, iTeam)
+                    if tLocationToSuicideInto then
+                        --Check for nearby enemy ACU and experimental to target instead that are in the zone
+                        if M28Utilities.IsTableEmpty(tBaseLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                            local tNearbyEnemyExperimentalAndACU = EntityCategoryFilterDown(M28UnitInfo.refCategoryExperimentalLevel + categories.COMMAND, tBaseLZTeamData[M28Map.reftoNearestDFEnemies])
+                            if M28Utilities.IsTableEmpty(tNearbyEnemyExperimentalAndACU) == false then
+                                for iExp, oExp in tNearbyEnemyExperimentalAndACU do
+                                    if not(oExp.Dead) and oExp:GetFractionComplete() >= 0.7 then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oExp:GetPosition(), oUnit:GetPosition())
+                                        if bDebugMessages == true then LOG(sFunctionRef..': oExp='..oExp.UnitId..M28UnitInfo.GetUnitLifetimeCount(oExp)..'; Dist to it='..iCurDist..'; oUnit Combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; oExp DF range='..(oExp[M28UnitInfo.refiDFRange] or 'nil')..'; oExp health%='..M28UnitInfo.GetUnitHealthPercent(oExp)..'; oUnit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)) end
+                                        if (iCurDist <= oUnit[M28UnitInfo.refiCombatRange] + 15 and (iCurDist <= oUnit[M28UnitInfo.refiCombatRange] + 5 or EntityCategoryContains(categories.COMMAND, oExp.UnitId)))
+                                                or iCurDist < (oExp[M28UnitInfo.refiDFRange] or 0) and oExp:GetFractionComplete() >= 0.85 and (M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.2 or M28UnitInfo.GetUnitHealthPercent(oUnit) >= M28UnitInfo.GetUnitHealthPercent(oExp)) then
+                                            tLocationToSuicideInto = nil
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will abort suicide logic so our normal logic can target oExp') end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Loop for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; is tLocationToSuicideInto nil='..tostring(tLocationToSuicideInto == nil)..'; Time='..GetGameTimeSeconds()) end
+                if tLocationToSuicideInto then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a location to suicide into, dist to it='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLocationToSuicideInto)) end
+                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLocationToSuicideInto) <= 5 then
+                        M28Orders.IssueTrackedAggressiveMove(oUnit, tLocationToSuicideInto, 5, false, 'SuicYthA', true)
+                    else
+                        M28Orders.IssueTrackedMove(oUnit, tLocationToSuicideInto, 5, false, 'SuicYthM', true)
+                    end
+                else
+                    break
+                end
+                --Clear first value
+                tFirstTargetLocation = nil
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+            if M28UnitInfo.IsUnitValid(oUnit) then
+                oUnit[M28UnitInfo.refbSpecialMicroActive] = false
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
