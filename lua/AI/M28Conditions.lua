@@ -1492,6 +1492,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
     local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
 
 
+
     local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
     local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
     if iCurIsland ~= iEnemyIsland and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.35 then
@@ -1850,7 +1851,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                         --Naval facs - want to get more land/air facs if we have lost navy
                         or (aiBrain[M28Overseer.refbPrioritiseNavy] and iPlateau > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 or (GetGameTimeSeconds() <= 600 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) == 0)))
                         or (iLandFacsInZone + iAirFacsInZone >= 3 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < 2)
-                        then
+                then
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want more facs as want to tech or turtle, unless this zone has no factories') end
                     bWantMoreFactories = false
                     bDecided = true
@@ -2359,6 +2360,10 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                                 iLandFactoriesWantedBeforeAir = 1
                                             end
                                         end
+                                    end
+                                    if iLandFactoriesWantedBeforeAir > 1 and tLZTeamData[M28Map.refbBaseInSafePosition] and aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 2 then
+                                        iLandFactoriesWantedBeforeAir = 1
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have air slot with T2+ air so want only 1 land fac before getting air facs') end
                                     end
                                     if iLandFactoriesHave >= 4 and M28Map.iMapSize >= 1000 and not(TeamHasAirControl(iTeam)) then iAirFactoriesForEveryLandFactory = iAirFactoriesForEveryLandFactory * 1.5 end
 
