@@ -3183,7 +3183,68 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                             end
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Checking highest enemy PD range nearby, iBestEnemyThreatRange='..(iBestEnemyThreatRange or 'nil')) end
                                                             if iBestEnemyThreatRange >= 40 then
+                                                                --If we have multiple upgrades and high health still consider advancing if zone we are moving to doesnt have the PD in it but does have other enemy units, or the nearest enemy unit isnt a PD and isn't that far in range of the PD
                                                                 bEnemyHasPDOrSignificantACUs = true
+                                                                if (oACU[M28UnitInfo.refiDFRange] or 0) > 10 and (not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) or oACU[refbUseACUAggressively]) and iHealthPercent >= 0.95 and oACU[refiUpgradeCount] >= 2 and (oACU[refiUpgradeCount] >= 3 or not(EntityCategoryContains(categories.AEON, oACU.UnitId))) then
+
+                                                                    local toNearbyEnemyPD = {}
+                                                                    local oNearestEnemyUnit
+                                                                    local tbRecordedPDByEntityID = {}
+                                                                    local iACUDFRange = oACU[M28UnitInfo.refiDFRange]
+                                                                    local iCurDist
+                                                                    local iClosestDist = 10000
+                                                                    local tACUPosition = oACU:GetPosition()
+                                                                    function GetNearestEnemyAndPDInZone(tCurLZTeamData)
+                                                                        if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                                                            for iUnit, oUnit in tCurLZTeamData[M28Map.subrefTEnemyUnits] do
+                                                                                if not(oUnit.Dead) then
+                                                                                    if oUnit[M28UnitInfo.refiDFRange] > iACUDFRange and EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId) then
+                                                                                        if not(tbRecordedPDByEntityID[oUnit.EntityId]) then
+                                                                                            tbRecordedPDByEntityID[oUnit.EntityId] = true
+                                                                                            table.insert(toNearbyEnemyPD, oUnit)
+                                                                                        end
+                                                                                    end
+                                                                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tACUPosition)
+                                                                                    if iCurDist < iClosestDist then
+                                                                                        iClosestDist = iCurDist
+                                                                                        oNearestEnemyUnit = oUnit
+                                                                                    end
+                                                                                end
+                                                                            end
+                                                                        end
+                                                                    end
+                                                                    GetNearestEnemyAndPDInZone(tLZTeamData)
+                                                                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                                                        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                                                            local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                                                                            GetNearestEnemyAndPDInZone(tAdjLZTeamData)
+                                                                        end
+                                                                    end
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': oNearestEnemyUnit='..(oNearestEnemyUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyUnit) or 'nil')) end
+                                                                    if not(oNearestEnemyUnit) then
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': No nearby enemy unit for some reason so will ignore PD') end
+                                                                        bEnemyHasPDOrSignificantACUs = false
+                                                                    elseif oNearestEnemyUnit[M28UnitInfo.refiDFRange] > iACUDFRange then
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Nearest enemy outranges us so will run from the PD') end
+                                                                    else
+                                                                        --Is the nearest enemy in range of PD?
+                                                                        local bNearEnemyPD = false
+                                                                        if M28Utilities.IsTableEmpty(toNearbyEnemyPD) == false then
+                                                                            for iPD, oPD in toNearbyEnemyPD do
+                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering oPD='..oPD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPD)..'; Dist from this to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oPD:GetPosition(), oNearestEnemyUnit:GetPosition())..'; iACUDFRange='..iACUDFRange..'; PDDFRange='..(oPD[M28UnitInfo.refiDFRange] or 0)) end
+                                                                                if M28Utilities.GetDistanceBetweenPositions(oPD:GetPosition(), oNearestEnemyUnit:GetPosition()) <= oPD[M28UnitInfo.refiDFRange] - iACUDFRange then
+                                                                                    if bDebugMessages == true then LOG(sFunctionRef..': We have to get in range of the enemy PD to attack with our ACU so will run from the PD') end
+                                                                                    bNearEnemyPD = true
+                                                                                    break
+                                                                                end
+                                                                            end
+                                                                        end
+                                                                        if not(bNearEnemyPD) then
+                                                                            if bDebugMessages == true then LOG(sFunctionRef..': No PD in range of nearest enemy unit so will change bEnemyHasPDOrSignificantACUs back to false') end
+                                                                            bEnemyHasPDOrSignificantACUs = false
+                                                                        end
+                                                                    end
+                                                                end
                                                             end
                                                         end
                                                         if bEnemyHasPDOrSignificantACUs then bWantToRun = true end
@@ -4598,6 +4659,7 @@ function ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZ
         local iTotalReclaimWanted
         local iIndividualReclaimThreshold
         local bGetEnergy = false
+        if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, bOnlyConsiderIfInBuildRange='..tostring(bOnlyConsiderIfInBuildRange or false)..'; iIndividualReclaimThresholdOverride='..(iIndividualReclaimThresholdOverride or 'nil')..'; iTotalReclaimFactorOverride='..(iTotalReclaimFactorOverride or 'nil')..'; iMassStoredThresholdOverride='..(iMassStoredThresholdOverride or 'nil')..'; Time='..GetGameTimeSeconds()) end
         if bOnlyConsiderIfInBuildRange then
             if (oEngineer[refiUpgradeCount] or 0) > 0 and not(oEngineer.HasEnhancement and oEngineer:HasEnhancement('AdvancedEngineering')) then
                 if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) or not(M28Conditions.TeamHasLowMass(oEngineer:GetAIBrain().M28Team)) then
@@ -4639,7 +4701,7 @@ function ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZ
 
         if (bGetEnergy and tLZData[M28Map.subrefLZTotalEnergyReclaim] >= iTotalReclaimWanted) or (not(bGetEnergy) and tLZData[M28Map.subrefTotalMassReclaim] >= iTotalReclaimWanted and (tLZData[M28Map.subrefTotalSignificantMassReclaim] >= iIndividualReclaimThreshold or iIndividualReclaimThreshold <= M28Map.iSignificantMassThreshold * 0.7) and M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamAverageMassPercentStored] <= (iMassStoredThresholdOverride or 0.6)) then
             --If any reclaim of iIndividualReclaimThreshold+ value then get ACU to reclaim
-                                          --GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone, bOptionalReturnTrueIfGivenOrder)
+            --GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone, bOptionalReturnTrueIfGivenOrder)
             local bGivenOrder = M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, 1,                    tLZTeamData, iPlateau,          iLandZone,      bGetEnergy,         (bOnlyConsiderIfInBuildRange or false), iIndividualReclaimThreshold, false, true)
             if bDebugMessages == true then LOG(sFunctionRef..': ACU last order after checking for reclaim in area='..reprs(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]])) end
             local tLastOrder = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]]
@@ -4730,9 +4792,12 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
                     if iAdjLZ == iRecentLandZoneRef then iCurValue = iCurValue * 1.05 + 25 end
                     if (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) < 50 + 100 * oACU[refiUpgradeCount] then
                         iCurValue = iCurValue * 0.7
+                        if not(iAdjLZ == iRecentLandZoneRef) then
+                            iCurValue = iCurValue * 0.1
+                        end
                         if bDebugMessages == true then LOG(sFunctionRef..': Reducing value of going to this zone as small enemy combat threat') end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iCurValue='..iCurValue..'; iHighestValueAmount='..iHighestValueAmount..'; subrefLZTValue (i.e. cur value before adjust)='..tAdjLZTeamData[M28Map.subrefLZTValue]) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurValue='..iCurValue..'; iHighestValueAmount='..iHighestValueAmount..'; subrefLZTValue (i.e. cur value before adjust)='..tAdjLZTeamData[M28Map.subrefLZTValue]..'; subrefTThreatEnemyCombatTotal='..(tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; subrefLZSValue='..(tAdjLZTeamData[M28Map.subrefLZSValue] or 'nil')..'; subrefLZTThreatAllyCombatTotal='..(tAdjLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')) end
                     if iCurValue > iHighestValueAmount then
                         --Have we run from this zone recently?
                         if not(oACU[reftiTimeLastRanFromZoneByPlateau][iPlateau][iAdjLZ]) or GetGameTimeSeconds() - oACU[reftiTimeLastRanFromZoneByPlateau][iPlateau][iAdjLZ] > iSecondsToIgnoreZonesRecentlyRunFrom then
@@ -7341,7 +7406,8 @@ function GetACUOrder(aiBrain, oACU)
 
 
                             --If we are already in the zone for the rally point and it has unbuilt mexes or significant reclaim then want to consider getting them; otherwise go to nearest friendly base
-                            if not(bHaveNearbyExperimentalOrder) and (not(bConsiderMexesAndReclaim) or (not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 15)) and not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, M28UnitInfo.GetUnitHealthPercent(oACU) < 0.75, 20)))) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': About to check for mexes and reclaim in our build range, bConsiderMexesAndReclaim='..tostring(bConsiderMexesAndReclaim)..'; subrefLZThreatEnemyBestMobileDFRange='..(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 'nil')..'; subrefLZThreatEnemyBestStructureDFRange='..(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 'nil')..'; expect to only want reclaim in acu range='..tostring(math.max((tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0)) > oACU[M28UnitInfo.refiDFRange]) or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.75) end
+                            if not(bHaveNearbyExperimentalOrder) and (not(bConsiderMexesAndReclaim) or (not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 15)) and not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, ((math.max((tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0)) > oACU[M28UnitInfo.refiDFRange]) or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.75), 20)))) then
 
                                 --Consider using old rally point if new one is further from base and <60s since we have retreated
                                 if oACU[reftLastRallyPointRanTo] and oACU[refiTimeLastWantedToRun] and GetGameTimeSeconds() - oACU[refiTimeLastWantedToRun] <= 60 then

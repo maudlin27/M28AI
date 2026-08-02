@@ -12671,7 +12671,19 @@ function AssignValuesToLandZones(iTeam)
                         iCurValue = tLandZoneData[M28Map.subrefLZOrWZMexCount] * 250 + (tLandZoneData[M28Map.subrefTotalMassReclaim] or 0) * 0.25
                         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                             tFriendlyNonPDBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                            iFriendlyBuildingValue = M28UnitInfo.GetMassCostOfUnits(tFriendlyNonPDBuildings)
+
+                            iFriendlyBuildingValue = 0
+                            if M28Utilities.IsTableEmpty(tFriendlyNonPDBuildings) == false then
+                                for iUnit, oUnit in tFriendlyNonPDBuildings do
+                                    if not(oUnit.Dead) then
+                                        if oUnit:GetFractionComplete() < 1 then
+                                            iFriendlyBuildingValue = iFriendlyBuildingValue + (oUnit[M28UnitInfo.refiUnitMassCost] or 0) * oUnit:GetFractionComplete()
+                                        else
+                                            iFriendlyBuildingValue = iFriendlyBuildingValue + (oUnit[M28UnitInfo.refiUnitMassCost] or 0)
+                                        end
+                                    end
+                                end
+                            end
                             iCurValue = iCurValue + iFriendlyBuildingValue
                         else
                             iFriendlyBuildingValue = 0
