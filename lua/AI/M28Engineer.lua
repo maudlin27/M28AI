@@ -10625,6 +10625,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         end
                     end
                 elseif iActionToAssign == refActionAssistUpgrade then
+
                     if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) then
                         M28Utilities.ErrorHandler('Trying to assist upgrade but there are none for this LZ')
                     else
@@ -10636,6 +10637,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         elseif tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.2 then
                             iMexProgressAdjust = 0.5
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iMexProgressAdjust='..(iMexProgressAdjust or 'nil')..'; is vOptionalVariable nil='..tostring(vOptionalVariable == nil)..'; vOptionalVariable unit='..(vOptionalVariable.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(vOptionalVariable) or 'nil')) end
                         if vOptionalVariable and M28UnitInfo.IsUnitValid(vOptionalVariable) then
                             oBestProgress = vOptionalVariable
                         else
@@ -10644,7 +10646,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                             for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
                                 if M28UnitInfo.IsUnitValid(oUnit) and oUnit.GetWorkProgress then
                                     iCurProgress = (oUnit:GetWorkProgress() or 0)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurProgress='..iCurProgress..' for upgrading unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iMexProgressAdust='..iMexProgressAdjust) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurProgress='..iCurProgress..' for upgrading unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iMexProgressAdust='..(iMexProgressAdjust or 'nil')) end
                                     if iMexProgressAdjust and EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iCurProgress = iCurProgress + iMexProgressAdjust
                                     elseif iLandFacProgressAdjust and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH1, oUnit.UnitId) then iCurProgress = iCurProgress + iLandFacProgressAdjust
                                     end
@@ -12002,7 +12004,7 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
     end
 
     if (iBuildPowerWanted or 5) > 0 then
-        --if we have upgrading t2 factory in zone and havnet built any exps yet then assist this instead
+        --if we have upgrading t2 factory in zone and havnet built any exps yet then assist this instead; but if low mass and in air slot then assist mex upgrade instead
         local bAssistingUpgradingFactory = false
         local oActiveT2UpgradeToAssist
         if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
@@ -12020,6 +12022,21 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
         end
         if bDebugMessages == true then LOG(sFunctionRef..': oActiveT2UpgradeToAssist='..(oActiveT2UpgradeToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oActiveT2UpgradeToAssist) or 'nil')..'; Is subreftoActiveUpgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]))) end
         if oActiveT2UpgradeToAssist then
+            if tLZOrWZTeamData[M28Map.refbBaseInSafePosition] and (tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and M28Conditions.TeamHasLowMass(iTeam) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+                local oClosestMexToMidpoint
+                local iClosestMexToMidpoint = 1000
+                local iCurDist
+                for iUnit, oUnit in (tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) do
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])
+                        if iCurDist < iClosestMexToMidpoint then
+                            oActiveT2UpgradeToAssist = oUnit
+                            iClosestMexToMidpoint = iCurDist
+                            if bDebugMessages == true then LOG(sFunctionRef..': Low mass and in air slot so switching to assisting mex upgrade, mex iCurDist to midpoint='..iCurDist) end
+                        end
+                    end
+                end
+            end
             HaveActionToAssign(refActionAssistUpgrade, 1, iBuildPowerWanted, oActiveT2UpgradeToAssist)
             bAssistingUpgradingFactory = true
         end
@@ -14998,7 +15015,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Assist mex and air fac upgrades if in a safe zone or high resource modifier or have good amount of mass and number of units of that tech built; also assist mex more generally if have already have at least 1 mex of the same tech level and no enemies in an adjacent zone
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Priority mex or air fac assist, iCurPriority='..iCurPriority..'; is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]))..'; Is base in safe position='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition])..'; Enemies in adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Mex count: T1='..tLZTeamData[M28Map.subrefMexCountByTech][1]..'; T2='..tLZTeamData[M28Map.subrefMexCountByTech][2]..'; T3='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Priority mex or air fac assist, iCurPriority='..iCurPriority..'; is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]))..'; Is base in safe position='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition])..'; Enemies in adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Mex count: T1='..tLZTeamData[M28Map.subrefMexCountByTech][1]..'; T2='..tLZTeamData[M28Map.subrefMexCountByTech][2]..'; T3='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; low mass='..tostring(bHaveLowMass)) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false and (tLZTeamData[M28Map.refbBaseInSafePosition] or tLZTeamData[M28Map.subrefMexCountByTech][2] > 0) then
         -- or (tLZTeamData[M28Map.subrefMexCountByTech][2] > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][1] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 or tLZTeamData[M28Map.subrefMexCountByTech][2] > 0)  and not(M28Overseer.bUnitRestrictionsArePresent)
         --Decide if we want to assist an air factory, or instead assist a mex upgrade
@@ -15027,13 +15044,19 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 --Do we want to assist this rather than a mex?
                 if not(bHaveLowMass) then
                     oFactoryOrMexToAssist = oHighestHQToConsiderAssisting
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont have low mass so ok with assisting this factory') end
                 elseif bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oHighestHQToConsiderAssisting.UnitId) and iBestCompletionOfCurrentTechLevel < 0.6 then
                     --Dont assist anything
+                    if bDebugMessages == true then LOG(sFunctionRef..': Stalling power so dont want to assist air fac') end
                 else
-                    --Tech 1 requirement to assist to get t2 sooner - want 35 mass income per sec before considering assisting
+                    --Tech 1 requirement to assist to get t2 sooner - want 35 mass income per sec before considering assisting; also dont assist getting T3 land HQ in air slot if have low mass and mexes upgrading
                     if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oHighestHQToConsiderAssisting.UnitId) then
-                        if M28Conditions.HaveEnoughGrossEcoToSupportLandHQUpgrade(aiBrain) then
-                            oFactoryOrMexToAssist = oHighestHQToConsiderAssisting
+                        if (not(bHaveLowMass) or not(tLZTeamData[M28Map.refbBaseInSafePosition]) or EntityCategoryContains(categories.TECH1, oHighestHQToConsiderAssisting.UnitId) or (tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) == 0) then
+                            if M28Conditions.HaveEnoughGrossEcoToSupportLandHQUpgrade(aiBrain) then
+                                oFactoryOrMexToAssist = oHighestHQToConsiderAssisting
+                                if bDebugMessages == true then LOG(sFunctionRef..': we have enough gross eco to support a land factory HQ upgrade') end
+                            end
+                        elseif bDebugMessages == true then LOG(sFunctionRef..': In air slot so want to focus on assisting mexes if low mass or air facs')
                         end
                     elseif EntityCategoryContains(categories.TECH1, oHighestHQToConsiderAssisting.UnitId) then
                         if M28Conditions.HaveEnoughGrossEcoToSupportLandHQUpgrade(aiBrain, 1) then
@@ -15110,6 +15133,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted, oFactoryOrMexToAssist)
         end
     end
+    bDebugMessages = false
 
     --More factories if have some mass stored and enemy is still at T1
     iCurPriority = iCurPriority + 1
