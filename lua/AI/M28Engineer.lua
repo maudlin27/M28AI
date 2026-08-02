@@ -15133,7 +15133,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted, oFactoryOrMexToAssist)
         end
     end
-    bDebugMessages = false
 
     --More factories if have some mass stored and enemy is still at T1
     iCurPriority = iCurPriority + 1

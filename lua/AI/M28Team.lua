@@ -2201,7 +2201,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 if oUnit:GetAIBrain().M28Team == aiBrain.M28Team and aiBrain.M28AI then
                                     if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then
                                         if not(tTeamData[aiBrain.M28Team][reftoFriendlyLandExperimentals]) then tTeamData[aiBrain.M28Team][reftoFriendlyLandExperimentals] = {} end
-                                        bDebugMessages = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of friendly land experimentals') end
                                         table.insert(tTeamData[aiBrain.M28Team][reftoFriendlyLandExperimentals], oUnit)
                                     end
