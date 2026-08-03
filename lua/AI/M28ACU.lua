@@ -2117,7 +2117,7 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
     local sFunctionRef = 'GetACUUpgradeWanted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     local sUpgradeWanted, bIgnoreOtherConditions
 
@@ -2209,13 +2209,35 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
             local sPotentialUpgrade = oACU[reftPreferredUpgrades][1]
             if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false and sPotentialUpgrade then
                 local tEnhancement = oACU:GetBlueprint().Enhancements[sPotentialUpgrade]
+                local iTimeLastUpgradeCompleted = 10000
+                local iNetEPreviousEnhancementCostPerTick = 0
+                local sPreviousEnhancement
+                if oACU[refiUpgradeCount] > 0 and M28Utilities.IsTableEmpty(oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete]) == false then
+                    for sPrevEnhancement, iTimeCompleted in oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering sPrevEnhancement='..sPrevEnhancement..'; iTimeCompleted='..iTimeCompleted..'; Cur gametimeseconds='..GetGameTimeSeconds()) end
+                        if GetGameTimeSeconds() - iTimeCompleted < iTimeLastUpgradeCompleted then
+                            iTimeLastUpgradeCompleted = GetGameTimeSeconds() - iTimeCompleted
+                            sPreviousEnhancement = sPrevEnhancement
+                        end
+                    end
+                end
+                if sPreviousEnhancement then
+                    local tEnhancementDetails = oACU:GetBlueprint().Enhancements[sPreviousEnhancement]
+                    if tEnhancementDetails then
+                        local iBuildRate = oACU:GetBlueprint().Economy.BuildRate
+                        if aiBrain.CheatEnabled then iBuildRate = iBuildRate * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Previously completed enhancement: BuildCostEnergy='..tEnhancementDetails.BuildCostEnergy..'; BuildTime='..tEnhancementDetails.BuildTime..'; iBuildRate='..iBuildRate) end
+                        iNetEPreviousEnhancementCostPerTick = (tEnhancementDetails.BuildCostEnergy * iBuildRate / tEnhancementDetails.BuildTime) * 0.1
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iTimeLastUpgradeCompleted='..iTimeLastUpgradeCompleted..'; iNetEPreviousEnhancementCostPerTick='..iNetEPreviousEnhancementCostPerTick..'; brain refiNetEnergyBaseIncome='..aiBrain[M28Economy.refiNetEnergyBaseIncome]) end
                 if tEnhancement.BuildCostMass <= 100 and tEnhancement.BuildCostEnergy <= 100 and (oACU:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 600 or not(sUpgradeWanted == 'CloakingGenerator' or sUpgradeWanted == 'Sheild')) then
                     sUpgradeWanted = sPotentialUpgrade
                     if tEnhancement.BuildTime <= 100 then
                         bIgnoreOtherConditions = true
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Low cost upgrade wanted') end
-                elseif (not(M28Conditions.HaveLowPower(iTeam)) or aiBrain[M28Economy.refbBuiltParagon] or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 7500 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
+                elseif (not(M28Conditions.HaveLowPower(iTeam)) or aiBrain[M28Economy.refbBuiltParagon] or (iTimeLastUpgradeCompleted < 5 and aiBrain[M28Economy.refiNetEnergyBaseIncome] + iNetEPreviousEnhancementCostPerTick > 0) or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 7500 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
                     if bWantToDoTeleSnipe or bIgnoreEcoCondition then sUpgradeWanted = sPotentialUpgrade
                     else
                         --Do we have the eco to support the upgrade?
@@ -7873,7 +7895,7 @@ function GetACUOrder(aiBrain, oACU)
                                                                                                                     bOnlyConsiderInBuildRange = true
                                                                                                                 end
                                                                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Dont want to build mex, will cehck if want to get reclaim, bOnlyConsiderInBuildRange='..tostring(bOnlyConsiderInBuildRange)..'; Mod dist='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; Enemy ground tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]) end
-                                                                                                                if ( tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] < 40 or not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, true))) and ( (tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 40 and not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, bOnlyConsiderInBuildRange))) or (not(bOnlyConsiderInBuildRange) and not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false))))  then
+                                                                                                                if ( tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] < 40 or not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, true))) and ( (tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 40 or not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, bOnlyConsiderInBuildRange))) or (not(bOnlyConsiderInBuildRange) and not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false))))  then
                                                                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want to get reclaim, will see if want to attack adjacent enemies; are there adjacent enemies='..tostring(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])) end
                                                                                                                     --Is a friendly ACU getting an upgrade in this or an adjacent zone? If so then assist it
                                                                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to assist a friendly nearby upgrading ACU if there is one') end
