@@ -1001,7 +1001,7 @@ function RecordAllPlayers()
         bRecordedAllPlayers = true
         for iBrain, oBrain in ArmyBrains do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iBrain '..iBrain..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..'; Is civilian='..tostring(M28Conditions.IsCivilianBrain(oBrain))..'; Is M28AI='..tostring(oBrain.M28AI or false)..'; Time='..GetGameTimeSeconds()..'; M28Team value='..(oBrain.M28Team or 'nil')) end
-            if not(M28Conditions.IsCivilianBrain(oBrain)) then --Compatibility with making civilian brains use M28 logic - means they need to be part of a team
+            if not(M28Conditions.IsCivilianBrain(oBrain)) or M28Map.bIsCampaignMap then --Compatibility with making civilian brains use M28 logic - means they need to be part of a team
                 iPlayersAtGameStart = iPlayersAtGameStart + 1
                 if not(oBrain.M28Team) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Will create a new team for brain '..oBrain.Nickname) end
