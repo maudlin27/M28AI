@@ -1531,6 +1531,7 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; Does bomber fire salvo='..tostring(M28UnitInfo.DoesBomberFireSalvo(oBomber) or false)..'; GameTime='..GetGameTimeSeconds()) end
+
     --First delay microing until finished our salvo if dealing with T1-T3 bomber
     if M28UnitInfo.DoesBomberFireSalvo(oBomber) and EntityCategoryContains(M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL, oBomber.UnitId) then
         if bDebugMessages == true then LOG(sFunctionRef..': Will wait a second so bomber can finish firing') end
@@ -1549,6 +1550,17 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
                 tDirectionToMoveTo = M28Map.PlayerStartPoints[oBomber:GetAIBrain():GetArmyIndex()]
             end
         end
+        --Campaign special override - ignore microing if near start of game and a cutscene
+        if M28Map.bIsCampaignMap and ScenarioInfo.OpEnded and GetGameTimeSeconds() <= 120 and bContinue then bContinue = false end
+        --If bomber already has micro active then dont run this
+        if bContinue and oBomber[M28UnitInfo.refbSpecialMicroActive] and not(oBomber[M28UnitInfo.refbLowerPriorityMicroActive]) and (not(oBomber[M28UnitInfo.refiGameTimeToResetMicroActive]) or GetGameTimeSeconds() < oBomber[M28UnitInfo.refiGameTimeToResetMicroActive]) then
+            --Wait 1 second just in cae temporary delay
+            WaitSeconds(1)
+            if oBomber[M28UnitInfo.refbSpecialMicroActive] and not(oBomber[M28UnitInfo.refbLowerPriorityMicroActive]) then
+                bContinue = false
+            end
+        end
+
         local aiBrain
         local bAdjustHoverMicroCount = false
         if bContinue then

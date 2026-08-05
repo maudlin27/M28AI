@@ -2755,15 +2755,31 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     if bDebugMessages == true then LOG(sFunctionRef..': Removed unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from table of units wanting reclaiming in this zone for all teams') end
                 end
             end
-            --Fort clarke assault - dont control seraphim bombers in the short period after cutscene ends and the main game starts if we have M28 taking control of allies
+            --Fort clarke assault - dont control seraphim bombers, gunships or asfs in the short period after cutscene ends and the main game starts if we have M28 taking control of allies
         elseif ScenarioInfo.Seraphim and ScenarioInfo.CoopCDR and ScenarioInfo.UnitNames[ScenarioInfo.Seraphim]['NIS_Bomber_1'] and (ScenarioInfo.Options.CampAI == 2 or ScenarioInfo.Options.CampAI == 4) then
             if bDebugMessages == true then LOG(sFunctionRef..': Will disable orders for the experimental bombers') end
+            local oSeraphimBrain
+            local toBombersToKill = {}
             for iBomber = 1, 3 do
                 local oUnit = ScenarioInfo.UnitNames[ScenarioInfo.Seraphim]['NIS_Bomber_'..iBomber]
                 if oUnit then
+                    table.insert(toBombersToKill, oUnit)
+                    if not(oSeraphimBrain) and not(oUnit.Dead) then oSeraphimBrain = oUnit:GetAIBrain() end
                     if bDebugMessages == true then LOG(sFunctionRef..': Setting micro flag for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                    M28Micro.TrackTemporaryUnitMicro(oUnit, 90, nil, false)
+                    M28Micro.TrackTemporaryUnitMicro(oUnit, 600, nil, false)
                 end
+            end
+            if oSeraphimBrain then
+                local tGunshipsAndASFs = oSeraphimBrain:GetListOfUnits(categories.xsa0303 + categories.xsa0203, false, true)
+                if M28Utilities.IsTableEmpty(tGunshipsAndASFs) == false then
+                    for iUnit, oUnit in tGunshipsAndASFs do
+                        M28Micro.TrackTemporaryUnitMicro(oUnit, 180, nil, false)
+                    end
+                end
+            end
+            --Redundancy - Campaign script appears to try and send bombers to a target where they get killed when close, but in the event M28 logic introduces special microing order the below should ensure the bombers die
+            if M28Conditions.IsTableOfUnitsStillValid(toBombersToKill) then
+                ForkThread(DelayedKillUnits, toBombersToKill, 300)
             end
         end
     else
@@ -4406,4 +4422,13 @@ function PeriodicallySendEngineerToCaptureTarget(oCaptureTarget, sOptionalObject
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function DelayedKillUnits(toUnits, iSecondsToWait)
+    WaitSeconds(iSecondsToWait)
+    if M28Conditions.IsTableOfUnitsStillValid(toUnits) then
+        for iUnit, oUnit in toUnits do
+            M28Orders.IssueTrackedKillUnit(oUnit)
+        end
+    end
 end

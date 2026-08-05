@@ -201,13 +201,25 @@ function RefreshWaterRallyPoints(iTeam, iPond)
             --Check all zones without the 'adjacent to land zone' restriction if we dont have any water zone
             if bDebugMessages == true then LOG(sFunctionRef..': iClosestWZRef under default approach='..(iClosestWZRef or 'nil')..'; if is nil then will try every WZ and get closest to base') end
             if not(iClosestWZRef) then
+                local oFirstM28Brain
                 for iWaterZone, tWZData in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones] do
                     if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]) then
                         local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                        iCurDistToRallyLZ = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestFriendlyBase])
-                        if iCurDistToRallyLZ < iClosestDistToRallyLZ then
-                            iClosestDistToRallyLZ = iCurDistToRallyLZ
-                            iClosestWZRef = iWaterZone
+                        if tWZTeamData then
+                            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftClosestFriendlyBase]) then
+                                if not(oFirstM28Brain) then
+                                    oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
+                                end
+                                tWZTeamData[M28Map.reftClosestFriendlyBase] = M28Map.GetPlayerStartPosition(oFirstM28Brain)
+                                M28Utilities.ErrorHandler('Lack friendly base for water zone so will use first M28 brain start position')
+                            end
+                            iCurDistToRallyLZ = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestFriendlyBase])
+                            if iCurDistToRallyLZ < iClosestDistToRallyLZ then
+                                iClosestDistToRallyLZ = iCurDistToRallyLZ
+                                iClosestWZRef = iWaterZone
+                            end
+                        else
+                            M28Utilities.ErrorHandler('We lack team data for a water zone for iTeam '..iTeam)
                         end
                     end
                 end
@@ -3507,7 +3519,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                                                 if bDontCheckIfTargetUnderwater or not(M28UnitInfo.IsUnitUnderwater(oPriority)) then
                                                                     if (iModDistToPriority - math.min((iDefencesHeadroom or 30), 30) <= math.max((oUnit[M28UnitInfo.refiIndirectRange] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0)))
                                                                             --If current target is proteted by this shield then target this isntead
-                                                                            or (M28Utilities.GetDistanceBetweenPositions(oBuildingOrPriorityToAttack:GetPosition(), oPriority:GetPosition()) <= 23)
+                                                                            or (M28UnitInfo.IsUnitValid(oBuildingOrPriorityToAttack) and M28Utilities.GetDistanceBetweenPositions(oBuildingOrPriorityToAttack:GetPosition(), oPriority:GetPosition()) <= 23)
                                                                     then
                                                                         if not((oUnit[M28UnitInfo.refiDFRange] or 0) > (oUnit[M28UnitInfo.refiIndirectRange] or 0) and ((oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 and iDistToPriority <= oUnit[M28UnitInfo.refiDFRange] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) <= 4) or M28Logic.IsShotBlocked(oUnit, oPriority))) then
                                                                             if bDebugMessages == true then LOG(sFunctionRef..': Changing oBuildingOrPriorityToAttack to be this unit, iDistToPriority='..iDistToPriority) end

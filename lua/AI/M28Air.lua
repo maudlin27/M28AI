@@ -540,6 +540,12 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
     RecordTorpedoBomberPriorityLocations(iTeam, iAirSubteam)
     ForkThread(ReassessTorpBomberPriorityLocations, iTeam, iAirSubteam)
 
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] = 0
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.refiOurGunshipAAThreat] = 0
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] = 0
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] = 0
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat] = 0
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurExpBomberThreat] = 0
 
     while M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false do
         if ScenarioInfo.OpEnded and M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then
@@ -2257,7 +2263,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Will consider moving closer to priority unit to protect unless are far behind on air, M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] or false)) end
                         if not(bFarBehindOnAir) then
-                            local iAirToGroundThreat = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat]
+                            local iAirToGroundThreat = (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] or 0) + (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat] or 0)
                             if oPriorityUnitBeingSupported then
                                 --If we are supporting a gunship or experimental air unit then have much higher thresholds
                                 if iStartPlateauOrZero and iStartLandOrWaterZone then bDoDetailedCheck = true end
