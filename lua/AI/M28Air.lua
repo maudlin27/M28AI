@@ -540,6 +540,12 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
     RecordTorpedoBomberPriorityLocations(iTeam, iAirSubteam)
     ForkThread(ReassessTorpBomberPriorityLocations, iTeam, iAirSubteam)
 
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] = 0
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.refiOurGunshipAAThreat] = 0
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] = 0
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] = 0
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat] = 0
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurExpBomberThreat] = 0
 
     while M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false do
         if ScenarioInfo.OpEnded and M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 120 then

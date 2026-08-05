@@ -2757,7 +2757,6 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             end
             --Fort clarke assault - dont control seraphim bombers, gunships or asfs in the short period after cutscene ends and the main game starts if we have M28 taking control of allies
         elseif ScenarioInfo.Seraphim and ScenarioInfo.CoopCDR and ScenarioInfo.UnitNames[ScenarioInfo.Seraphim]['NIS_Bomber_1'] and (ScenarioInfo.Options.CampAI == 2 or ScenarioInfo.Options.CampAI == 4) then
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': Will disable orders for the experimental bombers') end
             local oSeraphimBrain
             local toBombersToKill = {}
