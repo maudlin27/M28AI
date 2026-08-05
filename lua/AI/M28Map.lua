@@ -9636,6 +9636,7 @@ function RefreshCampaignStartPositionsAfterDelay(iDelayInSeconds)
         if M28Utilities.IsTableEmpty(tbTeamsToUpdateForChangesInAlliesOrEnemies) == false then
             for iBrain, oBrain in ArmyBrains do
                 if oBrain.CampaignAI or M28Conditions.IsCivilianBrain(oBrain) then
+                    if not(oBrain.M28Team) then M28Team.RecordAllPlayers() end
                     --Check this is an enemy of an M28Team, or has active M28AI
                     if oBrain.M28AI and not(ScenarioInfo.Options.CampAI == 1) then
                         tbTeamsToCheckForChangesInStart[oBrain.M28Team] = true
