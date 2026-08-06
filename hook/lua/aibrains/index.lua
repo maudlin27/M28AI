@@ -25,8 +25,8 @@ keyToBrain['m28airandom'] = M28Brain.NewAIBrain
 keyToBrain['m28airandomcheat'] = M28Brain.NewAIBrain
 --SCTA AI:
 keyToBrain['m28taarmai'] = M28Brain.NewAIBrain
-keyToBrain['m28core'] = M28Brain.NewAIBrain
-keyToBrain['m28rand'] = M28Brain.NewAIBrain
-keyToBrain['m28armcheat'] = M28Brain.NewAIBrain
-keyToBrain['m28corecheat'] = M28Brain.NewAIBrain
-keyToBrain['m28randcheat'] = M28Brain.NewAIBrain
+keyToBrain['m28tacoreai'] = M28Brain.NewAIBrain
+keyToBrain['m28tarandomai'] = M28Brain.NewAIBrain
+keyToBrain['m28taarmaicheat'] = M28Brain.NewAIBrain
+keyToBrain['m28tacoreaicheat'] = M28Brain.NewAIBrain
+keyToBrain['m28tarandomaicheat'] = M28Brain.NewAIBrain
