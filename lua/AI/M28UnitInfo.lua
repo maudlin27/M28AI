@@ -2764,7 +2764,6 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
             --Jamming - check via blueprint since no reliable category
             local oBP = oUnit:GetBlueprint()
             --SCFA - dont enable things like jamming etc. on ACU
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to enable jammping, oBP.Economy.Command is nil='..tostring(oBP.Economy.Command == nil)..'; oUnit:GetAIBrain().M28SCTA='..tostring(oUnit:GetAIBrain().M28SCTA or false)..'; refiGrossEnergyBaseIncome='..(oUnit:GetAIBrain()[import('/mods/M28AI/lua/AI/M28Economy.lua').refiGrossEnergyBaseIncome] or 'nil')) end
             if oBP.Economy.Command and not(bPauseNotUnpause) and oUnit:GetAIBrain().M28SCTA and oUnit:GetAIBrain()[import('/mods/M28AI/lua/AI/M28Economy.lua').refiGrossEnergyBaseIncome] <= 500 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Wont enable jamming as might be cloak on TCFA ACU') end
