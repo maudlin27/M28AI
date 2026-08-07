@@ -8139,6 +8139,12 @@ function ManageACU(aiBrain, oACUOverride)
             end
         end
 
+        if oACU and oACU:GetAIBrain().M28SCTA then
+            if oACU:GetBlueprint().Intel.JamRadius then
+                M28UnitInfo.DisableUnitJamming(oACU)
+            end
+        end
+
         while M28UnitInfo.IsUnitValid(oACU) do
             oACU[refbTreatingAsACU] = true
 

@@ -579,6 +579,21 @@ function M28BrainCreated(aiBrain)
         end
     end
 
+    --SCFA recognition
+    local tbSCTAPersonalities = {}
+    tbSCTAPersonalities['m28taarmai'] = true
+    tbSCTAPersonalities['m28tacoreai'] = true
+    tbSCTAPersonalities['m28tarandomai'] = true
+    tbSCTAPersonalities['m28taarmaicheat'] = true
+    tbSCTAPersonalities['m28tacoreaicheat'] = true
+    tbSCTAPersonalities['m28tarandomaicheat'] = true
+    local sPersonality = ScenarioInfo.ArmySetup[(aiBrain.Name or 'nil')].AIPersonality
+    if bDebugMessages == true then LOG(sFunctionRef..': sPersonality='..sPersonality..'; is this a tbSCTAPersonalities='..tostring(tbSCTAPersonalities[(sPersonality or 'nil')] or false)) end
+    if sPersonality and tbSCTAPersonalities[sPersonality] then
+        if bDebugMessages == true then LOG(sFunctionRef..': M28SCTA brain recognised') end
+        aiBrain.M28SCTA = true
+    end
+
     --Set cheat mult if this is campaign (which doesnt allow in game options)
     if aiBrain.CheatEnabled and not(aiBrain.PCxModifier) then
         if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive or aiBrain.CheatValue then

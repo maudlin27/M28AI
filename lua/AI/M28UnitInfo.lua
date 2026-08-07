@@ -2755,7 +2755,13 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
             local oBP = oUnit:GetBlueprint()
             if oBP.Intel.JamRadius then
                 if bPauseNotUnpause then DisableUnitJamming(oUnit)
-                else EnableUnitJamming(oUnit)
+                else
+                    --SCFA exception
+                    if oUnit:GetAIBrain().M28SCTA and oUnit:GetAIBrain()[import('/mods/M28AI/lua/AI/M28Economy.lua').refiGrossEnergyBaseIncome] <= 500 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Wont enable jamming as might be cloak on TCFA ACU') end
+                    else
+                        EnableUnitJamming(oUnit)
+                    end
                 end
             end
 
