@@ -1922,7 +1922,7 @@ end
 function GetBlueprintMaxGroundRange(oBP)
 --Simpler version of recordunitrange, intended at start of game to estimate whether a unit is a long range unit for threat calculations
     local iMaxRange = 0
-    if oBP.Weapon then
+    if oBP.Weapon and M28Utilities.IsTableEmpty(oBP.Weapon, true) == false then
         for iCurWeapon, oCurWeapon in oBP.Weapon do
             if oCurWeapon.MaxRadius > iMaxRange and not(oCurWeapon.EnabledByEnhancement) and oCurWeapon.Damage > 0 then
                 if oCurWeapon.FireTargetLayerCapsTable and oCurWeapon.FireTargetLayerCapsTable['Land'] == 'Land|Water|Seabed' and not(oCurWeapon.ManualFire) then
