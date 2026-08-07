@@ -3844,7 +3844,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     --If best target is mobile and moving, then consider a leading shot instead
                     local oBP = oArti:GetBlueprint()
                     local iWeaponVelocity
-                    if oBP.Weapon then
+                    if oBP.Weapon and type(oBP.Weapon) == "table" then
                         for iCurWeapon, oCurWeapon in oBP.Weapon do
                             if (oCurWeapon.DamageRadius or 0) > 0 and (oCurWeapon.MaxRadius or 0) >= iMaxRange then
                                 iWeaponVelocity = oCurWeapon.MuzzleVelocity

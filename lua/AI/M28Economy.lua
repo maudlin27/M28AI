@@ -2111,17 +2111,22 @@ function ManageMassStalls(iTeam)
                                         if EntityCategoryContains(categories.SILO, oUnit.UnitId) and oBP.Economy.BuildRate then
                                             --Dealing with a silo so need to calculate mass usage differently
                                             iCurUnitMassUsage = 0
-                                            for iWeapon, tWeapon in oBP.Weapon do
-                                                if tWeapon.MaxProjectileStorage and tWeapon.ProjectileId then
-                                                    local oProjectileBP = __blueprints[tWeapon.ProjectileId]
-                                                    if oProjectileBP.Economy and oProjectileBP.Economy.BuildCostMass and oProjectileBP.Economy.BuildTime > 0 and oBP.Economy.BuildRate > 0 then
-                                                        iCurUnitMassUsage = oProjectileBP.Economy.BuildCostMass * oBP.Economy.BuildRate * iBuildRateMod / oProjectileBP.Economy.BuildTime
-                                                        --If are power stalling then assume we only save 80% of this, as might have adjacency
-                                                        if bPauseNotUnpause then iCurUnitMassUsage = iCurUnitMassUsage * 0.8 end
-                                                        break
+                                            if oBP.Weapon and type(oBP.Weapon) == "table" then
+                                                for iWeapon, tWeapon in oBP.Weapon do
+                                                    if tWeapon.MaxProjectileStorage and tWeapon.ProjectileId then
+                                                        local oProjectileBP = __blueprints[tWeapon.ProjectileId]
+                                                        if oProjectileBP.Economy and oProjectileBP.Economy.BuildCostMass and oProjectileBP.Economy.BuildTime > 0 and oBP.Economy.BuildRate > 0 then
+                                                            iCurUnitMassUsage = oProjectileBP.Economy.BuildCostMass * oBP.Economy.BuildRate * iBuildRateMod / oProjectileBP.Economy.BuildTime
+                                                            --If are power stalling then assume we only save 80% of this, as might have adjacency
+                                                            if bPauseNotUnpause then iCurUnitMassUsage = iCurUnitMassUsage * 0.8 end
+                                                            break
+                                                        end
                                                     end
                                                 end
+                                            else
+                                                M28Utilities.ErrorHandler('Have silo without weapon')
                                             end
+
                                         else
                                             if iCategoryRef == categories.COMMAND and oUnit[M28Orders.refiOrderCount] > 0 and oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderEnhancement then
                                                 --Determine mass cost per BP
@@ -2758,17 +2763,21 @@ function ManageEnergyStalls(iTeam)
                                             if EntityCategoryContains(categories.SILO, oUnit.UnitId) and oBP.Economy.BuildRate then
                                                 --Dealing with a silo so need to calculate energy usage differently
                                                 iCurUnitEnergyUsage = 0
-                                                for iWeapon, tWeapon in oBP.Weapon do
-                                                    if tWeapon.MaxProjectileStorage and tWeapon.ProjectileId then
-                                                        local oProjectileBP = __blueprints[tWeapon.ProjectileId]
-                                                        if oProjectileBP.Economy and oProjectileBP.Economy.BuildCostEnergy and oProjectileBP.Economy.BuildTime > 0 and oBP.Economy.BuildRate > 0 then
-                                                            --(will multiply cost by 10% in later step)
-                                                            iCurUnitEnergyUsage = oProjectileBP.Economy.BuildCostEnergy * oBP.Economy.BuildRate * iBuildRateMod / oProjectileBP.Economy.BuildTime
-                                                            --If are power stalling then assume we only save 80% of this, as might have adjacency
-                                                            if bPauseNotUnpause then iCurUnitEnergyUsage = iCurUnitEnergyUsage * 0.8 end
-                                                            break
+                                                if oBP.Weapon and type(oBP.Weapon) == "table" then
+                                                    for iWeapon, tWeapon in oBP.Weapon do
+                                                        if tWeapon.MaxProjectileStorage and tWeapon.ProjectileId then
+                                                            local oProjectileBP = __blueprints[tWeapon.ProjectileId]
+                                                            if oProjectileBP.Economy and oProjectileBP.Economy.BuildCostEnergy and oProjectileBP.Economy.BuildTime > 0 and oBP.Economy.BuildRate > 0 then
+                                                                --(will multiply cost by 10% in later step)
+                                                                iCurUnitEnergyUsage = oProjectileBP.Economy.BuildCostEnergy * oBP.Economy.BuildRate * iBuildRateMod / oProjectileBP.Economy.BuildTime
+                                                                --If are power stalling then assume we only save 80% of this, as might have adjacency
+                                                                if bPauseNotUnpause then iCurUnitEnergyUsage = iCurUnitEnergyUsage * 0.8 end
+                                                                break
+                                                            end
                                                         end
                                                     end
+                                                else
+                                                    M28Utilities.ErrorHandler('Have silo without weapon')
                                                 end
                                             else
                                                 if iCategoryRef == categories.COMMAND and oUnit[M28Orders.refiOrderCount] > 0 and oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderEnhancement then

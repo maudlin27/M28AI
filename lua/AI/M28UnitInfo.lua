@@ -1272,7 +1272,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                             local iAADPS = 0
                             local iBestAirAAAOE = 0
                             local iCurDPS, bCanShootAir
-                            if oBP.Weapon then
+                            if oBP.Weapon and type(oBP.Weapon) == "table" then
                                 for iWeapon, tWeapon in oBP.Weapon do
                                     bCanShootAir = false
                                     if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable then
@@ -1340,7 +1340,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         local iAADPS = 0
                         local iBestAirAAAOE = 0
                         local iCurDPS, bCanShootAir
-                        if oBP.Weapon then
+                        if oBP.Weapon and type(oBP.Weapon) == "table" then
                             for iWeapon, tWeapon in oBP.Weapon do
                                 bCanShootAir = false
                                 if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable and (not(tWeapon.TargetRestrictOnlyAllow) or tWeapon.TargetRestrictOnlyAllow == 'AIR' or tWeapon.TargetRestrictOnlyAllow == 'AIR -SATELLITE' or tWeapon.FireTargetLayerCapsTable.Water == 'Air') or (EntityCategoryContains(categories.ANTIAIR, oUnit.UnitId) and table.getn(oBP.Weapon) == 1) then
@@ -1732,7 +1732,7 @@ function CalculateBlueprintThreatsByType()
 
                 if bCheckForVolatileUnits then
                     --Does unit have a death weapon with an aoe and damage?
-                    if oBP.Weapon then
+                    if oBP.Weapon and type(oBP.Weapon) == "table" then
                         for iWeapon, tWeapon in oBP.Weapon do
                             if tWeapon.WeaponCategory == 'Death' or tWeapon.Label == 'DeathWeapon' or tWeapon.DisplayName == 'Death Weapon' then
                                 if (tWeapon.DamageRadius or 0) >= 2 and tWeapon.Damage >= 100 then
@@ -1920,9 +1920,9 @@ function EnableUnitStealth(oUnit)
 end
 
 function GetBlueprintMaxGroundRange(oBP)
---Simpler version of recordunitrange, intended at start of game to estimate whether a unit is a long range unit for threat calculations
+    --Simpler version of recordunitrange, intended at start of game to estimate whether a unit is a long range unit for threat calculations
     local iMaxRange = 0
-    if oBP.Weapon and M28Utilities.IsTableEmpty(oBP.Weapon, true) == false then
+    if oBP.Weapon and type(oBP.Weapon) == "table" then
         for iCurWeapon, oCurWeapon in oBP.Weapon do
             if oCurWeapon.MaxRadius > iMaxRange and not(oCurWeapon.EnabledByEnhancement) and oCurWeapon.Damage > 0 then
                 if oCurWeapon.FireTargetLayerCapsTable and oCurWeapon.FireTargetLayerCapsTable['Land'] == 'Land|Water|Seabed' and not(oCurWeapon.ManualFire) then
@@ -1936,39 +1936,44 @@ end
 
 function GetBomberAOEAndStrikeDamage(oUnit)
     local oBP = oUnit:GetBlueprint()
-    local iAOE = 0
-    local iStrikeDamage = 0
-    local iFiringRandomness
-    local iSalvoModifier
-    for sWeaponRef, tWeapon in oBP.Weapon do
-        if tWeapon.WeaponCategory == 'Bomb' or tWeapon.WeaponCategory == 'Direct Fire' or tWeapon.Label == 'Bomb' then
-            if (tWeapon.DamageRadius or 0) > iAOE then
-                iAOE = tWeapon.DamageRadius
-                iSalvoModifier = (tWeapon.MuzzleSalvoSize or 1)
-                if iSalvoModifier > 2 then iSalvoModifier = (iSalvoModifier - 1) * 0.5 + 1 end
-                iStrikeDamage = tWeapon.Damage * iSalvoModifier
-                iFiringRandomness = (tWeapon.FiringRandomness or 0)
+    if oBP.Weapon and type(oBP.Weapon) == "table" then
+        local iAOE = 0
+        local iStrikeDamage = 0
+        local iFiringRandomness
+        local iSalvoModifier
+        for sWeaponRef, tWeapon in oBP.Weapon do
+            if tWeapon.WeaponCategory == 'Bomb' or tWeapon.WeaponCategory == 'Direct Fire' or tWeapon.Label == 'Bomb' then
+                if (tWeapon.DamageRadius or 0) > iAOE then
+                    iAOE = tWeapon.DamageRadius
+                    iSalvoModifier = (tWeapon.MuzzleSalvoSize or 1)
+                    if iSalvoModifier > 2 then iSalvoModifier = (iSalvoModifier - 1) * 0.5 + 1 end
+                    iStrikeDamage = tWeapon.Damage * iSalvoModifier
+                    iFiringRandomness = (tWeapon.FiringRandomness or 0)
+                end
             end
         end
+        if iStrikeDamage == 0 then
+            M28Utilities.ErrorHandler('Couldnt identify strike damage for bomber with ID '..oUnit.UnitId..'; will refer to predefined value instead')
+        end
+
+        --Manual floor for strike damage due to complexity of some bomber calculations
+        --Check if manual override is higher, as some weapons will fire lots of shots so above method wont be accurate
+        local tiBomberStrikeDamageByFactionAndTech =
+        {
+            --UEF, Aeon, Cybran, Sera, Nomads (are using default), Default
+            { 150, 200, 155, 250, 150, 150 }, --Tech 1
+            { 350, 300, 850, 1175, 550, 550 }, --Tech 2
+            { 2500, 2500, 2500, 2500, 2500, 2500}, --Tech 3 - the strike damage calculation above should be accurate so this is just as a backup, and set at a low level due to potential for more balance changes affecting this
+            { 11000,11000,11000,11000,11000,11000} --Tech 4 - again as a backup
+        }
+        iStrikeDamage = math.max(iStrikeDamage, tiBomberStrikeDamageByFactionAndTech[GetUnitTechLevel(oUnit)][GetFactionFromBP(oBP)])
+
+
+        return iAOE, iStrikeDamage, iFiringRandomness
+    else
+        M28Utilities.ErrorHandler('Have a bomber without a weapon')
+        return 0,0,0
     end
-    if iStrikeDamage == 0 then
-        M28Utilities.ErrorHandler('Couldnt identify strike damage for bomber with ID '..oUnit.UnitId..'; will refer to predefined value instead')
-    end
-
-    --Manual floor for strike damage due to complexity of some bomber calculations
-    --Check if manual override is higher, as some weapons will fire lots of shots so above method wont be accurate
-    local tiBomberStrikeDamageByFactionAndTech =
-    {
-        --UEF, Aeon, Cybran, Sera, Nomads (are using default), Default
-        { 150, 200, 155, 250, 150, 150 }, --Tech 1
-        { 350, 300, 850, 1175, 550, 550 }, --Tech 2
-        { 2500, 2500, 2500, 2500, 2500, 2500}, --Tech 3 - the strike damage calculation above should be accurate so this is just as a backup, and set at a low level due to potential for more balance changes affecting this
-        { 11000,11000,11000,11000,11000,11000} --Tech 4 - again as a backup
-    }
-    iStrikeDamage = math.max(iStrikeDamage, tiBomberStrikeDamageByFactionAndTech[GetUnitTechLevel(oUnit)][GetFactionFromBP(oBP)])
-
-
-    return iAOE, iStrikeDamage, iFiringRandomness
 end
 
 function GetUnitStrikeDamage(oUnit, bReferenceIsATableWithUnitId)
@@ -1988,19 +1993,23 @@ function GetUnitStrikeDamage(oUnit, bReferenceIsATableWithUnitId)
         local iAOE
         iAOE, iStrikeDamage = GetBomberAOEAndStrikeDamage(oUnit)
     elseif EntityCategoryContains(refCategoryTorpBomber, sBP) then
-        for iCurWeapon, oCurWeapon in oBP.Weapon do
-            if oCurWeapon.Label == 'Bomb' or oCurWeapon.Label == 'Torpedo' or (oCurWeapon.Label and string.find(oCurWeapon.Label, 'Torpedo')) then
-                iStrikeDamage = (oCurWeapon.DoTPulses or 1) * (oCurWeapon.MuzzleSalvoSize or 1) * oCurWeapon.Damage
-                break
+        if oBP.Weapon and type(oBP.Weapon) == "table" then
+            for iCurWeapon, oCurWeapon in oBP.Weapon do
+                if oCurWeapon.Label == 'Bomb' or oCurWeapon.Label == 'Torpedo' or (oCurWeapon.Label and string.find(oCurWeapon.Label, 'Torpedo')) then
+                    iStrikeDamage = (oCurWeapon.DoTPulses or 1) * (oCurWeapon.MuzzleSalvoSize or 1) * oCurWeapon.Damage
+                    break
+                end
             end
-        end
-        if iStrikeDamage == 0 then
-            iStrikeDamage = 750 --Backup
-            --Nomads T2 gunship (which also has antinavy attack):
-            if sBP == 'xna0203' then iStrikeDamage = 120
-            else
-                M28Utilities.ErrorHandler('Have torp bomber with no bomb weapon so not calculated strike damage')
+            if iStrikeDamage == 0 then
+                iStrikeDamage = 750 --Backup
+                --Nomads T2 gunship (which also has antinavy attack):
+                if sBP == 'xna0203' then iStrikeDamage = 120
+                else
+                    M28Utilities.ErrorHandler('Have torp bomber with no bomb weapon so not calculated strike damage')
+                end
             end
+        else
+            M28Utilities.ErrorHandler('Have a torp bomber without a weapon')
         end
     elseif EntityCategoryContains(refCategorySniperBot * categories.SERAPHIM, sBP) then
         iStrikeDamage = GetSniperStrikeDamage(oUnit)
@@ -2050,7 +2059,8 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
     local bWeaponIsFixed = false
     local bReplaceValues, bIgnoreValues
     local bUpdateAirAA = EntityCategoryContains(refCategoryAirAA, oUnit.UnitId)
-    if oBP.Weapon then
+
+    if oBP.Weapon and type(oBP.Weapon) == "table" then
         for iCurWeapon, oCurWeapon in oBP.Weapon do
             if oCurWeapon.MaxRadius and not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit.HasEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with range category='..(oCurWeapon.RangeCategory or 'nil')..'; weapon category='..(oCurWeapon.WeaponCategory or 'nil')..' and label='..(oCurWeapon.Label or 'nil')..' with damage='..(oCurWeapon.Damage or 'nil')..' for unit '..oUnit.UnitId..'; Rateoffire='..(oCurWeapon.RateOfFire or 'nil')) end
@@ -3045,27 +3055,32 @@ function GetLauncherAOEStrikeDamageMinAndMaxRange(oUnit)
     local iMaxRange = 0
     local iSalvoSize = 1
     local iSalvoIndividualDelay
-    for sWeaponRef, tWeapon in oBP.Weapon do
-        if not(tWeapon.WeaponCategory == 'Death') then
-            if (tWeapon.DamageRadius or 0) > iAOE then
-                iAOE = tWeapon.DamageRadius
-                iStrikeDamage = tWeapon.Damage * (tWeapon.MuzzleSalvoSize or 1)
-                if (tWeapon.FixedSpreadRadius or 0) >= 20 then --e.g. scathis
-                    iStrikeDamage = math.min(iStrikeDamage, tWeapon.Damage * math.min(3, (tWeapon.MuzzleSalvoSize or 2) * 0.5))
+    if oBP.Weapon and type(oBP.Weapon) == "table" then
+        for sWeaponRef, tWeapon in oBP.Weapon do
+            if not(tWeapon.WeaponCategory == 'Death') then
+                if (tWeapon.DamageRadius or 0) > iAOE then
+                    iAOE = tWeapon.DamageRadius
+                    iStrikeDamage = tWeapon.Damage * (tWeapon.MuzzleSalvoSize or 1)
+                    if (tWeapon.FixedSpreadRadius or 0) >= 20 then --e.g. scathis
+                        iStrikeDamage = math.min(iStrikeDamage, tWeapon.Damage * math.min(3, (tWeapon.MuzzleSalvoSize or 2) * 0.5))
+                    end
+                    iSalvoSize = (tWeapon.MuzzleSalvoSize or 1)
+                    iSalvoIndividualDelay = (tWeapon.MuzzleSalvoDelay or 0.1)
+                elseif (tWeapon.NukeInnerRingRadius or 0) > 0 and (tWeapon.NukeInnerRingDamage or 0) >= iStrikeDamage then
+                    iAOE = tWeapon.NukeInnerRingRadius
+                    iStrikeDamage = tWeapon.NukeInnerRingDamage
+                    iSalvoSize = (tWeapon.MuzzleSalvoSize or 1)
+                    iSalvoIndividualDelay = (tWeapon.MuzzleSalvoDelay or 0.1)
                 end
-                iSalvoSize = (tWeapon.MuzzleSalvoSize or 1)
-                iSalvoIndividualDelay = (tWeapon.MuzzleSalvoDelay or 0.1)
-            elseif (tWeapon.NukeInnerRingRadius or 0) > 0 and (tWeapon.NukeInnerRingDamage or 0) >= iStrikeDamage then
-                iAOE = tWeapon.NukeInnerRingRadius
-                iStrikeDamage = tWeapon.NukeInnerRingDamage
-                iSalvoSize = (tWeapon.MuzzleSalvoSize or 1)
-                iSalvoIndividualDelay = (tWeapon.MuzzleSalvoDelay or 0.1)
+                if (tWeapon.MinRadius or 0) > iMinRange then iMinRange = tWeapon.MinRadius end
+                if (tWeapon.MaxRadius or 0) > iMaxRange then iMaxRange = tWeapon.MaxRadius end
             end
-            if (tWeapon.MinRadius or 0) > iMinRange then iMinRange = tWeapon.MinRadius end
-            if (tWeapon.MaxRadius or 0) > iMaxRange then iMaxRange = tWeapon.MaxRadius end
         end
+        return iAOE, iStrikeDamage, iMinRange, iMaxRange, iSalvoSize, iSalvoIndividualDelay
+    else
+        M28Utilities.ErrorHandler('Have launcher with no weapon')
+        return 0, 0, 0, 0, 0, 0
     end
-    return iAOE, iStrikeDamage, iMinRange, iMaxRange, iSalvoSize, iSalvoIndividualDelay
 end
 
 function GetSniperStrikeDamage(oUnit)
@@ -3076,7 +3091,7 @@ function GetSniperStrikeDamage(oUnit)
         if oUnit[refbSniperRifleEnabled] and table.getn(oBP.Weapon) > 1 then sWeaponTypeRequired = 'SniperGun' end
     end
 
-    if oBP.Weapon then
+    if oBP.Weapon and type(oBP.Weapon) == "table" then
         for iWeapon, tWeapon in oBP.Weapon do
             if tWeapon.WeaponCategory == 'Direct Fire' then
                 if not(sWeaponTypeRequired) or tWeapon.Label == sWeaponTypeRequired then
@@ -3098,7 +3113,7 @@ function EnableLongRangeSniper(oUnit)
         if oUnit.SetWeaponEnabledByLabel and not(oUnit[refbSniperRifleEnabled]) then
             local oBP = oUnit:GetBlueprint()
             local bHaveSniperWeapon = false
-            if oBP.Weapon then
+            if oBP.Weapon and type(oBP.Weapon) == "table" then
                 for iWeapon, tWeapon in oBP.Weapon do
                     if tWeapon.Label == 'SniperGun' then
                         bHaveSniperWeapon = true
@@ -3123,7 +3138,7 @@ function DisableLongRangeSniper(oUnit)
         if oUnit.SetWeaponEnabledByLabel and oUnit[refbSniperRifleEnabled] then
             local bHaveSniperWeapon = true
             local oBP = oUnit:GetBlueprint()
-            if oBP.Weapon then
+            if oBP.Weapon and type(oBP.Weapon) == "table" then
                 for iWeapon, tWeapon in oBP.Weapon do
                     if tWeapon.Label == 'SniperGun' then
                         bHaveSniperWeapon = true
@@ -3444,13 +3459,18 @@ end
 
 function DoesBomberFireSalvo(oUnit)
     local oBP = oUnit:GetBlueprint()
-    for sWeaponRef, tWeapon in oBP.Weapon do
-        if tWeapon.WeaponCategory == 'Bomb' or tWeapon.WeaponCategory == 'Direct Fire' or tWeapon.WeaponCategory == 'Anti Navy' or (oUnit[refiBomberRange] and (tWeapon.Label == 'Bomb' or tWeapon.NeedToComputeBombDrop)) then
-            if tWeapon.MuzzleSalvoSize == 1 then
-                return false
-            else return true
+    if oBP.Weapon and type(oBP.Weapon) == "table" then
+        for sWeaponRef, tWeapon in oBP.Weapon do
+            if tWeapon.WeaponCategory == 'Bomb' or tWeapon.WeaponCategory == 'Direct Fire' or tWeapon.WeaponCategory == 'Anti Navy' or (oUnit[refiBomberRange] and (tWeapon.Label == 'Bomb' or tWeapon.NeedToComputeBombDrop)) then
+                if tWeapon.MuzzleSalvoSize == 1 then
+                    return false
+                else return true
+                end
             end
         end
+    else
+        M28Utilities.ErrorHandler('Have bomber without weapon')
+        return false
     end
 end
 

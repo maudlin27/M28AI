@@ -13815,7 +13815,7 @@ function DontHaveJerichoAttackTarget(oJericho)
             if (oJericho[M28UnitInfo.refiDFAOE] or 0) > 0 and EntityCategoryContains(categories.MOBILE, oUnitToTarget.UnitId) and oUnitToTarget:IsUnitState('Moving') then
                 local iWeaponVelocity
                 local oBP = oJericho:GetBlueprint()
-                if oBP.Weapon then
+                if oBP.Weapon and type(oBP.Weapon) == "table" then
                     for iCurWeapon, oCurWeapon in oBP.Weapon do
                         if oCurWeapon.DamageRadius == oJericho[M28UnitInfo.refiDFAOE] then
                             iWeaponVelocity = oCurWeapon.MuzzleVelocity
