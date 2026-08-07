@@ -2763,42 +2763,44 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
 
             --Jamming - check via blueprint since no reliable category
             local oBP = oUnit:GetBlueprint()
-            if oBP.Intel.JamRadius then
-                if bPauseNotUnpause then DisableUnitJamming(oUnit)
-                else
-                    --SCFA exception
-                    if oBP.Economy.Command and oUnit:GetAIBrain().M28SCTA and oUnit:GetAIBrain()[import('/mods/M28AI/lua/AI/M28Economy.lua').refiGrossEnergyBaseIncome] <= 500 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Wont enable jamming as might be cloak on TCFA ACU') end
+            --SCFA - dont enable things like jamming etc. on ACU
+            bDebugMessages = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to enable jammping, oBP.Economy.Command is nil='..tostring(oBP.Economy.Command == nil)..'; oUnit:GetAIBrain().M28SCTA='..tostring(oUnit:GetAIBrain().M28SCTA or false)..'; refiGrossEnergyBaseIncome='..(oUnit:GetAIBrain()[import('/mods/M28AI/lua/AI/M28Economy.lua').refiGrossEnergyBaseIncome] or 'nil')) end
+            if oBP.Economy.Command and not(bPauseNotUnpause) and oUnit:GetAIBrain().M28SCTA and oUnit:GetAIBrain()[import('/mods/M28AI/lua/AI/M28Economy.lua').refiGrossEnergyBaseIncome] <= 500 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Wont enable jamming as might be cloak on TCFA ACU') end
+            else
+                if oBP.Intel.JamRadius then
+                    if bPauseNotUnpause then DisableUnitJamming(oUnit)
                     else
                         EnableUnitJamming(oUnit)
                     end
                 end
-            end
 
-            --Want to pause/unpause unit, check for any special logic for pausing
-            --local bWasUnitPaused = (oUnit[refbPaused] or false)
-            if oUnit.MyShield and oUnit.MyShield:GetMaxHealth() > 0 then
-                if IsUnitShieldEnabled(oUnit) == bPauseNotUnpause then
-                    if bPauseNotUnpause then DisableUnitShield(oUnit)
-                    else EnableUnitShield(oUnit) end
+                --Want to pause/unpause unit, check for any special logic for pausing
+                --local bWasUnitPaused = (oUnit[refbPaused] or false)
+                if oUnit.MyShield and oUnit.MyShield:GetMaxHealth() > 0 then
+                    if IsUnitShieldEnabled(oUnit) == bPauseNotUnpause then
+                        if bPauseNotUnpause then DisableUnitShield(oUnit)
+                        else EnableUnitShield(oUnit) end
+                        oUnit[refbPaused] = bPauseNotUnpause
+                    end
+                elseif oBP.Intel.ReactivateTime and (oBP.Intel.SonarRadius or oBP.Intel.RadarRadius) then
+                    if bPauseNotUnpause then DisableUnitIntel(oUnit)
+                    else EnableUnitIntel(oUnit)
+                    end
                     oUnit[refbPaused] = bPauseNotUnpause
+                elseif oBP.Intel.Cloak or oBP.Intel.RadarStealth or oBP.Intel.RadarStealthFieldRadius then
+                    if bPauseNotUnpause then DisableUnitStealth(oUnit)
+                    else EnableUnitStealth(oUnit)
+                    end
+                    oUnit[refbPaused] = bPauseNotUnpause
+                    --commented out below as introduced when thought mass fabs werent turning off but they were
+                    --[[elseif oUnit.OnProductionPaused and oUnit.OnProductionUnpaused and EntityCategoryContains(refCategoryMassFab, oUnit.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will toggle production pause') end
+                        if bPauseNotUnpause then oUnit:OnProductionPause()
+                        else oUnit:OnProductionUnpaused()
+                        end--]]
                 end
-            elseif oBP.Intel.ReactivateTime and (oBP.Intel.SonarRadius or oBP.Intel.RadarRadius) then
-                if bPauseNotUnpause then DisableUnitIntel(oUnit)
-                else EnableUnitIntel(oUnit)
-                end
-                oUnit[refbPaused] = bPauseNotUnpause
-            elseif oBP.Intel.Cloak or oBP.Intel.RadarStealth or oBP.Intel.RadarStealthFieldRadius then
-                if bPauseNotUnpause then DisableUnitStealth(oUnit)
-                else EnableUnitStealth(oUnit)
-                end
-                oUnit[refbPaused] = bPauseNotUnpause
-                --commented out below as introduced when thought mass fabs werent turning off but they were
-            --[[elseif oUnit.OnProductionPaused and oUnit.OnProductionUnpaused and EntityCategoryContains(refCategoryMassFab, oUnit.UnitId) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Will toggle production pause') end
-                if bPauseNotUnpause then oUnit:OnProductionPause()
-                else oUnit:OnProductionUnpaused()
-                end--]]
             end
             if bDebugMessages == true then LOG(sFunctionRef..': end of code oUnit[refbPaused]='..tostring(oUnit[refbPaused] or false)..'; oUnit[refiPausedPriority]='..(oUnit[refiPausedPriority] or 'nil')) end
 
