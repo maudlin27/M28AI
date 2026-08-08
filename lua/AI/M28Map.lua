@@ -8945,7 +8945,10 @@ function GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ, bOptional
         if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]) then
             --Doublecheck - if we have same island ref then use a basic value for distance
             if bOptionalUseDoubleStraightLineDistAsBackup or tStartLZData[subrefLZIslandRef] == tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefLZIslandRef] then
-                tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] = M28Utilities.GetDistanceBetweenPositions(tStartLZData[subrefMidpoint], tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefMidpoint]) * 2
+                if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefMidpoint]) then M28Utilities.ErrorHandler('Trying to path to land zone we havent recorded, so likely it is in a different plateau, could happen if ACU somehow registers as being in a dif plateau e.g. due to nearby cliff')
+                else
+                    tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] = M28Utilities.GetDistanceBetweenPositions(tStartLZData[subrefMidpoint], tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefMidpoint]) * 2
+                end
             end
         end
     end
