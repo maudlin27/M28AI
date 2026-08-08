@@ -25,6 +25,7 @@ local NavUtils = M28Utilities.NavUtils
 
 
 bInitialSetup = false
+bSCTAPresent = false
 tAllActiveM28Brains = {} --[x] is just a unique integer starting with 1 (so table.getn works on this), not the armyindex; returns the aiBrain object
 tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 bDebugTickCheckerActive = false
@@ -592,6 +593,9 @@ function M28BrainCreated(aiBrain)
     if sPersonality and tbSCTAPersonalities[sPersonality] then
         if bDebugMessages == true then LOG(sFunctionRef..': M28SCTA brain recognised') end
         aiBrain.M28SCTA = true
+        if not(bSCTAPresent) then
+            bSCTAPresent = true --Dont currently use this; note if want to change unit categories then do in M28UnitInfo not here
+        end
     end
 
     --Set cheat mult if this is campaign (which doesnt allow in game options)

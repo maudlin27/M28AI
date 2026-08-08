@@ -374,7 +374,7 @@ function GetEngineerUniqueCount(oEngineer)
     local iUniqueRef = oEngineer[refiEngineerCurUniqueReference]
     if iUniqueRef == nil then
         local aiBrain = oEngineer:GetAIBrain()
-        iUniqueRef = aiBrain[refiEngineerCurUniqueReference] + 1
+        iUniqueRef = (aiBrain[refiEngineerCurUniqueReference] or 0) + 1
         aiBrain[refiEngineerCurUniqueReference] = iUniqueRef
         oEngineer[refiEngineerCurUniqueReference] = iUniqueRef
     end

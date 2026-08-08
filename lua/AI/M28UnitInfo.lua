@@ -250,6 +250,10 @@ refCategoryPD = categories.STRUCTURE * categories.DIRECTFIRE - categories.ANTINA
 refCategoryT2PlusPD = refCategoryPD - categories.TECH1
 refCategoryT3PD = refCategoryPD * categories.TECH3
 refCategoryTMD = categories.STRUCTURE * categories.ANTIMISSILE - categories.SILO * categories.TECH3 --Not perfect but should pick up most TMD without picking up SMD
+--SCFA compatibility
+if categories.armscab then refCategoryTMD = refCategoryTMD + categories.armscab end
+if categories.cormabm then refCategoryTMD = refCategoryTMD + categories.cormabm end
+--refCategoryTMD = categories.ANTIMISSILE - categories.PROJECTILE - categories.TECH3
 refCategoryFixedShield = categories.SHIELD * categories.STRUCTURE
 refCategoryFixedT2Arti = categories.STRUCTURE * categories.INDIRECTFIRE * categories.ARTILLERY * categories.TECH2 - categories.TACTICALMISSILEPLATFORM + categories.STRUCTURE * categories.INDIRECTFIRE * categories.ARTILLERY * categories.TECH3 * categories.SIZE8 --done so mods like LOUD that add a t3 smaller arti can be built as well
 refCategoryFixedT3Arti = categories.STRUCTURE * categories.INDIRECTFIRE * categories.ARTILLERY * categories.TECH3 - categories.SIZE8 --done to support mods (like in LOUD) that add a t3 arti unit like the t2 arti unit (rather than like a duke)
@@ -366,7 +370,7 @@ refCategoryAllAir = categories.MOBILE * categories.AIR - categories.UNTARGETABLE
 refCategoryAllNonExpAir = categories.MOBILE * categories.AIR * categories.TECH1 + categories.MOBILE * categories.AIR * categories.TECH2 + categories.MOBILE * categories.AIR * categories.TECH3
 refCategoryAirNonScout = refCategoryAllAir - categories.SCOUT
 refCategoryMercy = categories.HIGHPRIAIR * categories.AEON * categories.BOMBER * categories.TECH2 + categories.AIR * categories.MOBILE * categories.BOMB
-refCategoryTransport = categories.AIR * categories.TRANSPORTATION - categories.UEF * categories.GROUNDATTACK - refCategoryTorpBomber
+refCategoryTransport = categories.AIR * categories.TRANSPORTATION * categories.TRANSPORTFOCUS - categories.UEF * categories.GROUNDATTACK - refCategoryTorpBomber
 refCategoryRestorer = refCategoryGunship * categories.ANTIAIR
 refCategoryAirToGround = refCategoryBomber + refCategoryGunship + refCategoryCzar + refCategoryMercy --i.e. excludes torp bombers
 
