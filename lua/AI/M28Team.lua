@@ -3460,8 +3460,9 @@ function GetSafeMexToUpgrade(iM28Team, bReturnIfSafeInsteadOfUpgrading, bDontUpg
         return not(M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade))
     else
         if M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade) == false then
-            if bDebugMessages == true then LOG(sFunctionRef..': Have a total of '..table.getn(toSafeUnitsToUpgrade)..' units to upgrade, will pick the best one') end
+
             local oUnitToUpgrade = M28Economy.GetBestUnitToUpgrade(toSafeUnitsToUpgrade)
+            if bDebugMessages == true then LOG(sFunctionRef..': Have a total of '..table.getn(toSafeUnitsToUpgrade)..' units to upgrade, will pick the best one, oUnitToUpgrade = '..(oUnitToUpgrade.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade) or 'nil')) end
             if oUnitToUpgrade then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will try to upgrade unit '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)) end
                 M28Economy.UpgradeUnit(oUnitToUpgrade, true)
@@ -3876,7 +3877,7 @@ function ConsiderNormalUpgrades(iM28Team)
                     end
 
                 end
-                
+
                 if bDebugMessages == true then LOG(sFunctionRef..': iCycleCount='..iCycleCount..'; bLookForMexNotHQ='..tostring(bLookForMexNotHQ)..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]))..'; Team gross mass='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; Lowest land fac tech='..tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech]..'; Lowest air fac tech='..tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech]) end
                 if bLookForMexNotHQ then
                     local bWantAnotherT3MexByDefault = M28Conditions.WantAnotherT3MexUpgrade(iM28Team)
