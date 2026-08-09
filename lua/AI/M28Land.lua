@@ -14991,3 +14991,58 @@ function ClearUnitRaiderStatus(oUnit, iTeam, bOnlyRemoveFromCurTargetZone, oOpti
     end
     if not(bOnlyRemoveFromCurTargetZone) then oUnit[refbFlaggedForPriorityScout] = nil end
 end
+
+function GetClosestExperimentalWantingMAAGuards(iPlateauWanted, iIslandWanted, iTeam, tPosition, iMinPosition)
+    local iClosestExp = iMinPosition
+    local oClosestExp, iCurDist
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoFriendlyLandExperimentals]) == false then
+        for iExp, oExp in M28Team.tTeamData[iTeam][M28Team.reftoFriendlyLandExperimentals] do
+            if oExp[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateauWanted and (not(iIslandWanted) or NavUtils.GetLabel(M28Map.refPathingTypeLand, oExp:GetPosition()) == iIslandWanted)
+                    and not(EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oExp.UnitId)) then
+                if not(M28Conditions.IsTableOfUnitsStillValid(oExp[reftoAssignedMAAGuards])) or table.getn(oExp[reftoAssignedMAAGuards]) < 4 then
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oExp:GetPosition(), tPosition)
+                    if iCurDist < iClosestExp then
+                        iClosestExp = iCurDist
+                        oClosestExp = oExp
+                    end
+                end
+            end
+        end
+    end
+    return oClosestExp
+end
+
+function GetNearbyEnemyBaseLocationToSuicideYthotha(oUnit, tClosestEnemyBase, iMaxDistFromBase, iTeam)
+    --Returns the location to suicide ythotha into enemy base, if we want to
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetNearbyEnemyBaseLocationToSuicideYthotha'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to tClosestEnemyBase='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tClosestEnemyBase)..'; iMaxDistFromBase='..iMaxDistFromBase) end
+    if M28UnitInfo.IsUnitValid(oUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tClosestEnemyBase) <= iMaxDistFromBase then
+        --Check unit is in the same zone as enemy base (so can cehck for enemy experimentals nearby)
+        local iBasePlateau, iBaseZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tClosestEnemyBase)
+        if bDebugMessages == true then LOG(sFunctionRef..': Unit recorded against P'..(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or 'nil')..'Z'..(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')..'; Enemy base is in iBasePlateau='..(iBasePlateau or 'nil')..'; iBaseZone='..(iBaseZone or 'nil')) end
+        if iBasePlateau and iBaseZone and iBasePlateau > 0 and iBasePlateau == oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] and iBaseZone == oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] then
+            --Check enemy has significant mass in buildings here
+            local tBaseLZData = M28Map.tAllPlateaus[iBasePlateau][M28Map.subrefPlateauLandZones][iBaseZone]
+            local tBaseLZTeamData = tBaseLZData[M28Map.subrefLZTeamData][iTeam]
+            if bDebugMessages == true then LOG(sFunctionRef..': subrefThreatEnemyStructureTotalMass]'..(tBaseLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0)) end
+            if (tBaseLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) >= 15000 then
+                local aiBrain = oUnit:GetAIBrain()
+                --Lightning storm has radius of 20, so go with 18 aoe since might be blocked by buildings
+                --GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor, bIncludePreviouslySeenEnemies)
+                local tBestTarget, iDamage = M28Logic.GetBestAOETarget(aiBrain, tClosestEnemyBase, 18, 40000, false, nil, nil, nil, 0.5, 0.5, 6, 0.05, nil, nil, false)
+                if bDebugMessages == true then LOG(sFunctionRef..': iDamage from best aoe target='..iDamage) end
+                if iDamage >= 10000 and tBestTarget then
+                    local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBestTarget)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iDistToTarget='..iDistToTarget) end
+                    if iDistToTarget <= 25 or iDamage >= 15000 or iDamage >= 10000+ 5000 * (iDistToTarget - 25) / (iMaxDistFromBase - 25) then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return tBestTarget
+                    end
+                end
+            end
+        end
+    end
+end

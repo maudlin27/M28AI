@@ -4773,7 +4773,7 @@ function DelayedUnpauseOfTransferredUnits(toCapturedUnits, iArmyIndex)
                         iClosestDist = 2
                         iClosestUnitRef = nil
                         for iCompletedUnit, oCompletedUnit in tCompletedUnits do
-                            iCurDist = M28Utilities.GetDistanceBetweenPosition(oCompletedUnit:GetPosition(), oUnit:GetPosition())
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oCompletedUnit:GetPosition(), oUnit:GetPosition())
                             if iCurDist < iClosestDist then
                                 iClosestDist = iCurDist
                                 iClosestUnitRef = iCompletedUnit
