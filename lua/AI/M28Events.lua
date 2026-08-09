@@ -673,8 +673,10 @@ function OnUnitDeath(oUnit)
                         --Ythotha deathball avoidance
                         --Note -seraphimunits.lua contains SEnergyBallUnit which looks like it is for when the death ball is spawned; ID is XSL0402; SpawnElectroStorm is in the ythotha script
                         --Sandbox test - have c.36s from ythotha dying to energy ball dying, so want to run away for half of this (18s) plus extra time based on how far away we already were
-                        if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental * categories.SERAPHIM, oUnit.UnitId) then
-                            OnYthothaDeath(oUnit)
+                        if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then
+                            if oUnit.UnitId == 'xsl0401' then
+                                OnYthothaDeath(oUnit)
+                            end
                         end
                         if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL -M28UnitInfo.refCategoryMex -M28UnitInfo.refCategoryHydro, oUnit.UnitId) and (EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) or oUnit:GetFractionComplete() < 1) then
                             if oUnit[M28Engineer.reftUnitBlacklistSegmentXZ] then --EntityCategoryContains(categories.EXPERIMENTAL * categories.MOBILE - M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
@@ -847,6 +849,16 @@ function OnUnitDeath(oUnit)
                                 elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) then
                                     --If unit was traveling to another land zone, then update that land zone so it no longer things the unit is traveling here
                                     M28Land.RemoveUnitFromListOfUnitsTravelingToLandZone(oUnit) --(this will check if it was or not)
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then
+                                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.reftoFriendlyLandExperimentals]) == false then
+                                            for iExp, oExp in M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.reftoFriendlyLandExperimentals] do
+                                                if oExp == oUnit then
+                                                    table.remove(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.reftoFriendlyLandExperimentals], iExp)
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
                                 end
 
                                 --Mobile shield update
@@ -3071,8 +3083,13 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     end
                                 elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.MOBILE, oEngineer.UnitId) then
                                     --Consider assigning T2 MAA to ACU
-                                    if EntityCategoryContains(M28UnitInfo.refCategoryMAA * categories.TECH2, oJustBuilt.UnitId) then
-                                        ForkThread(M28Land.ConsiderAssigningMAABodyguardToACU, oJustBuilt)
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oJustBuilt.UnitId) then
+                                        if EntityCategoryContains(categories.TECH2, oJustBuilt.UnitId) then
+                                            ForkThread(M28Land.ConsiderAssigningMAABodyguardToACUOrLandExp, oJustBuilt, true)
+                                        elseif EntityCategoryContains(categories.TECH3, oJustBuilt.UnitId) then
+                                            ForkThread(M28Land.ConsiderAssigningMAABodyguardToACUOrLandExp, oJustBuilt, true, true)
+                                        end
+
                                     end
                                 end
                                 --Raiding units
@@ -4773,7 +4790,7 @@ function DelayedUnpauseOfTransferredUnits(toCapturedUnits, iArmyIndex)
                         iClosestDist = 2
                         iClosestUnitRef = nil
                         for iCompletedUnit, oCompletedUnit in tCompletedUnits do
-                            iCurDist = M28Utilities.GetDistanceBetweenPosition(oCompletedUnit:GetPosition(), oUnit:GetPosition())
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oCompletedUnit:GetPosition(), oUnit:GetPosition())
                             if iCurDist < iClosestDist then
                                 iClosestDist = iCurDist
                                 iClosestUnitRef = iCompletedUnit

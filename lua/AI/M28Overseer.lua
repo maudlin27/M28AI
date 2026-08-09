@@ -25,6 +25,7 @@ local NavUtils = M28Utilities.NavUtils
 
 
 bInitialSetup = false
+bSCTAPresent = false
 tAllActiveM28Brains = {} --[x] is just a unique integer starting with 1 (so table.getn works on this), not the armyindex; returns the aiBrain object
 tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 bDebugTickCheckerActive = false
@@ -576,6 +577,24 @@ function M28BrainCreated(aiBrain)
                     break
                 end
             end
+        end
+    end
+
+    --SCFA recognition
+    local tbSCTAPersonalities = {}
+    tbSCTAPersonalities['m28taarmai'] = true
+    tbSCTAPersonalities['m28tacoreai'] = true
+    tbSCTAPersonalities['m28tarandomai'] = true
+    tbSCTAPersonalities['m28taarmaicheat'] = true
+    tbSCTAPersonalities['m28tacoreaicheat'] = true
+    tbSCTAPersonalities['m28tarandomaicheat'] = true
+    local sPersonality = ScenarioInfo.ArmySetup[(aiBrain.Name or 'nil')].AIPersonality
+    if bDebugMessages == true then LOG(sFunctionRef..': sPersonality='..sPersonality..'; is this a tbSCTAPersonalities='..tostring(tbSCTAPersonalities[(sPersonality or 'nil')] or false)) end
+    if sPersonality and tbSCTAPersonalities[sPersonality] then
+        if bDebugMessages == true then LOG(sFunctionRef..': M28SCTA brain recognised') end
+        aiBrain.M28SCTA = true
+        if not(bSCTAPresent) then
+            bSCTAPresent = true --Dont currently use this; note if want to change unit categories then do in M28UnitInfo not here
         end
     end
 

@@ -1923,54 +1923,56 @@ function CanUnitUseOvercharge(aiBrain, oUnit, tLZTeamDataIfACU)
     local bCanUseOC = false
     if oUnit and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(oUnit[M28UnitInfo.refbDisableOvercharge]) then --and (oUnit[M28UnitInfo.refiFailedOCCount] or 0) < 2 then
         local oBP = oUnit:GetBlueprint()
-        local iEnergyNeeded
-        if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] or -100) >= 5 then
-            local bHaveOverchargeWeapon = false
-            for iWeapon, oWeapon in oBP.Weapon do
-                if oWeapon.OverChargeWeapon then
-                    bHaveOverchargeWeapon = true
-                    if oWeapon.EnergyRequired then
-                        iEnergyNeeded = oWeapon.EnergyRequired
-                        break
-                    end
-                end
-            end
-
-            if bHaveOverchargeWeapon then
-                if aiBrain:GetEconomyStored('ENERGY') >= (iEnergyNeeded or 7500) then bCanUseOC = true end
-                if bDebugMessages == true then LOG(sFunctionRef..': iEnergyNeeded='..iEnergyNeeded..'; aiBrain:GetEconomyStored='..aiBrain:GetEconomyStored('ENERGY')..'; bCanUseOC='..tostring(bCanUseOC)) end
-                if bCanUseOC == true then
-                    --Check if underwater
-                    local oUnitPosition = oUnit:GetPosition()
-                    local iHeightAtWhichConsideredUnderwater = M28Map.IsUnderwater(oUnitPosition, true) + 0.25 --small margin of error
-                    local tFiringPositionStart = M28Logic.GetDirectFireWeaponPosition(oUnit)
-                    if tFiringPositionStart then
-                        local iFiringHeight = tFiringPositionStart[2]
-                        if iFiringHeight <= iHeightAtWhichConsideredUnderwater then
-                            if bDebugMessages == true then LOG(sFunctionRef..': ACU is underwater; iFiringHeight='..iFiringHeight..'; iHeightAtWhichConsideredUnderwater='..iHeightAtWhichConsideredUnderwater) end
-                            bCanUseOC = false
+        if oBP.Weapon and type(oBP.Weapon) == "table" then
+            local iEnergyNeeded
+            if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] or -100) >= 5 then
+                local bHaveOverchargeWeapon = false
+                for iWeapon, oWeapon in oBP.Weapon do
+                    if oWeapon.OverChargeWeapon then
+                        bHaveOverchargeWeapon = true
+                        if oWeapon.EnergyRequired then
+                            iEnergyNeeded = oWeapon.EnergyRequired
+                            break
                         end
                     end
-                else
-                    --Cant use overcharge due to lack of energy - do we want to flag as such for power stall purposes?
-                    local iTeam = aiBrain.M28Team
-                    if bDebugMessages == true then LOG(sFunctionRef..': Team gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Active M28 brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Economy stored ratio='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Mex E storage='..aiBrain[M28Economy.refiMaxEnergyStorage]..'; iEnergyNeeded='..(iEnergyNeeded or 'nil')..'; Is tLZTeamDataIfACU nil='..tostring(tLZTeamDataIfACU == nil)) end
-                    if tLZTeamDataIfACU and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 50 + 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.9 and aiBrain[M28Economy.refiMaxEnergyStorage] >= (iEnergyNeeded or 7500) and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                        --Is ACU in dangerous zone?
-                        if tLZTeamDataIfACU[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 400 and (tLZTeamDataIfACU[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 1000 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.75) then
-                            --Do we have dangerous enemies within our combat range that we could be overcharging?
-                            local tNearbyEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat * categories.RECLAIMABLE, oUnit:GetPosition(), oUnit[M28UnitInfo.refiDFRange], 'Enemy')
-                            if M28Utilities.IsTableEmpty(tNearbyEnemies) == false then
-                                --Need to get power asap
-                                M28Team.tTeamData[iTeam][M28Team.refiTimeLastNeededEnergyForOvercharge] = GetGameTimeSeconds()
-                                if bDebugMessages == true then LOG(sFunctionRef..': Flagging we need power asap for overcharge') end
+                end
+
+                if bHaveOverchargeWeapon then
+                    if aiBrain:GetEconomyStored('ENERGY') >= (iEnergyNeeded or 7500) then bCanUseOC = true end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iEnergyNeeded='..iEnergyNeeded..'; aiBrain:GetEconomyStored='..aiBrain:GetEconomyStored('ENERGY')..'; bCanUseOC='..tostring(bCanUseOC)) end
+                    if bCanUseOC == true then
+                        --Check if underwater
+                        local oUnitPosition = oUnit:GetPosition()
+                        local iHeightAtWhichConsideredUnderwater = M28Map.IsUnderwater(oUnitPosition, true) + 0.25 --small margin of error
+                        local tFiringPositionStart = M28Logic.GetDirectFireWeaponPosition(oUnit)
+                        if tFiringPositionStart then
+                            local iFiringHeight = tFiringPositionStart[2]
+                            if iFiringHeight <= iHeightAtWhichConsideredUnderwater then
+                                if bDebugMessages == true then LOG(sFunctionRef..': ACU is underwater; iFiringHeight='..iFiringHeight..'; iHeightAtWhichConsideredUnderwater='..iHeightAtWhichConsideredUnderwater) end
+                                bCanUseOC = false
+                            end
+                        end
+                    else
+                        --Cant use overcharge due to lack of energy - do we want to flag as such for power stall purposes?
+                        local iTeam = aiBrain.M28Team
+                        if bDebugMessages == true then LOG(sFunctionRef..': Team gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Active M28 brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Economy stored ratio='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Mex E storage='..aiBrain[M28Economy.refiMaxEnergyStorage]..'; iEnergyNeeded='..(iEnergyNeeded or 'nil')..'; Is tLZTeamDataIfACU nil='..tostring(tLZTeamDataIfACU == nil)) end
+                        if tLZTeamDataIfACU and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 50 + 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.9 and aiBrain[M28Economy.refiMaxEnergyStorage] >= (iEnergyNeeded or 7500) and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                            --Is ACU in dangerous zone?
+                            if tLZTeamDataIfACU[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 400 and (tLZTeamDataIfACU[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 1000 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.75) then
+                                --Do we have dangerous enemies within our combat range that we could be overcharging?
+                                local tNearbyEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat * categories.RECLAIMABLE, oUnit:GetPosition(), oUnit[M28UnitInfo.refiDFRange], 'Enemy')
+                                if M28Utilities.IsTableEmpty(tNearbyEnemies) == false then
+                                    --Need to get power asap
+                                    M28Team.tTeamData[iTeam][M28Team.refiTimeLastNeededEnergyForOvercharge] = GetGameTimeSeconds()
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Flagging we need power asap for overcharge') end
+                                end
                             end
                         end
                     end
+                elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then M28Utilities.ErrorHandler('Dealing with an ACU with ID '..oUnit.UnitId..' but dont think it has an overcharge weapon')
                 end
-            elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then M28Utilities.ErrorHandler('Dealing with an ACU with ID '..oUnit.UnitId..' but dont think it has an overcharge weapon')
+            elseif bDebugMessages == true then LOG(sFunctionRef..': Has been less tahn 5s since last overcharged')
             end
-        elseif bDebugMessages == true then LOG(sFunctionRef..': Has been less tahn 5s since last overcharged')
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

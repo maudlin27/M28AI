@@ -374,7 +374,7 @@ function GetEngineerUniqueCount(oEngineer)
     local iUniqueRef = oEngineer[refiEngineerCurUniqueReference]
     if iUniqueRef == nil then
         local aiBrain = oEngineer:GetAIBrain()
-        iUniqueRef = aiBrain[refiEngineerCurUniqueReference] + 1
+        iUniqueRef = (aiBrain[refiEngineerCurUniqueReference] or 0) + 1
         aiBrain[refiEngineerCurUniqueReference] = iUniqueRef
         oEngineer[refiEngineerCurUniqueReference] = iUniqueRef
     end
@@ -3023,6 +3023,11 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 LOG(sFunctionRef..': Deciding on what experimental to construct, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; Team mass income='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 'nil')..'; Brain='..(aiBrain.Nickname or 'nil')..'; Is campaignAI='..tostring(aiBrain.CampaignAI or false)..'; Is M28AI='..tostring(aiBrain.M28AI or false)..'; Land subteam='..(aiBrain.M28LandSubteam or 'nil')..'; Is table of land subteam empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains]))..'; Team gross mass='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass]..'; refbBuiltParagon='..tostring(aiBrain[M28Economy.refbBuiltParagon] or false)..'; Do we have air control='..tostring(M28Conditions.TeamHasAirControl(aiBrain.M28Team))..'; subrefiOurAirAAThreat='..(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurAirAAThreat] or 'nil')..'; (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0)='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiFriendlyGameEnderCount] or 0)..'; Cur t3 arti count='..M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryFixedT3Arti, aiBrain.M28Team)..'; refiEnemyT3ArtiCount='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount]..'; refiEnemyNovaxCount='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyNovaxCount])
                 local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(aiBrain.M28Team, iPlateauOrZero, iLandOrWaterZone, true, nil, nil, false, nil, aiBrain.M28AirSubteam)
                 LOG(sFunctionRef..': Checking if already building exp in other zones, iOtherLandZonesWithExperimental='..iOtherLandZonesWithExperimental..'; iMassToComplete='..iMassToComplete..'; Team net mass income='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetMass]..'; Team gross mass income='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass]..'; % mass stored='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored])
+            end
+            --scta: get exp factory first
+            if aiBrain.M28SCTA and aiBrain:GetCurrentUnits(categories.EXPERIMENTAL * categories.FACTORY) == 0 then
+                iCategoryWanted = categories.EXPERIMENTAL * categories.FACTORY
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to get an experimental factory as SCTA, unless we decide just below to get experimental PD') end
             end
             --Land priority - usually but not always prefer land experimental
             local bPrioritiseLand = false
@@ -12053,6 +12058,30 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
             if bAreSeraOrAeon then bPrioritiseSniperBots = M28Conditions.PrioritiseSniperBots(tLZOrWZData, iTeam, tLZOrWZTeamData, iPlateau, iLandOrWaterZone) end
             if bDebugMessages == true then LOG(sFunctionRef..': Exp constructed count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; Island ref='..(tLZOrWZData[M28Map.subrefLZIslandRef] or 0)..'; Is table of enemy land exp empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))..'; time last near unit cap='..(M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or 'nil')..'; T3 mex in zone='..(tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] or 'nil')..'; Mex count in zone='..(tLZOrWZData[M28Map.subrefLZOrWZMexCount] or 'nil')..'; Number of land and indirect T3 built in game='..M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3)..'; Air to ground threat='..(M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] or 0)..'; Want more factories='..tostring(M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandOrWaterZone, true))..'; Enemy base island ref='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) or 'nil')..'; Our island ref='..(tLZOrWZData[M28Map.subrefLZIslandRef] or 'nil')..'; Cur naval facs='..M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryNavalFactory, iTeam)..'; Cur land and air facs='..M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, iTeam)..'; bAreSeraOrAeon='..tostring(bAreSeraOrAeon or false)..'; bPrioritiseSniperBots='..tostring(bPrioritiseSniperBots)..'; Do we want more factories='..tostring(M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandOrWaterZone, true))..'; Do we want air fac='..tostring(M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData))..'; Number of T3 air facs in zone='..M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory)..'; Time='..GetGameTimeSeconds()) end
 
+            --Assist experimental factory (SCTA)
+            if aiBrain.M28SCTA and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.3 or M28Conditions.HaveLowPower(iTeam)) then
+                local tExperimentalFactories = EntityCategoryFilterDown(categories.EXPERIMENTAL * categories.FACTORY * categories.STRUCTURE, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                if M28Utilities.IsTableEmpty(tExperimentalFactories) == false then
+                    local oFactoryToAssist
+                    local iBestWorkProgress = -1
+                    local iCurWorkProgress
+                    for iFactory, oFactory in tExperimentalFactories do
+                        iCurWorkProgress = oFactory:GetWorkProgress()
+                        if iCurWorkProgress > iBestWorkProgress then
+                            oFactoryToAssist = oFactory
+                            iBestWorkProgress = iCurWorkProgress
+                        end
+                    end
+                    if oFactoryToAssist then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will just assist existing experimental factory') end
+                        fnHaveActionToAssign(refActionAssistLandFactory, 1, iBuildPowerWanted, oFactoryToAssist, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return
+                    end
+                end
+                --(oUnit[M28Factory.refsLastBlueprintBuilt] and EntityCategoryContains(categories.FACTORY * categories.STRUCTURE, oUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit[M28Factory.refsLastBlueprintBuilt]))) then
+            end
+
             --Tech and turtle (or at -2 unit cap) - always get experimental instead of more factories
             if aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= -1 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Want high tech, refbPrioritiseHighTech='..tostring(aiBrain[M28Overseer.refbPrioritiseHighTech] or false)..'; refbPrioritiseDefence='..tostring(aiBrain[M28Overseer.refbPrioritiseDefence] or false)..'; refiLowestUnitCapAdjustmentLevel='..(M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 'nil')..'; so will proceed with assigning iBuildPowerWanted='..(iBuildPowerWanted or 'nil')..' to building an experimental or power type action, iMinTechLevelWanted='..(iMinTechLevelWanted or 'nil')) end
@@ -12068,7 +12097,7 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
                     end
                 end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return nil
+                return
             end
 
             function GetFactoryToAssist(iCategoryToSearch)
