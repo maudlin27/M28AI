@@ -15031,7 +15031,7 @@ end
 
 function GetNearbyEnemyBaseLocationToSuicideYthotha(oUnit, tClosestEnemyBase, iMaxDistFromBase, iTeam)
     --Returns the location to suicide ythotha into enemy base, if we want to
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetNearbyEnemyBaseLocationToSuicideYthotha'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
