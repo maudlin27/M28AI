@@ -713,7 +713,7 @@ function GetMassCostOfUnits(tUnits, bEnemyUnits)
     return iMassCost
 end
 
-function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
+function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat, bSurfaceThreatOnly)
     --Determines threat rating for tUnits, which in most cases will be the mass cost of the unit and adjusted for unit health; by default assumes are referring to main combat threat (e.g. tank), but the flags for indirect and naval threat can be used to adjust this
     --bJustGetMassValue - if thisi s true, will ignore things like health and just return the mass value (so none of the other values should matter if this is true - i.e. assumes tUnits is already filtered to those of interest)
     --Note that if are using this, it would generaly be much faster (about 5 times as fast) to do oUnit[M28UnitInfo.refiUnitMassCost]); alternatively use GetMassCostOfUnits if have a large table and want simplicity
@@ -744,7 +744,8 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
         if bAddAntiNavy then iThreatRef = iThreatRef .. '1' else iThreatRef = iThreatRef .. '0' end
         if bSubmersibleOnly then iThreatRef = iThreatRef .. '1' else iThreatRef = iThreatRef .. '0' end
         if bLongRangeThreatOnly then iThreatRef = iThreatRef..'1' else iThreatRef = iThreatRef .. '0' end
-        --E.g. if want combat (DF+IF) threat then would be 1000000
+        if bSurfaceThreatOnly then iThreatRef = iThreatRef..'1' else iThreatRef = iThreatRef .. '0' end
+        --E.g. if want combat (DF+IF) threat then would be 10000000
 
         if not(tiThreatRefsCalculated[iThreatRef]) then M28Utilities.ErrorHandler('Havent calculated threat values for iThreatRef='..iThreatRef..' refer to CalculateBlueprintThreatsByType') end
 
@@ -754,7 +755,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
             local oUnit = tUnits[1]
             local oBP = __blueprints[oUnit.UnitId]
             local iMassCost = (oBP.Economy.BuildCostMass or 0)
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit with ID='..(oUnit.UnitId or 'nil')..'; iMassCost='..iMassCost) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit with ID='..(oUnit.UnitId or 'nil')..'; iMassCost='..iMassCost..'; iThreatRef='..iThreatRef) end
             --ACU override
             if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                 if bDebugMessages == true then LOG(sFunctionRef..': ACU threat adjustment, iMassCost pre adj='..iMassCost..'; iBaseACUThreat='..iBaseACUThreat..'; oBP.Defense.Health='..oBP.Defense.Health..'; iBaseACUExpectedHealth='..iBaseACUExpectedHealth) end
@@ -883,6 +884,13 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                             iMassMod = 1
                         end
                     end
+                    if bSurfaceThreatOnly and iMassMod > 0 then
+                        if EntityCategoryContains(categories.SUBMERSIBLE + categories.AMPHIBIOUS, oUnit.UnitId) and not(EntityCategoryContains(refCategorySeraphimDestroyer, oUnit.UnitId)) then
+                            if EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then iMassMod = iMassMod * 0.1
+                            else iMassMod = 0
+                            end
+                        end
+                    end
                     if EntityCategoryContains(refCategoryStructure, oUnit.UnitId) then
                         --T2 arti - reduce its value because it sucks
                         if EntityCategoryContains(refCategoryFixedT2Arti, oUnit.UnitId) then
@@ -926,7 +934,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                     if oUnit[refiAntiNavyMassThreatOverride] and (bAntiNavyOnly or bAddAntiNavy or bSubmersibleOnly) then
                         iBaseThreat = oUnit[refiAntiNavyMassThreatOverride]
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iBaseThreat='..(iBaseThreat or 0)..'; DF threat override='..(oUnit[refiDFMassThreatOverride] or 'nil')..'; tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]='..(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 'nil')..'; bJustGetMassValue='..tostring(bJustGetMassValue)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iBaseThreat='..(iBaseThreat or 0)..'; DF threat override='..(oUnit[refiDFMassThreatOverride] or 'nil')..'; tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]='..(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 'nil')..'; bJustGetMassValue='..tostring(bJustGetMassValue)..'; iThreatRef='..iThreatRef) end
                     if not(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]) and not(bBlueprintThreat) then
                         iBaseThreat = GetCombatThreatRating({ { ['UnitId'] = oUnit.UnitId } }, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, true)
                         if not(tUnitThreatByIDAndType[oUnit.UnitId]) then tUnitThreatByIDAndType[oUnit.UnitId] = {} end
@@ -1596,15 +1604,16 @@ function CalculateBlueprintThreatsByType()
 
     if M28Utilities.IsTableEmpty(tUnitThreatByIDAndType) then
         local sUnitId
-        --{bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly}
+        --{bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bSurfaceNavyOnly}
         local tiLandAndNavyThreatTypes = {
-            ['1000000'] = { false, false, false, false, false, false }, --Normal land threat
-            ['1010000'] = { true, false, false, false, false, false, false }, --mass cost
-            ['1100000'] = { false, true, false, false, false, false }, --Indirect
-            ['1000100'] = { false, false, false, true, false, false }, --Normal land threat plus antinavy threat if higher
-            ['1001000'] = { false, false, true, false, false, false }, --Antinavy threat only
-            ['1000010'] = { false, false, false, false, true, false }, --Submersible threat only
-            ['1000001'] = { false, false, false, false, false, true }, --Long range threat only
+            ['10000000'] = { false, false, false, false, false, false }, --Normal land threat
+            ['10100000'] = { true, false, false, false, false, false, false }, --mass cost
+            ['11000000'] = { false, true, false, false, false, false }, --Indirect
+            ['10001000'] = { false, false, false, true, false, false }, --Normal land threat plus antinavy threat if higher
+            ['10010000'] = { false, false, true, false, false, false }, --Antinavy threat only
+            ['10000100'] = { false, false, false, false, true, false }, --Submersible threat only
+            ['10000010'] = { false, false, false, false, false, true }, --Long range threat only
+            ['10001001'] = {false, false, true, false, false, false, true}, --Allied surface threat
         }
         --{bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo}
         local tiAirThreatTypes = {
@@ -1640,7 +1649,7 @@ function CalculateBlueprintThreatsByType()
             for iRef, tConditions in tiLandAndNavyThreatTypes do
                 --GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
                 --{bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly}
-                tUnitThreatByIDAndType[sUnitId][iRef] = GetCombatThreatRating( { {['UnitId']=sUnitId }}, false, tConditions[1], tConditions[2], tConditions[3], tConditions[4], tConditions[5], tConditions[6], true)
+                tUnitThreatByIDAndType[sUnitId][iRef] = GetCombatThreatRating( { {['UnitId']=sUnitId }}, false, tConditions[1], tConditions[2], tConditions[3], tConditions[4], tConditions[5], tConditions[6], true, tConditions[7])
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished calculating land threat values for '..(oBP.General.UnitName or 'nil')..', result='..reprs(tUnitThreatByIDAndType[sUnitId])) end
 
