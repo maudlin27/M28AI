@@ -7461,11 +7461,14 @@ function RecordWaterZoneAdjacentLandZones()
     local iAdjacencyTablePosition
     local iBaseIntervalIgnoreThreshold = 4
     local iCloseIntervalIgnoreThreshold = 10
+    local iCloseDistanceThreshold = 80
     if iLandZoneSegmentSize >= 2 then
         if iCloseIntervalIgnoreThreshold > 2 then iBaseIntervalIgnoreThreshold = 2 iCloseIntervalIgnoreThreshold = 5
         else iBaseIntervalIgnoreThreshold = 3 iCloseIntervalIgnoreThreshold = 7
         end
     end
+    local iFurtherIntervalIgnoreThreshold = math.max(1, math.ceil(iBaseIntervalIgnoreThreshold * 0.5))
+    if bDebugMessages == true then LOG(sFunctionRef..': iLandZoneSegmentSize='..iLandZoneSegmentSize..'; iBaseIntervalIgnoreThreshold='..iBaseIntervalIgnoreThreshold..'; iCloseIntervalIgnoreThreshold='..iCloseIntervalIgnoreThreshold..'; iFurtherIntervalIgnoreThreshold='..iFurtherIntervalIgnoreThreshold) end
     local iActualIntervalIgnoreThreshold
     local iCurIntervalIgnoreCount --i.e. if we are moving from one midpoint to another, and come across a different land or water zone, it increases the ignorecount by 1 if the midpoints aren't too far apart
     local tiAdditionalWaterZonesAdjacentToPlateauLandZone = {} --[x]=plateau, [y]=LZ; [z] = WZ; returns a count of how many times it appeared
@@ -7518,12 +7521,14 @@ function RecordWaterZoneAdjacentLandZones()
 
     for iPond, tPondSubtable in tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+
             iPlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tWZData[subrefMidpoint])
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iWaterZone='..iWaterZone..'; iPlateau='..(iPlateau or 'nil')..'; Is plateau data empty='..tostring(M28Utilities.IsTableEmpty(tAllPlateaus[(iPlateau or -1)]))) end
             if (iPlateau or 0) > 0 and M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau]) == false then
                 --Cycle through every land zone on the map, and check if it is near this
                 if not(tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau]) then tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau] = {} end
                 for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+
                     if not(tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone]) then tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone] = {} end
                     --Is this land zone adjacent? Might be adjacent the following are both the case:
                     --LZMinX is >= WZMinX and <=WZMaxX; or LZMaxX is >= WZMinX and <=WZMaxX
@@ -7533,25 +7538,26 @@ function RecordWaterZoneAdjacentLandZones()
                         LOG(sFunctionRef..': Considering if land zone '..iLandZone..' is near the water zone '..iWaterZone..'; iSegmentGapAllowed='..iSegmentGapAllowed..'; tLZData[subrefLZMinSegX]='..tLZData[subrefLZMinSegX]..'; tWZData[subrefWZMinSegX]='..tWZData[subrefWZMinSegX]..'; tLZData[subrefLZMaxSegX]='..tLZData[subrefLZMaxSegX]..'; tWZData[subrefWZMaxSegX]='..tWZData[subrefWZMaxSegX]..'; tLZData[subrefLZMinSegZ]='..tLZData[subrefLZMinSegZ]..'; tWZData[subrefWZMinSegZ]='..tWZData[subrefWZMinSegZ]..'; tWZData[subrefWZMaxSegZ]='..tWZData[subrefWZMaxSegZ]..'; tLZData[subrefLZMaxSegZ]='..tLZData[subrefLZMaxSegZ]..'; Test1A='..tostring(tLZData[subrefLZMinSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX])..'; Test1B='..tostring(tLZData[subrefLZMinSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])..'; Test 2A='..tostring(tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX])..'; Test 2B='..tostring(tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])..'; Test 5A='..tostring(tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ])..'; Test 5B='..tostring(tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])..'; Test 6A='..tostring(tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ])..'; Test 6B='..tostring(tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])..'; Tests 3-4 and 7-8 relate to where the X or Z is inside the other')
                     end
                     if ((tLZData[subrefLZMinSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMinSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
-                        or (tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
-                        --Cover where water zone is inside land zone:
-                        or (tWZData[subrefWZMinSegX] >= tLZData[subrefLZMinSegX] and tWZData[subrefWZMaxSegX] <= tLZData[subrefLZMaxSegX])
-                        --or land zone is inside water zone:
-                        or (tLZData[subrefLZMinSegX] >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] <= tWZData[subrefWZMaxSegX]))
-                    and ((tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])
-                         or ((tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ]) and (tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]))
+                            or (tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
                             --Cover where water zone is inside land zone:
-                        or (tWZData[subrefWZMinSegZ] >= tLZData[subrefLZMinSegZ] and tWZData[subrefWZMaxSegZ] <= tLZData[subrefLZMaxSegZ])
-                        --or land zone is inside water zone:
-                        or (tLZData[subrefLZMinSegZ] >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMaxSegZ] <= tWZData[subrefWZMaxSegZ])) then
+                            or (tWZData[subrefWZMinSegX] >= tLZData[subrefLZMinSegX] and tWZData[subrefWZMaxSegX] <= tLZData[subrefLZMaxSegX])
+                            --or land zone is inside water zone:
+                            or (tLZData[subrefLZMinSegX] >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] <= tWZData[subrefWZMaxSegX]))
+                            and ((tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])
+                            or ((tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ]) and (tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]))
+                            --Cover where water zone is inside land zone:
+                            or (tWZData[subrefWZMinSegZ] >= tLZData[subrefLZMinSegZ] and tWZData[subrefWZMaxSegZ] <= tLZData[subrefLZMaxSegZ])
+                            --or land zone is inside water zone:
+                            or (tLZData[subrefLZMinSegZ] >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMaxSegZ] <= tWZData[subrefWZMaxSegZ])) then
                         --It looks like we might overlap, do a more precise calculation drawing a line from the two midpoints to see if we come across other land zones
                         bIsAdjacent = false
                         iDistBetweenMidpoints = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tLZData[subrefMidpoint])
                         iMaxLineInterval = math.floor(iDistBetweenMidpoints / iLineInterval) * iLineInterval
                         iLineAngle = M28Utilities.GetAngleFromAToB(tWZData[subrefMidpoint], tLZData[subrefMidpoint])
-                        if iDistBetweenMidpoints <= 150 then
-                            if iDistBetweenMidpoints <= 75 then iActualIntervalIgnoreThreshold = iCloseIntervalIgnoreThreshold
-                            else iActualIntervalIgnoreThreshold = iBaseIntervalIgnoreThreshold
+                        if iDistBetweenMidpoints <= 225 then
+                            if iDistBetweenMidpoints <= iCloseDistanceThreshold then iActualIntervalIgnoreThreshold = iCloseIntervalIgnoreThreshold
+                            elseif iDistBetweenMidpoints <= 170 then iActualIntervalIgnoreThreshold = iBaseIntervalIgnoreThreshold
+                            else iActualIntervalIgnoreThreshold = iFurtherIntervalIgnoreThreshold
                             end
                         else
                             iActualIntervalIgnoreThreshold = 0
@@ -7566,17 +7572,19 @@ function RecordWaterZoneAdjacentLandZones()
                             tLinePosition = M28Utilities.MoveInDirection(tWZData[subrefMidpoint], iLineAngle, iDistAlongLine, false, false, false)
                             iCurLineSegmentX, iCurLineSegmentZ = GetPathingSegmentFromPosition(tLinePosition)
                             if bDebugMessages == true then
-                                LOG(sFunctionRef..': tLinePosition='..repru(tLinePosition)..'; iCurLineSegmentX='..(iCurLineSegmentX or 'nil')..'; iCurLineSegmentZ='..(iCurLineSegmentZ or 'nil')..'; tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ]='..(tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] or 'nil')..'; tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ]='..(tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] or 'nil')..'; iCurIntervalIgnoreCount='..iCurIntervalIgnoreCount..'; iActualIntervalIgnoreThreshold='..iActualIntervalIgnoreThreshold..'; Will draw this location')
+                                LOG(sFunctionRef..': tLinePosition='..repru(tLinePosition)..'; iCurLineSegmentX='..(iCurLineSegmentX or 'nil')..'; iCurLineSegmentZ='..(iCurLineSegmentZ or 'nil')..'; tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ]='..(tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] or 'nil')..'; tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ]='..(tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] or 'nil')..'; iCurIntervalIgnoreCount='..iCurIntervalIgnoreCount..'; iActualIntervalIgnoreThreshold='..iActualIntervalIgnoreThreshold..'; Will draw this location, iDistAlongLine='..iDistAlongLine)
                                 M28Utilities.DrawLocation(tLinePosition, nil, 200)
                             end
                             if tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] then
                                 if tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] == iLandZone then
                                     bIsAdjacent = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Found an adjacent land zone so aborting') end
                                     break
                                 else
                                     --Not adjacent as is another land zone inbetween
                                     iCurIntervalIgnoreCount = iCurIntervalIgnoreCount + 1
-                                    if iCurIntervalIgnoreCount > iActualIntervalIgnoreThreshold then
+                                    if iCurIntervalIgnoreCount > iActualIntervalIgnoreThreshold and (iDistAlongLine >= iCloseDistanceThreshold or iCurIntervalIgnoreCount > iCloseIntervalIgnoreThreshold) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Not adjacent as another land zone inbetween, and over the intervalignorethreshold so aborting') end
                                         break
                                     end
                                 end
@@ -7585,7 +7593,8 @@ function RecordWaterZoneAdjacentLandZones()
                                     --not adjacent as is another water zone inbetween; record the inbetween waterzone as adjacent though
                                     iCurIntervalIgnoreCount = iCurIntervalIgnoreCount + 1
                                     tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone][iWaterZone] = (tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone][iWaterZone] or 0) + 1
-                                    if iCurIntervalIgnoreCount > iActualIntervalIgnoreThreshold then
+                                    if iCurIntervalIgnoreCount > iActualIntervalIgnoreThreshold and (iDistAlongLine >= iCloseDistanceThreshold or iCurIntervalIgnoreCount > iCloseIntervalIgnoreThreshold) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Another water zone inbetween so aborting') end
                                         break
                                     end
                                 end

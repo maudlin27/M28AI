@@ -1375,13 +1375,16 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
                             end
 
                             --Do similar for water zones
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of adjacent water zones empty for tBaseLZData='..tostring(M28Utilities.IsTableEmpty(tBaseLZData[M28Map.subrefAdjacentWaterZones]))) end
                             if M28Utilities.IsTableEmpty(tBaseLZData[M28Map.subrefAdjacentWaterZones]) == false then
                                 for iEntry, tSubtable in tBaseLZData[M28Map.subrefAdjacentWaterZones] do
                                     local iAdjWZ = tSubtable[M28Map.subrefAWZRef]
                                     local tAdjWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; iCurSegmentX='..iCurSegmentX..'; tAdjWZ subrefWZMinSegX='..tAdjWZData[M28Map.subrefWZMinSegX]..'; tAdjWZData[M28Map.subrefWZMaxSegX]='..tAdjWZData[M28Map.subrefWZMaxSegX]..'; iSidewaysSegmentDistance='..iSidewaysSegmentDistance..'; iCurSegmentZ='..iCurSegmentZ..'; tAdjWZData[M28Map.subrefWZMinSegZ]='..tAdjWZData[M28Map.subrefWZMinSegZ]..'; tAdjWZData[M28Map.subrefWZMaxSegZ]='..tAdjWZData[M28Map.subrefWZMaxSegZ]) end
                                     if iCurSegmentX >= tAdjWZData[M28Map.subrefWZMinSegX] - iSidewaysSegmentDistance and iCurSegmentX <= tAdjWZData[M28Map.subrefWZMaxSegX] + iSidewaysSegmentDistance
                                             and iCurSegmentZ >= tAdjWZData[M28Map.subrefWZMinSegZ] - iSidewaysSegmentDistance and iCurSegmentZ <= tAdjWZData[M28Map.subrefWZMaxSegZ] + iSidewaysSegmentDistance then
                                         --Are near enough, so include this WZ
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Including this WZ in the path') end
                                         tiWaterZones[iAdjWZ] = true
                                     end
                                 end
@@ -1467,7 +1470,7 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
                     if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
                         for iEntry, iAdjWZ in tStartLZOrWZData[M28Map.subrefWZAdjacentWaterZones] do
                             local tAdjWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ]
-                            if bDebugMessages == true then LOG(sFunctionRef..': Same start and end: iAdjWZ='..(iAdjWZ or 'nil')..'; iCurSegmentX='..iCurSegmentX..'; iCurSegmentZ='..iCurSegmentZ..'; tAdjWZData[M28Map.subrefWZMinSegX]='..tAdjWZData[M28Map.subrefWZMinSegX]..'; tAdjWZData[M28Map.subrefWZMaxSegX]='..tAdjWZData[M28Map.subrefWZMaxSegX]..'; tAdjWZData[M28Map.subrefWZMinSegZ]='..tAdjWZData[M28Map.subrefWZMinSegZ]..'; tAdjWZData[M28Map.subrefWZMaxSegZ]='..tAdjWZData[M28Map.subrefWZMaxSegZ]) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': WZ with Same start and end: iAdjWZ='..(iAdjWZ or 'nil')..'; iCurSegmentX='..iCurSegmentX..'; iCurSegmentZ='..iCurSegmentZ..'; tAdjWZData[M28Map.subrefWZMinSegX]='..tAdjWZData[M28Map.subrefWZMinSegX]..'; tAdjWZData[M28Map.subrefWZMaxSegX]='..tAdjWZData[M28Map.subrefWZMaxSegX]..'; tAdjWZData[M28Map.subrefWZMinSegZ]='..tAdjWZData[M28Map.subrefWZMinSegZ]..'; tAdjWZData[M28Map.subrefWZMaxSegZ]='..tAdjWZData[M28Map.subrefWZMaxSegZ]) end
                             if iCurSegmentX >= tAdjWZData[M28Map.subrefWZMinSegX] - iSidewaysSegmentDistance and iCurSegmentX <= tAdjWZData[M28Map.subrefWZMaxSegX] + iSidewaysSegmentDistance
                                     and iCurSegmentZ >= tAdjWZData[M28Map.subrefWZMinSegZ] - iSidewaysSegmentDistance and iCurSegmentZ <= tAdjWZData[M28Map.subrefWZMaxSegZ] + iSidewaysSegmentDistance then
                                 --Are near enough, so include this WZ
@@ -1494,15 +1497,45 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
                             end
                         end
                     end
-                    --Do similar for water zones
+                    --Do similar for water zones; but since are al and zone will consider double WZ adjacency
+                    local tbWZConsidered = {}
+                    local tbSecondAdjacentWZs = {}
                     if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false then
                         for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefAdjacentWaterZones] do
                             local iAdjWZ = tSubtable[M28Map.subrefAWZRef]
                             local tAdjWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ]
-                            if iCurSegmentX >= tAdjWZData[M28Map.subrefWZMinSegX] - iSidewaysSegmentDistance and iCurSegmentX <= tAdjWZData[M28Map.subrefWZMaxSegX] + iSidewaysSegmentDistance
-                                    and iCurSegmentZ >= tAdjWZData[M28Map.subrefWZMinSegZ] - iSidewaysSegmentDistance and iCurSegmentZ <= tAdjWZData[M28Map.subrefWZMaxSegZ] + iSidewaysSegmentDistance then
-                                --Are near enough, so include this WZ
-                                tiWaterZones[iAdjWZ] = true
+                            if not(tbWZConsidered[iAdjWZ]) then
+                                tbWZConsidered[iAdjWZ] = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': LZ with Same start and end: iAdjWZ='..(iAdjWZ or 'nil')..'; iCurSegmentX='..iCurSegmentX..'; iCurSegmentZ='..iCurSegmentZ..'; tAdjWZData[M28Map.subrefWZMinSegX]='..tAdjWZData[M28Map.subrefWZMinSegX]..'; tAdjWZData[M28Map.subrefWZMaxSegX]='..tAdjWZData[M28Map.subrefWZMaxSegX]..'; tAdjWZData[M28Map.subrefWZMinSegZ]='..tAdjWZData[M28Map.subrefWZMinSegZ]..'; tAdjWZData[M28Map.subrefWZMaxSegZ]='..tAdjWZData[M28Map.subrefWZMaxSegZ]) end
+                                if iCurSegmentX >= tAdjWZData[M28Map.subrefWZMinSegX] - iSidewaysSegmentDistance and iCurSegmentX <= tAdjWZData[M28Map.subrefWZMaxSegX] + iSidewaysSegmentDistance
+                                        and iCurSegmentZ >= tAdjWZData[M28Map.subrefWZMinSegZ] - iSidewaysSegmentDistance and iCurSegmentZ <= tAdjWZData[M28Map.subrefWZMaxSegZ] + iSidewaysSegmentDistance then
+                                    --Are near enough, so include this WZ
+                                    tiWaterZones[iAdjWZ] = true
+                                    if M28Utilities.IsTableEmpty(tAdjWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                                        for _, iSecondAdjWZ in M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZAdjacentWaterZones] do
+                                            tbSecondAdjacentWZs[iSecondAdjWZ] = true
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(tbSecondAdjacentWZs) == false then
+                            for iAdjWZ, _ in tbSecondAdjacentWZs do
+                                if not(tbWZConsidered[iAdjWZ]) then
+                                    local tAdjWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ]
+                                    tbWZConsidered[iAdjWZ] = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': LZ with Same start and end: Considering second adjWZ, iAdjWZ='..(iAdjWZ or 'nil')..'; iCurSegmentX='..iCurSegmentX..'; iCurSegmentZ='..iCurSegmentZ..'; tAdjWZData[M28Map.subrefWZMinSegX]='..tAdjWZData[M28Map.subrefWZMinSegX]..'; tAdjWZData[M28Map.subrefWZMaxSegX]='..tAdjWZData[M28Map.subrefWZMaxSegX]..'; tAdjWZData[M28Map.subrefWZMinSegZ]='..tAdjWZData[M28Map.subrefWZMinSegZ]..'; tAdjWZData[M28Map.subrefWZMaxSegZ]='..tAdjWZData[M28Map.subrefWZMaxSegZ]) end
+                                    if iCurSegmentX >= tAdjWZData[M28Map.subrefWZMinSegX] - iSidewaysSegmentDistance and iCurSegmentX <= tAdjWZData[M28Map.subrefWZMaxSegX] + iSidewaysSegmentDistance
+                                            and iCurSegmentZ >= tAdjWZData[M28Map.subrefWZMinSegZ] - iSidewaysSegmentDistance and iCurSegmentZ <= tAdjWZData[M28Map.subrefWZMaxSegZ] + iSidewaysSegmentDistance then
+                                        --Are near enough, so include this WZ
+                                        tiWaterZones[iAdjWZ] = true
+                                        if M28Utilities.IsTableEmpty(tAdjWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                                            for _, iSecondAdjWZ in M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZAdjacentWaterZones] do
+                                                tbSecondAdjacentWZs[iSecondAdjWZ] = true
+                                            end
+                                        end
+                                    end
+                                end
                             end
                         end
                     end
@@ -3876,6 +3909,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Will move on to checking WZs in path, is subreftWaterZonesInPath empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]))) end
     if M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]) == false then
         for iEntry, iWaterZone in tBasePathingTable[subreftWaterZonesInPath] do
             local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
