@@ -909,7 +909,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                 if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
                                     iMassMod = iMassMod * 2 --i.e. quadruple mass value
                                 else
-                                    iMassMod = iMassMod * 1.25 --increased from 1.1 pre-v128 as if we cant overwhelm the launcher we likely lose every unit
+                                    iMassMod = iMassMod * 1.6 --increased from 1.1 pre-v128 and 1.25 in v325 as if we cant overwhelm the launcher we likely lose every unit, and am sceptical that 3 subs win vs 1 torp launcher given range differential; this way we want roughly 4 subs to win; plus there is the risk if dealing with torp launcher that enemy has engis nearby that can build more, making ith arder to overwhelm
                                 end
                             end
                         end

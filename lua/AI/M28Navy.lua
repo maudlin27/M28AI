@@ -4882,7 +4882,14 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                             if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
                         else
                             if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'SWAWE'..iWaterZone)
+                                --Get the antinavy unit that will be in our range, and if we are in range of its attack then move until we can attack it, unless nearest enemy is antinavy that we are already in range of
+                                --oNearestEnemyNonHoverToFriendlyBase already factors in enemy antinavy range when deciding if its the closest unit
+                                if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to move towards oNearestEnemyNonHoverToFriendlyBase if we are in its range, dist to it='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyNonHoverToFriendlyBase:GetPosition(), oUnit:GetPosition())..'; its antinavy range='..(oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; ours='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; can we see it='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyNonHoverToFriendlyBase, false))) end
+                                if (oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.refiAntiNavyRange] or 0) > 0 and M28Utilities.GetDistanceBetweenPositions(oNearestEnemyNonHoverToFriendlyBase:GetPosition(), oUnit:GetPosition()) <= oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.refiAntiNavyRange] and (not(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyNonHoverToFriendlyBase, false)) or M28Utilities.GetDistanceBetweenPositions(oNearestEnemyNonHoverToFriendlyBase:GetPosition(), oUnit:GetPosition()) >= (oUnit[M28UnitInfo.refiAntiNavyRange] or 5)) then
+                                    M28Orders.IssueTrackedMove(oUnit, oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'SWAWE'..iWaterZone)
+                                else
+                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'SWAWE'..iWaterZone)
+                                end
                             end
                         end
                     end
