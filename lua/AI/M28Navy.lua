@@ -1812,7 +1812,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     local sFunctionRef = 'ManageSpecificWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iWaterZone == 9 and GetGameTimeSeconds() >= 6*60 then bDebugMessages = true end
 
     local bContinue = true
     if not(aiBrain) or aiBrain.M28IsDefeated then
@@ -2629,7 +2629,7 @@ function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, t
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderOrdersForUnitsWithNoTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if iWaterZone == 9 and GetGameTimeSeconds() >= 6*60 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()) end
 
     --Handles logic for deciding where to send units to support other water zones (or returns units that could be used to support land zones), and also to handle bombardment logic
@@ -2729,9 +2729,36 @@ function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, t
                 end
             end
         else
-            if bDebugMessages == true then LOG(sFunctionRef..': Have no WZ to support so no orders to give subs') end
+            if bDebugMessages == true then LOG(sFunctionRef..': Have no WZ to support so no orders to give subs, will send them to adjacent WZ closer to enemy base if there is one') end
             --Record this so we dont keep trying to build subs in this WZ
             tWZTeamData[M28Map.refbNoSubSupportPoint] = true
+            if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                local iClosestWZDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestEnemyBase])
+                local iClosestWZToEnemyBase = iWaterZone
+                local iCurWZDistToEnemyBase
+                for iEntry, iAdjWaterZone in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                    local tAltWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWaterZone]
+                    iCurWZDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tAltWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestEnemyBase])
+                    if iCurWZDistToEnemyBase < iClosestWZDistToEnemyBase then
+                        iClosestWZDistToEnemyBase = iCurWZDistToEnemyBase
+                        iClosestWZToEnemyBase = iAdjWaterZone
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iClosestWZToEnemyBase='..iClosestWZToEnemyBase) end
+                if not(iClosestWZToEnemyBase == iWaterZone) then
+                    local tSupportWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iClosestWZToEnemyBase]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Sending subs to be closer to enemy base') end
+                    for iUnit, oUnit in tUnitsWithOnlyAntiNavy do
+                        if not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone) then
+                            --Unit is from a different zone - need to change the value of its assignment so it is considered for orders by the zone that it is part of
+                            oUnit[refiCurrentWZAssignmentValue] = 0
+                        else
+                            M28Orders.IssueTrackedMove(oUnit, tSupportWZData[M28Map.subrefMidpoint], iReissueOrderDistanceStandard, false, 'SubNrEnBase' .. iClosestWZToEnemyBase .. ';' .. iWaterZone)
+                        end
+                    end
+                end
+            end
+
         end
     end
 
@@ -3883,7 +3910,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     local sFunctionRef = 'ManageCombatUnitsInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iWaterZone == 7 and GetGameTimeSeconds() >= 15*60 then bDebugMessages = true end
+    if iWaterZone == 9 and GetGameTimeSeconds() >= 6*60 then bDebugMessages = true end
 
     if tWZTeamData[M28Map.subreftiLandZoneTargetedByOurCombat] then M28Land.RecordDFLandZoneTarget(tWZTeamData, NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint]), iWaterZone, iTeam, nil, nil, nil) end
     if tWZTeamData[M28Map.subreftiWaterZoneTargetedByOurSurfaceCombat] then RecordWaterZoneTarget(tWZTeamData, iWaterZone, iTeam, false, nil) end
@@ -7845,7 +7872,7 @@ function GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZ
     local sFunctionRef = 'GetNearestEnemyUnitsAndUpdateUnitTables'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if (iWaterZone == 7 or iWaterZone == 3) and GetGameTimeSeconds() >= 15*60 then bDebugMessages = true end
+
 
     refiMaxDist = 100000
     if bOnlyConsiderDoublyAdjacentZones then refiMaxDist = 200 end
