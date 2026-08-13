@@ -497,6 +497,10 @@ tPondDetails = {}
     refiLastBombardmentBSShieldTargetValueByTeam = 'PnBmbShl' --[x] = M28 team, returns value if a battleship switches to targeting an enemy fixed shield, then this records the total enemy fixed shielding in the zone or if higher shielding the unit, so we know if we want to request more shielding
     refiLastBombardmentBSShieldTargetTimeByTeam = 'PnBmbSht' --[x] = M28team, returns floor of time that we last had abattleship switch to targeting a fixed shield
 
+    reftiEnemyFactoryPatrolWZList = 'PnFcPt' --table of the water zones to patrol when looking for enemy naval factory, ordered based on distance to each other
+    reftoEnemyFactoryUnitsPatrolling = 'PnFcUn' --table of units that are patrolling to watch for enemy naval factory
+    refbActivePatrolLogic = 'PnFcAc' --true if have logic running to give patrolling units orders
+
     --Water zones (against tPondDetails)
     subrefPondWZCount = 'PWZCount' --Total number of water zones in a pond (cant use table.getn on below as theyre not ordered from 1-x)
     subrefPondWaterZones = 'PondWZ' --e.g. access the water zone data tables via M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone], where iWaterZone is the NavUtils refPathingTypeNavy pathing result
@@ -524,6 +528,7 @@ tPondDetails = {}
         --subrefTotalMassReclaim
         --subrefLZTotalEnergyReclaim
         --subrefLastReclaimRefresh
+        subrefiTimeSinceLastPatrolAtMidpoint --if have units patrolling to check for enemy naval fac, this will be time in seconds we last had a unit there
 
         subrefWZTeamData = 'PWZTeam' --Used to house team related data for a particular water zone
             subrefWZbCoreBase = 'LZCoreB' --true if is a 'core' base (i.e. has a naval factory in); uses same ref as LZbCoreBase
@@ -4932,6 +4937,102 @@ function RecordWaterZonePatrolPaths()
                 end
             end
 
+        end
+        --Record water zones we want to patrol to check for enemy naval factories
+        for iTeam = 1, M28Team.iTotalTeamCount do
+            if (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
+                local iClosestEnemyBaseDist = 10000
+                local iClosestWZToEnemyBase
+                local tiWaterZonesOfInterestDistToFriendlyBase = {}
+                local iIslandWanted, iCurDist
+                local iWaterZoneOfInterestCount = 0
+                for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+                    if M28Utilities.IsTableEmpty(tWZData[subreftPatrolPath]) == false and M28Utilities.IsTableEmpty(tWZData[subrefAdjacentLandZones]) == false then
+                        local tWZTeamData = tWZData[subrefWZTeamData][iTeam]
+                        if tWZTeamData[refiModDistancePercent] < 0.5 then
+                            --Is an adjacent land zone on the same island as nearest enemy base?
+                            iIslandWanted = NavUtils.GetLabel(refPathingTypeLand, tWZTeamData[reftClosestEnemyBase])
+                            if (iIslandWanted or 0) > 0 then
+                                for iEntry, tSubtable in tWZData[subrefAdjacentLandZones] do
+                                    local tAltLZ = tAllPlateaus[tSubtable[subrefWPlatAndLZNumber][1]][subrefPlateauLandZones][tSubtable[subrefWPlatAndLZNumber][2]]
+                                    if tAltLZ[subrefLZIslandRef] == iIslandWanted then
+                                        tiWaterZonesOfInterestDistToFriendlyBase[iWaterZone] = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tWZTeamData[reftClosestFriendlyBase])
+                                        iWaterZoneOfInterestCount = iWaterZoneOfInterestCount + 1
+                                    end
+                                end
+                            end
+                        end
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tWZTeamData[reftClosestEnemyBase])
+                        if iCurDist < iClosestEnemyBaseDist then
+                            iClosestEnemyBaseDist = iCurDist
+                            iClosestWZToEnemyBase = iWaterZone
+                        end
+                    end
+                end
+                if iClosestWZToEnemyBase and not(tbWaterZonesOfInterest[iClosestWZToEnemyBase]) then
+                    local tWZData = tPondDetails[iPond][subrefPondWaterZones][iClosestWZToEnemyBase]
+                    local tWZTeamData = tWZData[subrefWZTeamData][iTeam]
+                    tiWaterZonesOfInterestDistToFriendlyBase[iClosestWZToEnemyBase] = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tWZTeamData[reftClosestFriendlyBase])
+                    iWaterZoneOfInterestCount = iWaterZoneOfInterestCount + 1
+                end
+                if M28Utilities.IsTableEmpty(tiWaterZonesOfInterestDistToFriendlyBase) == false then
+                    tPondSubtable[reftiEnemyFactoryPatrolWZList] = {}
+                    local tbWZInPath = {}
+                    --Start with the closest WZ to friendly base
+                    local iClosestDist = 10000
+                    local iClosestWZ
+                    for iWaterZone, iDistToFriendlyBase in tiWaterZonesOfInterestDistToFriendlyBase do
+                        tbWZInPath[iWaterZone] = false
+                        if iDistToFriendlyBase < iClosestDist then
+                            iClosestDist = iDistToFriendlyBase
+                            iClosestWZ = iWaterZone
+                        end
+                    end
+                    table.insert(tPondSubtable[reftiEnemyFactoryPatrolWZList], iClosestWZ)
+                    tbWZInPath[iClosestWZ] = true
+                    if iWaterZoneOfInterestCount > 1 then
+
+                        function GetClosestWaterZoneToAddToPath(iBaseWaterZone)
+                            local tWZData = tPondDetails[iPond][subrefPondWaterZones][iBaseWaterZone]
+                            --First check adjacent water zones
+                            if M28Utilities.IsTableEmpty(tWZData[subrefWZAdjacentWaterZones]) == false then
+                                for iEntry, tSubtable in tWZData[subrefWZAdjacentWaterZones] do
+                                    local iAdjWZ = tSubtable[subrefAWZRef]
+                                    if tiWaterZonesOfInterestDistToFriendlyBase[iAdjWZ] and not(tbWZInPath[iAdjWZ]) then
+                                        return iAdjWZ
+                                    end
+                                end
+                            end
+                            --Next check all WZs in the pathing list that dont yet have a path
+                            local iClosestDistToUs = 10000
+                            local iCurDist, iClosestWZ
+                            local tBaseMidpoint = tWZData[subrefMidpoint]
+                            for iAltWZ, bInPathAlready in tbWZInPath do
+                                if not(bInPathAlready) then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tBaseMidpoint, tPondDetails[iPond][subrefPondWaterZones][iAltWZ][subrefMidpoint])
+                                    if iCurDist < iClosestDistToUs then
+                                        iClosestDistToUs = iCurDist
+                                        iClosestWZ = iAltWZ
+                                    end
+                                end
+                            end
+                            return iClosestWZ
+                        end
+                        local iNextWZToAdd = iClosestWZ
+                        for iCurEntry = 1, iWaterZoneOfInterestCount + 1 do
+                            if iCurEntry > iWaterZoneOfInterestCount then M28Utilities.ErrorHandler('Risk of infinite loop so aborting') break end
+                            iNextWZToAdd = GetClosestWaterZoneToAddToPath(iNextWZToAdd)
+                            if iNextWZToAdd then
+                                table.insert(tPondSubtable[reftiEnemyFactoryPatrolWZList], iNextWZToAdd)
+                                tbWZInPath[iNextWZToAdd] = true
+                            else
+                                break
+                            end
+                        end
+
+                    end
+                end
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

@@ -34,6 +34,8 @@ refbActiveRaider = 'M28NRaid' --true if raider
 refiWZOfFactory = 'M28NRaFZ' --water zone of the factory that produced this raider - used so can track formerly active raiders
 reftBlockedShotLocationByPond = 'M28BlShPn' --[x] is the pond ref; returns a position for where we think DF units should move to not have their shot blocked
 refbSpecialStuckTrackingActive = 'M28NStcTr' --true if we are considering if the unit is stuck
+refbPatrollingForEnemyFactory = 'M28NPtF' --true if unit is patrolling for enemy naval factory
+refiCurFactoryPatrolZoneTarget = 'M28PtFW' --waterzone that unit has last been told to move towards as part of its patrol
 
 --aiBrian variables
 refiPriorityPondRef = 'M28PriorityPondRef' --against aibrain, returns the pond ref (naval segment group) that we think is most important to that aibrain (only recorded for M27 brains)
@@ -1943,7 +1945,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
             for iUnit, oUnit in tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
                 if oUnit:GetFractionComplete() == 1 and not(oUnit.Dead) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering in this WZ unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Active raider='..tostring((oUnit[refbActiveRaider] or false))..'; oUnit[M28ACU.refbTreatingAsACU]='..tostring((oUnit[M28ACU.refbTreatingAsACU] or false))..'; Water zone='..iWaterZone..'; Mobile navyoramhiborhover='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy * categories.MOBILE, oUnit.UnitId))..'; Antinavy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAntiNavy, oUnit.UnitId))..'; Navy category='..tostring(EntityCategoryContains(categories.NAVAL, oUnit.UnitId))..'; submarine='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))..'; Does it contain the main combat unit grouping of categories='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine - categories.COMMAND - M28UnitInfo.refCategoryRASSACU, oUnit.UnitId))..'; Is this a T3 mobile shield or shield boat='..tostring(EntityCategoryContains(iShieldCategory, oUnit.UnitId))..'; Time='..GetGameTimeSeconds()) end
-
+                    if oUnit[refbPatrollingForEnemyFactory] then oUnit[refbPatrollingForEnemyFactory] = nil end --reset each cycle
                     --Special anti-stuck logic for T3 naval units (which are more prone to getting stuck)
                     if bConsiderStuckLogic and EntityCategoryContains(categories.TECH3 * M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and (not(oUnit[M28UnitInfo.refiLastWeaponEvent]) or GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] >= 30) and (not(oUnit[M28UnitInfo.refiTimeLastTriedRetreating]) or GetGameTimeSeconds() - oUnit[M28UnitInfo.refiTimeLastTriedRetreating] >= 30) and not(oUnit[refbSpecialStuckTrackingActive]) then
                         ForkThread(MonitorNavalUnitToSeeIfStuck, oUnit, iWaterZone)
@@ -2732,7 +2734,13 @@ function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, t
             if bDebugMessages == true then LOG(sFunctionRef..': Have no WZ to support so no orders to give subs, will send them to adjacent WZ closer to enemy base if there is one') end
             --Record this so we dont keep trying to build subs in this WZ
             tWZTeamData[M28Map.refbNoSubSupportPoint] = true
-            if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+
+            --Consider patrolling with sub to find enemy naval factory (if there is one)
+            ConsiderSearchingForNavalFactoryWithUnits(tUnitsWithOnlyAntiNavy, iPond)
+
+
+
+            --[[if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
                 local iClosestWZDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestEnemyBase])
                 local iClosestWZToEnemyBase = iWaterZone
                 local iCurWZDistToEnemyBase
@@ -2757,7 +2765,7 @@ function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, t
                         end
                     end
                 end
-            end
+            end--]]
 
         end
     end
@@ -8782,4 +8790,129 @@ function ManageLandRaidersInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             end
         end
     end
+end
+
+function ConsiderSearchingForNavalFactoryWithUnits(tUnits, iPond)
+    local tPondSubtable = M28Map.tPondDetails[iPond]
+    if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftiEnemyFactoryPatrolWZList]) == false then
+        local bRecorded
+        for iUnit, oUnit in tUnits do
+            oUnit[refbPatrollingForEnemyFactory] = true
+            --Check if recorded
+            bRecorded = false
+            if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]) == false then
+                for iRecordedUnit, oRecordedUnit in tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling] do
+                    if oUnit == oRecordedUnit then
+                        bRecorded = true
+                        break
+                    end
+                end
+            end
+            if not(bRecorded) then
+                if not(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]) then tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling] = {} end
+                table.insert(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling], oUnit)
+                if not(tPondSubtable[M28Map.refbActivePatrolLogic]) then
+                    tPondSubtable[M28Map.refbActivePatrolLogic] = true
+                    ForkThread(ManagePatrolsForEnemyFactory, iPond)
+                end
+            end
+        end
+    end
+end
+
+function ManagePatrolsForEnemyFactory(iPond)
+    local tPondSubtable = M28Map.tPondDetails[iPond]
+    local iCurUnit
+    while M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]) == false do
+        --Update table of units
+        local toUnassignedUnits = {}
+        for iCurUnit = table.getn(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]), 1, -1 do
+            local oCurUnit = tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling][iCurUnit]
+            if oCurUnit.Dead or not(oCurUnit[refbPatrollingForEnemyFactory]) then
+                table.remove(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling], iCurUnit)
+                if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]) then break end
+            else
+                table.insert(toUnassignedUnits, oCurUnit)
+            end
+        end
+
+        local iUnitsAvailableForPatrol = table.getn(toUnassignedUnits)
+        local iLongestTimeSinceLastReachedMidpoint
+        local iZoneToScout, iCurTimeSinceLastHadUnitAtMidpoint
+        local tiUnitsAssignedByWaterZone = {}
+        local iMaxUnitsAssignedToConsider = 0
+        local iCurTime = math.floor(GetGameTimeSeconds())
+        local iClosestUnitDist
+        local iClosestUnitEntry, iCurDist
+        while iUnitsAvailableForPatrol > 0 do
+            --Get the zone that has been longest since scouted
+            iZoneToScout = nil
+            iMaxUnitsAssignedToConsider = 100
+            iLongestTimeSinceLastReachedMidpoint = -2
+            for _, iWaterZone in tPondSubtable[M28Map.reftiEnemyFactoryPatrolWZList] do
+                if (tiUnitsAssignedByWaterZone[iWaterZone] or 0) < iMaxUnitsAssignedToConsider then
+                    iMaxUnitsAssignedToConsider =  (tiUnitsAssignedByWaterZone[iWaterZone] or 0)
+                    if iMaxUnitsAssignedToConsider == 0 then break end
+                end
+            end
+            for _, iWaterZone in tPondSubtable[M28Map.reftiEnemyFactoryPatrolWZList] do
+                if (tiUnitsAssignedByWaterZone[iWaterZone] or 0) <= iMaxUnitsAssignedToConsider then
+                    local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
+                    iCurTimeSinceLastHadUnitAtMidpoint = iCurTime - (tWZData[M28Map.subrefiTimeSinceLastPatrolAtMidpoint] or 0)
+                    if iCurTimeSinceLastHadUnitAtMidpoint > iLongestTimeSinceLastReachedMidpoint then
+                        iLongestTimeSinceLastReachedMidpoint = iCurTimeSinceLastHadUnitAtMidpoint
+                        iZoneToScout = iWaterZone
+                    end
+                end
+            end
+            if iZoneToScout then
+                --Get closest unit and assign it here
+                local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iZoneToScout]
+                local tTargetMidpoint = tWZData[M28Map.subrefMidpoint]
+                iClosestUnitDist = 100000
+                iClosestUnitEntry = nil
+                for iUnit, oUnit in toUnassignedUnits do
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetMidpoint)
+                    if iCurDist < iClosestUnitDist then
+                        iClosestUnitDist = iCurDist
+                        iClosestUnitEntry = iUnit
+                    end
+                end
+                if iClosestUnitEntry then
+                    local oUnit = toUnassignedUnits[iClosestUnitEntry]
+
+                    --Patrol the water zone
+                    if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftPatrolPath]) == false then
+                        M28Orders.PatrolPath(oUnit, tWZData[M28Map.subreftPatrolPath], false, 'EnFPtr'..iZoneToScout)
+                    else
+                        M28Orders.IssueTrackedMove(oUnit, tTargetMidpoint, 5, true, 'EnFPtr'..iZoneToScout, false)
+                    end
+
+                    if oUnit[refiCurFactoryPatrolZoneTarget] == iZoneToScout then
+                        --We already told the unit to patrol here in a previous cycle, so see if we are almost at the final destination
+                        local tEndDestination
+                        if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftPatrolPath]) == false then
+                            tEndDestination = tWZData[M28Map.subreftPatrolPath][table.getn(tWZData[M28Map.subreftPatrolPath])]
+                        else
+                            tEndDestination = tTargetMidpoint
+                        end
+                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tEndDestination) <= 6 then
+                            tWZData[M28Map.subrefiTimeSinceLastPatrolAtMidpoint] = iCurTime
+                        end
+                    end
+                    oUnit[refiCurFactoryPatrolZoneTarget] = iZoneToScout
+                    table.remove(toUnassignedUnits, iClosestUnitEntry)
+                    iUnitsAvailableForPatrol = iUnitsAvailableForPatrol - 1
+                else
+                    break
+                end
+            else
+                break
+            end
+
+            WaitTicks(M28Land.iTicksPerLandCycle)
+        end
+    end
+
+    tPondSubtable[M28Map.refbActivePatrolLogic] = false
 end
