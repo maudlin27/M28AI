@@ -662,11 +662,11 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subrefWZThreatAlliedMAA] = 0
         tWZTeamData[M28Map.subrefWZTThreatAllyLauncherDefenceTotal] = 0
     else
-        --GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
+        --                                                            GetCombatThreatRating(tUnits,                                      bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat, bSurfaceThreatOnly)
 
         tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits], false, false, false, true, false)
         tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits], false, false, false, false, false, true)
-        tWZTeamData[M28Map.subrefWZThreatAlliedSurface] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits], false, false, false, false, true, false, false, false, true)
+        tWZTeamData[M28Map.subrefWZThreatAlliedSurface] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits], false,       false,              false,                      false,  true,           false,              false,              false,          true)
         if bDebugMessages == true then
             for iUnit, oUnit in tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
                 LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; AntiNavy threat='..(M28UnitInfo.GetCombatThreatRating({oUnit}, false, false, false, true, false) or 0)..'; submersible threat='..(M28UnitInfo.GetCombatThreatRating({ oUnit}, false, false, false, false, false, true) or 0)..'; surface threat='..(M28UnitInfo.GetCombatThreatRating({ oUnit }, false, false, false, false, true, false, false, false, true) or 0))
@@ -2736,7 +2736,7 @@ function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, t
             tWZTeamData[M28Map.refbNoSubSupportPoint] = true
 
             --Consider patrolling with sub to find enemy naval factory (if there is one)
-            ConsiderSearchingForNavalFactoryWithUnits(tUnitsWithOnlyAntiNavy, iPond)
+            ConsiderSearchingForNavalFactoryWithUnits(tUnitsWithOnlyAntiNavy, iPond, iTeam)
 
 
 
@@ -8792,7 +8792,7 @@ function ManageLandRaidersInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     end
 end
 
-function ConsiderSearchingForNavalFactoryWithUnits(tUnits, iPond)
+function ConsiderSearchingForNavalFactoryWithUnits(tUnits, iPond, iTeam)
     local tPondSubtable = M28Map.tPondDetails[iPond]
     if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftiEnemyFactoryPatrolWZList]) == false then
         local bRecorded
@@ -8813,24 +8813,32 @@ function ConsiderSearchingForNavalFactoryWithUnits(tUnits, iPond)
                 table.insert(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling], oUnit)
                 if not(tPondSubtable[M28Map.refbActivePatrolLogic]) then
                     tPondSubtable[M28Map.refbActivePatrolLogic] = true
-                    ForkThread(ManagePatrolsForEnemyFactory, iPond)
+                    ForkThread(ManagePatrolsForEnemyFactory, iPond, iTeam)
                 end
             end
         end
     end
 end
 
-function ManagePatrolsForEnemyFactory(iPond)
+function ManagePatrolsForEnemyFactory(iPond, iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ManagePatrolsForEnemyFactory'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local tPondSubtable = M28Map.tPondDetails[iPond]
-    local iCurUnit
+
     while M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]) == false do
         --Update table of units
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of main loop, iPond='..iPond..'; size of reftoEnemyFactoryUnitsPatrolling before removing ones without order='..table.getn(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling])..'; Time='..GetGameTimeSeconds()) end
         local toUnassignedUnits = {}
         for iCurUnit = table.getn(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]), 1, -1 do
             local oCurUnit = tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling][iCurUnit]
             if oCurUnit.Dead or not(oCurUnit[refbPatrollingForEnemyFactory]) then
                 table.remove(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling], iCurUnit)
-                if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]) then break end
+                if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': No longer have any patrolling units') end
+                    break
+                end
             else
                 table.insert(toUnassignedUnits, oCurUnit)
             end
@@ -8843,9 +8851,11 @@ function ManagePatrolsForEnemyFactory(iPond)
         local iMaxUnitsAssignedToConsider = 0
         local iCurTime = math.floor(GetGameTimeSeconds())
         local iClosestUnitDist
-        local iClosestUnitEntry, iCurDist
+        local iClosestUnitEntry, iCurDist, iPrevCycleAvailable
         while iUnitsAvailableForPatrol > 0 do
             --Get the zone that has been longest since scouted
+            if bDebugMessages == true then LOG(sFunctionRef..'; Looping through each unti and assigning to a water zone to patrol, iUnitsAvailableForPatrol='..iUnitsAvailableForPatrol) end
+            iPrevCycleAvailable = iUnitsAvailableForPatrol --so we can check if infinite loop
             iZoneToScout = nil
             iMaxUnitsAssignedToConsider = 100
             iLongestTimeSinceLastReachedMidpoint = -2
@@ -8860,8 +8870,12 @@ function ManagePatrolsForEnemyFactory(iPond)
                     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
                     iCurTimeSinceLastHadUnitAtMidpoint = iCurTime - (tWZData[M28Map.subrefiTimeSinceLastPatrolAtMidpoint] or 0)
                     if iCurTimeSinceLastHadUnitAtMidpoint > iLongestTimeSinceLastReachedMidpoint then
-                        iLongestTimeSinceLastReachedMidpoint = iCurTimeSinceLastHadUnitAtMidpoint
-                        iZoneToScout = iWaterZone
+                        --Check we dont have buildings in here or intel
+                        local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                        if (tWZTeamData[M28Map.refiRadarCoverage] or 0) < 50 and not(tWZTeamData[M28Map.subrefWZbCoreBase]) and not(M28UnitInfo.IsUnitValid(tWZTeamData[M28Map.refoLastNavalFacAssisted])) then
+                            iLongestTimeSinceLastReachedMidpoint = iCurTimeSinceLastHadUnitAtMidpoint
+                            iZoneToScout = iWaterZone
+                        end
                     end
                 end
             end
@@ -8880,6 +8894,8 @@ function ManagePatrolsForEnemyFactory(iPond)
                 end
                 if iClosestUnitEntry then
                     local oUnit = toUnassignedUnits[iClosestUnitEntry]
+                    if bDebugMessages == true then LOG(sFunctionRef..'; Will assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to patrol iZoneToScout='..iZoneToScout) end
+                    tiUnitsAssignedByWaterZone[iZoneToScout] = (tiUnitsAssignedByWaterZone[iZoneToScout] or 0) + 1
 
                     --Patrol the water zone
                     if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftPatrolPath]) == false then
@@ -8909,10 +8925,17 @@ function ManagePatrolsForEnemyFactory(iPond)
             else
                 break
             end
-
-            WaitTicks(M28Land.iTicksPerLandCycle)
+            --Infinite loop redundancy
+            if iUnitsAvailableForPatrol == iPrevCycleAvailable then
+                M28Utilities.ErrorHandler('Infinite loop')
+                break
+            end
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(M28Land.iTicksPerLandCycle)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
     tPondSubtable[M28Map.refbActivePatrolLogic] = false
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

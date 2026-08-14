@@ -1613,7 +1613,7 @@ function CalculateBlueprintThreatsByType()
             ['10010000'] = { false, false, true, false, false, false }, --Antinavy threat only
             ['10000100'] = { false, false, false, false, true, false }, --Submersible threat only
             ['10000010'] = { false, false, false, false, false, true }, --Long range threat only
-            ['10001001'] = {false, false, true, false, false, false, true}, --Allied surface threat
+            ['10001001'] = {false, false, false, true, false, false, true}, --Allied surface threat
         }
         --{bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo}
         local tiAirThreatTypes = {
