@@ -35,6 +35,7 @@ refiWZOfFactory = 'M28NRaFZ' --water zone of the factory that produced this raid
 reftBlockedShotLocationByPond = 'M28BlShPn' --[x] is the pond ref; returns a position for where we think DF units should move to not have their shot blocked
 refbSpecialStuckTrackingActive = 'M28NStcTr' --true if we are considering if the unit is stuck
 refbPatrollingForEnemyFactory = 'M28NPtF' --true if unit is patrolling for enemy naval factory
+refbPrevCyclePatrollingForEnemyFactory = 'M28NPtP' --true if the cycle just done the unit was patrolling
 refiCurFactoryPatrolZoneTarget = 'M28PtFW' --waterzone that unit has last been told to move towards as part of its patrol
 
 --aiBrian variables
@@ -1945,7 +1946,11 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
             for iUnit, oUnit in tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
                 if oUnit:GetFractionComplete() == 1 and not(oUnit.Dead) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering in this WZ unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Active raider='..tostring((oUnit[refbActiveRaider] or false))..'; oUnit[M28ACU.refbTreatingAsACU]='..tostring((oUnit[M28ACU.refbTreatingAsACU] or false))..'; Water zone='..iWaterZone..'; Mobile navyoramhiborhover='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy * categories.MOBILE, oUnit.UnitId))..'; Antinavy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAntiNavy, oUnit.UnitId))..'; Navy category='..tostring(EntityCategoryContains(categories.NAVAL, oUnit.UnitId))..'; submarine='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))..'; Does it contain the main combat unit grouping of categories='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine - categories.COMMAND - M28UnitInfo.refCategoryRASSACU, oUnit.UnitId))..'; Is this a T3 mobile shield or shield boat='..tostring(EntityCategoryContains(iShieldCategory, oUnit.UnitId))..'; Time='..GetGameTimeSeconds()) end
-                    if oUnit[refbPatrollingForEnemyFactory] then oUnit[refbPatrollingForEnemyFactory] = nil end --reset each cycle
+                    if oUnit[refbPatrollingForEnemyFactory] then
+                        oUnit[refbPrevCyclePatrollingForEnemyFactory] = true
+                        oUnit[refbPatrollingForEnemyFactory] = nil
+                    elseif oUnit[refbPrevCyclePatrollingForEnemyFactory] then oUnit[refbPrevCyclePatrollingForEnemyFactory] = nil
+                    end --reset each cycle
                     --Special anti-stuck logic for T3 naval units (which are more prone to getting stuck)
                     if bConsiderStuckLogic and EntityCategoryContains(categories.TECH3 * M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and (not(oUnit[M28UnitInfo.refiLastWeaponEvent]) or GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] >= 30) and (not(oUnit[M28UnitInfo.refiTimeLastTriedRetreating]) or GetGameTimeSeconds() - oUnit[M28UnitInfo.refiTimeLastTriedRetreating] >= 30) and not(oUnit[refbSpecialStuckTrackingActive]) then
                         ForkThread(MonitorNavalUnitToSeeIfStuck, oUnit, iWaterZone)
@@ -4459,7 +4464,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 end
             end
 
-            --Treat any subs far from the front sub as unavailable and just have them move to the front sub, factoring in their range differential
+            --Treat any subs far from the front sub as unavailable and just have them move to the front sub, factoring in their range differential, if front sub isnt patrolling
             local tbWZToConsolidate = {}
             local tFrontSubWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][oFrontSub[refiCurrentAssignmentWaterZone]][M28Map.subrefWZTeamData][iTeam]
             if tFrontSubWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] > 0 then
@@ -4471,7 +4476,8 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             for iCurUnit = table.getn(tAvailableSubmarines), 1, -1 do
                 local oUnit = tAvailableSubmarines[iCurUnit]
                 iCurSubDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oFrontSub:GetPosition())
-                if iCurSubDist > 20 and (oUnit[M28UnitInfo.refiAntiNavyRange] <= oFrontSub[M28UnitInfo.refiAntiNavyRange] or iCurSubDist - oUnit[M28UnitInfo.refiAntiNavyRange] + oFrontSub[M28UnitInfo.refiAntiNavyRange] > 20) then
+                if (iCurSubDist > 20 and (oUnit[M28UnitInfo.refiAntiNavyRange] <= oFrontSub[M28UnitInfo.refiAntiNavyRange] or iCurSubDist - oUnit[M28UnitInfo.refiAntiNavyRange] + oFrontSub[M28UnitInfo.refiAntiNavyRange] > 20))
+                    and not(oFrontSub[refbPrevCyclePatrollingForEnemyFactory]) then
                     if tbWZToConsolidate[oUnit[refiCurrentAssignmentWaterZone]] == nil then
                         local tCurSubWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][oUnit[refiCurrentAssignmentWaterZone]][M28Map.subrefWZTeamData][iTeam]
                         if bDebugMessages == true then LOG(sFunctionRef..': enemy antinavy threat in WZ '..oUnit[refiCurrentAssignmentWaterZone]..'='..tCurSubWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy]) end
