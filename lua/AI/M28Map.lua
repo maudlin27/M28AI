@@ -497,9 +497,9 @@ tPondDetails = {}
     refiLastBombardmentBSShieldTargetValueByTeam = 'PnBmbShl' --[x] = M28 team, returns value if a battleship switches to targeting an enemy fixed shield, then this records the total enemy fixed shielding in the zone or if higher shielding the unit, so we know if we want to request more shielding
     refiLastBombardmentBSShieldTargetTimeByTeam = 'PnBmbSht' --[x] = M28team, returns floor of time that we last had abattleship switch to targeting a fixed shield
 
-    reftiEnemyFactoryPatrolWZList = 'PnFcPt' --table of the water zones to patrol when looking for enemy naval factory, ordered based on distance to each other
-    reftoEnemyFactoryUnitsPatrolling = 'PnFcUn' --table of units that are patrolling to watch for enemy naval factory
-    refbActivePatrolLogic = 'PnFcAc' --true if have logic running to give patrolling units orders
+    reftiEnemyFactoryPatrolWZListByTeam = 'PnFcPt' --table of the water zones to patrol when looking for enemy naval factory, ordered based on distance to each other
+    reftoEnemyFactoryUnitsPatrollingByTeam = 'PnFcUn' --table of units that are patrolling to watch for enemy naval factory
+    refbActivePatrolLogicByTeam = 'PnFcAc' --true if have logic running to give patrolling units orders
 
     --Water zones (against tPondDetails)
     subrefPondWZCount = 'PWZCount' --Total number of water zones in a pond (cant use table.getn on below as theyre not ordered from 1-x)
@@ -4560,11 +4560,11 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
             local iWaterZoneOfInterestCount = 0
             for iPond, tPondSubtable in tPondDetails do
                 bDebugMessages = true
-                if bDebugMessages == true then LOG(sFunctionRef..': Start of loop for identifying enemy factory patrol paths for iPond='..iPond..'; is reftiEnemyFactoryPatrolWZList nil='..tostring(tPondSubtable[reftiEnemyFactoryPatrolWZList] == nil)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Start of loop for identifying enemy factory patrol paths for iPond='..iPond..'; is reftiEnemyFactoryPatrolWZListByTeam nil='..tostring(tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam] == nil)) end
                 iClosestWZToEnemyBase = nil
                 iClosestEnemyBaseDist = 10000
                 tiWaterZonesOfInterestDistToFriendlyBase = {}
-                if tPondSubtable[reftiEnemyFactoryPatrolWZList] == nil then --just want to do this as a 1-off
+                if tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam][iTeam] == nil then --just want to do this as a 1-off
                     for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
                         if bDebugMessages == true then LOG(sFunctionRef..': iWaterZone='..iWaterZone..' for iPond='..iPond..' and iTeam='..iTeam..'; Is scout patrol path subreftPatrolPath empty for this='..tostring(M28Utilities.IsTableEmpty(tWZData[subreftPatrolPath]))..'; is subrefAdjacentLandZones empty='..tostring(M28Utilities.IsTableEmpty(tWZData[subrefAdjacentLandZones]))) end
                         if M28Utilities.IsTableEmpty(tWZData[subreftPatrolPath]) == false and M28Utilities.IsTableEmpty(tWZData[subrefAdjacentLandZones]) == false then
@@ -4601,7 +4601,8 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
                         iWaterZoneOfInterestCount = iWaterZoneOfInterestCount + 1
                     end
                     if M28Utilities.IsTableEmpty(tiWaterZonesOfInterestDistToFriendlyBase) == false then
-                        tPondSubtable[reftiEnemyFactoryPatrolWZList] = {}
+                        if not(tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam]) then tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam] = {} end
+                        tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam][iTeam] = {}
                         local tbWZInPath = {}
                         --Start with the closest WZ to friendly base
                         local iClosestDist = 10000
@@ -4613,7 +4614,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
                                 iClosestWZ = iWaterZone
                             end
                         end
-                        table.insert(tPondSubtable[reftiEnemyFactoryPatrolWZList], iClosestWZ)
+                        table.insert(tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam][iTeam], iClosestWZ)
                         tbWZInPath[iClosestWZ] = true
                         if bDebugMessages == true then LOG(sFunctionRef..': Dealing with iPond='..iPond..'; iClosestWZ to friendly base='..iClosestWZ..'; iWaterZoneOfInterestCount='..iWaterZoneOfInterestCount) end
                         if iWaterZoneOfInterestCount > 1 then
@@ -4651,7 +4652,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
                                 if iCurEntry > iWaterZoneOfInterestCount then M28Utilities.ErrorHandler('Risk of infinite loop so aborting') break end
                                 iNextWZToAdd = GetClosestWaterZoneToAddToPath(iNextWZToAdd)
                                 if iNextWZToAdd then
-                                    table.insert(tPondSubtable[reftiEnemyFactoryPatrolWZList], iNextWZToAdd)
+                                    table.insert(tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam][iTeam], iNextWZToAdd)
                                     tbWZInPath[iNextWZToAdd] = true
                                 else
                                     break

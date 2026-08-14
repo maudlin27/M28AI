@@ -8794,14 +8794,14 @@ end
 
 function ConsiderSearchingForNavalFactoryWithUnits(tUnits, iPond, iTeam)
     local tPondSubtable = M28Map.tPondDetails[iPond]
-    if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftiEnemyFactoryPatrolWZList]) == false then
+    if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftiEnemyFactoryPatrolWZListByTeam][iTeam]) == false then
         local bRecorded
         for iUnit, oUnit in tUnits do
             oUnit[refbPatrollingForEnemyFactory] = true
             --Check if recorded
             bRecorded = false
-            if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]) == false then
-                for iRecordedUnit, oRecordedUnit in tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling] do
+            if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrollingByTeam][iTeam]) == false then
+                for iRecordedUnit, oRecordedUnit in tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrollingByTeam][iTeam] do
                     if oUnit == oRecordedUnit then
                         bRecorded = true
                         break
@@ -8809,10 +8809,14 @@ function ConsiderSearchingForNavalFactoryWithUnits(tUnits, iPond, iTeam)
                 end
             end
             if not(bRecorded) then
-                if not(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]) then tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling] = {} end
-                table.insert(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling], oUnit)
-                if not(tPondSubtable[M28Map.refbActivePatrolLogic]) then
-                    tPondSubtable[M28Map.refbActivePatrolLogic] = true
+                if not(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrollingByTeam][iTeam]) then
+                    if not(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrollingByTeam]) then tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrollingByTeam] = {} end
+                    tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrollingByTeam][iTeam] = {}
+                end
+                table.insert(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrollingByTeam][iTeam], oUnit)
+                if not(tPondSubtable[M28Map.refbActivePatrolLogicByTeam][iTeam]) then
+                    if not(tPondSubtable[M28Map.refbActivePatrolLogicByTeam]) then tPondSubtable[M28Map.refbActivePatrolLogicByTeam] = {} end
+                    tPondSubtable[M28Map.refbActivePatrolLogicByTeam][iTeam] = true
                     ForkThread(ManagePatrolsForEnemyFactory, iPond, iTeam)
                 end
             end
@@ -8827,15 +8831,15 @@ function ManagePatrolsForEnemyFactory(iPond, iTeam)
 
     local tPondSubtable = M28Map.tPondDetails[iPond]
 
-    while M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]) == false do
+    while M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrollingByTeam][iTeam]) == false do
         --Update table of units
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of main loop, iPond='..iPond..'; size of reftoEnemyFactoryUnitsPatrolling before removing ones without order='..table.getn(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling])..'; Time='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of main loop, iPond='..iPond..'; size of reftoEnemyFactoryUnitsPatrollingByTeam before removing ones without order='..table.getn(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrollingByTeam][iTeam])..'; Time='..GetGameTimeSeconds()) end
         local toUnassignedUnits = {}
-        for iCurUnit = table.getn(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]), 1, -1 do
-            local oCurUnit = tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling][iCurUnit]
+        for iCurUnit = table.getn(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrollingByTeam][iTeam]), 1, -1 do
+            local oCurUnit = tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrollingByTeam][iTeam][iCurUnit]
             if oCurUnit.Dead or not(oCurUnit[refbPatrollingForEnemyFactory]) then
-                table.remove(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling], iCurUnit)
-                if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrolling]) then
+                table.remove(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrollingByTeam][iTeam], iCurUnit)
+                if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.reftoEnemyFactoryUnitsPatrollingByTeam][iTeam]) then
                     if bDebugMessages == true then LOG(sFunctionRef..': No longer have any patrolling units') end
                     break
                 end
@@ -8859,13 +8863,13 @@ function ManagePatrolsForEnemyFactory(iPond, iTeam)
             iZoneToScout = nil
             iMaxUnitsAssignedToConsider = 100
             iLongestTimeSinceLastReachedMidpoint = -2
-            for _, iWaterZone in tPondSubtable[M28Map.reftiEnemyFactoryPatrolWZList] do
+            for _, iWaterZone in tPondSubtable[M28Map.reftiEnemyFactoryPatrolWZListByTeam][iTeam] do
                 if (tiUnitsAssignedByWaterZone[iWaterZone] or 0) < iMaxUnitsAssignedToConsider then
                     iMaxUnitsAssignedToConsider =  (tiUnitsAssignedByWaterZone[iWaterZone] or 0)
                     if iMaxUnitsAssignedToConsider == 0 then break end
                 end
             end
-            for _, iWaterZone in tPondSubtable[M28Map.reftiEnemyFactoryPatrolWZList] do
+            for _, iWaterZone in tPondSubtable[M28Map.reftiEnemyFactoryPatrolWZListByTeam][iTeam] do
                 if (tiUnitsAssignedByWaterZone[iWaterZone] or 0) <= iMaxUnitsAssignedToConsider then
                     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
                     iCurTimeSinceLastHadUnitAtMidpoint = iCurTime - (tWZData[M28Map.subrefiTimeSinceLastPatrolAtMidpoint] or 0)
@@ -8936,6 +8940,6 @@ function ManagePatrolsForEnemyFactory(iPond, iTeam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
-    tPondSubtable[M28Map.refbActivePatrolLogic] = false
+    if tPondSubtable[M28Map.refbActivePatrolLogicByTeam][iTeam] then tPondSubtable[M28Map.refbActivePatrolLogicByTeam][iTeam] = false end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
