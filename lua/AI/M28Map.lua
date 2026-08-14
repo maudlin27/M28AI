@@ -4559,7 +4559,6 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
             local iIslandWanted, iCurDist
             local iWaterZoneOfInterestCount = 0
             for iPond, tPondSubtable in tPondDetails do
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Start of loop for identifying enemy factory patrol paths for iPond='..iPond..'; is reftiEnemyFactoryPatrolWZListByTeam nil='..tostring(tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam] == nil)) end
                 iClosestWZToEnemyBase = nil
                 iClosestEnemyBaseDist = 10000
@@ -4585,7 +4584,6 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
                                     end
                                 end
                             end
-                            bDebugMessages = true
                             if bDebugMessages == true then LOG(sFunctionRef..': checking dist between WZ and enemy base, iWaterZone='..iWaterZone..' for iPond='..iPond..'; iTeam='..iTeam..'; Midpoint='..repru(tWZData[subrefMidpoint])..'; reftClosestEnemyBase='..repru(tWZTeamData[reftClosestEnemyBase])) end
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tWZTeamData[reftClosestEnemyBase])
                             if iCurDist < iClosestEnemyBaseDist then
