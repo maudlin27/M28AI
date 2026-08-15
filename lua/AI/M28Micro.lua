@@ -666,23 +666,42 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                 if (iShotSpeed or 0) > 0 then --laser is 0
                     local iTimeUntilImpact = iDistToTarget / iShotSpeed
                     local bCancelDodge = false
-                    local iHoverMaxTimeToRun
+                    local iHoverMaxTimeToRun, iUnitSpeed
 
                     if iMaxTimeToRun < 1.1 then iHoverMaxTimeToRun = 1.1 end
                     if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..iDistToTarget..'; Shot speed='..iShotSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..'; Is weapon target a bot='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryLightAttackBot, (oWeaponTarget.UnitId or 'uel0001')))..'; bOnlyDodgeIfNotMoving='..tostring(bOnlyDodgeIfNotMoving)..'; tWeaponTarget='..repru(tWeaponTarget)..'; iRadiusSize='..(iRadiusSize or 'nil')..'; oWeaponBP.WeaponCategory='..(oWeaponBP.WeaponCategory or 'nil')..'; oWeaponBP.Label='..(oWeaponBP.Label or 'nil')..'; bOnlyDodgeIfNotMoving='..tostring(bOnlyDodgeIfNotMoving)) end
                     if iTimeUntilImpact > 0.8 or (oWeaponTarget and EntityCategoryContains(M28UnitInfo.refCategoryLightAttackBot, oWeaponTarget.UnitId) and iTimeUntilImpact >= 0.2) then
                         for iTarget, oTarget in tUnitsToConsiderDodgeFor do
                             bCancelDodge = false
-                            if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Weapon damage='..oWeaponBP.Damage..'; Target health='..oTarget:GetHealth()) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Weapon damage='..oWeaponBP.Damage..'; Target health='..oTarget:GetHealth()..'; Time since last weapon event='..GetGameTimeSeconds() -  (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Unit speed='..M28UnitInfo.GetUnitSpeed(oTarget)) end
                             --Does the shot do enough damage that we want to try and dodge it? (experimentals - consider high damage shots like ythotha ball)
                             if ((oTarget[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oTarget)) < 12500 or oWeaponBP.Damage >= 3000) and (oWeaponBP.Damage / oTarget:GetHealth() >= 0.01 or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and ((oWeaponBP.WeaponCategory == 'Artillery' and EntityCategoryContains(categories.INDIRECTFIRE - categories.TECH3, oUnit.UnitId) and (oWeaponBP.Damage / oTarget:GetHealth() >= 0.0035)) or (oWeaponBP.WeaponCategory == 'Missile' and EntityCategoryContains(categories.INDIRECTFIRE - categories.TECH3, oUnit.UnitId) and (oWeaponBP.Damage / oTarget:GetHealth() >= 0.006))))) then
-                                --Dont bother dodging if missile attack and we are moving away from it
+                                --Dont dodge if Sera destroyer that has recently fired, as it reduces its DPS massively - we set it as low priority micro when its main weapon fires, so check for this
                                 if bOnlyDodgeIfNotMoving then
-                                    local tFirstOrder = oUnit[M28Orders.reftiLastOrders][1]
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Only want to dodge if we are moving and will be far away from the waepon target, order type='..(tFirstOrder[M28Orders.subrefiOrderType] or 'nil')..'; Dist from weapon target='..M28Utilities.GetDistanceBetweenPositions(tWeaponTarget, oUnit:GetPosition())..'; iRadiusSize='..iRadiusSize) end
-                                    if tFirstOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and M28Utilities.GetDistanceBetweenPositions(tWeaponTarget, oUnit:GetPosition()) > 2 + iRadiusSize then
+                                    local tFirstOrder = oTarget[M28Orders.reftiLastOrders][1]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Only want to dodge if we are moving and will be far away from the waepon target, order type='..(tFirstOrder[M28Orders.subrefiOrderType] or 'nil')..'; Dist from weapon target='..M28Utilities.GetDistanceBetweenPositions(tWeaponTarget, oTarget:GetPosition())..'; iRadiusSize='..iRadiusSize) end
+                                    if tFirstOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and M28Utilities.GetDistanceBetweenPositions(tWeaponTarget, tFirstOrder[M28Orders.subreftOrderPosition]) > 2 + iRadiusSize then
                                         bCancelDodge = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Dodging missile - we are already planning on moving away from the missile') end
+                                    else
+                                        iUnitSpeed = M28UnitInfo.GetUnitSpeed(oTarget)
+                                        if iUnitSpeed > 1 then --if slower then might be slowing to a stop? or have just recently stopped and so be likely to stop again soon?
+                                            local tExpectedPositionToMoveTo = M28Utilities.MoveInDirection(oTarget:GetPosition(), M28UnitInfo.GetUnitFacingAngle(oTarget), iUnitSpeed * iTimeUntilImpact, true, false, true)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will still dodge if are moving even if dont have move order, Hover label of tExpectedPositionToMoveTo='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, oTarget:GetPosition()) or 'nil')..'; Hover label of cur unit position='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tExpectedPositionToMoveTo) or 'nil')) end
+                                            if tExpectedPositionToMoveTo and NavUtils.GetLabel(M28Map.refPathingTypeHover, oTarget:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeHover, tExpectedPositionToMoveTo) and M28Utilities.GetDistanceBetweenPositions(tWeaponTarget, tExpectedPositionToMoveTo) > 3 + iRadiusSize then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Expect we will have moved away from the missile so cancelling dodge') end
+                                                bCancelDodge = true
+                                            end
+                                        end
+                                    end
+                                end
+                                if oTarget.UnitId == 'xss0201' and not(bCancelDodge) and oTarget[M28UnitInfo.refiLastWeaponEvent] and oTarget[M28UnitInfo.refbSpecialMicroActive] and GetGameTimeSeconds() -  oTarget[M28UnitInfo.refiLastWeaponEvent] < 1 then
+                                    bCancelDodge = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Wont dodge for sera destroyer as it has recently fired, but if time to impact is a while want to consider dodging in a moment, iTimeUntilImpact='..iTimeUntilImpact) end
+                                    --Dont bother dodging if missile attack and we are moving away from it
+                                    if iTimeUntilImpact >= 2.5 and not(M28UnitInfo.IsUnitUnderwater(oTarget)) then
+                                        --          ConsiderDelayedMissileDodge(oTarget, oAttackerForReferenceOnly, oWeapon, iTimeToDodge,                                              iTimeToWaitInSeconds, iDistanceFromOrigPositionToDodge)
+                                        ForkThread(ConsiderDelayedMissileDodge, oTarget, oUnit,                     oWeapon, math.max(1, math.min(2, iTimeUntilImpact - 1.6)), 1 - math.max(0.5, GetGameTimeSeconds() - oTarget[M28UnitInfo.refiLastWeaponEvent] or 0), (oWeaponBP.DamageRadius or 0) + 2)
                                     end
                                 end
                                 if not(bCancelDodge) then
@@ -3576,4 +3595,26 @@ function SuicideYthothaIntoEnemyBase(oUnit, tEnemyBaseToSuicideInto, iMaxDistFro
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderDelayedMissileDodge(oTarget, oAttackerForReferenceOnly, oWeapon, iTimeToDodge, iTimeToWaitInSeconds, iDistanceFromOrigPositionToDodge)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderDelayedMissileDodge'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local tPositionWhenConsideringDelay = {oTarget:GetPosition()[1], oTarget:GetPosition()[2], oTarget:GetPosition()[3]}
+    WaitSeconds(iTimeToWaitInSeconds)
+    if M28UnitInfo.IsUnitValid(oTarget) then
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Doing delayed dodge, finished waiting, oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; iTimeToDodge='..iTimeToDodge..'; Dist from orig position='..M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), tPositionWhenConsideringDelay)..'; iDistanceFromOrigPositionToDodge='..iDistanceFromOrigPositionToDodge..'; oTarget[M28UnitInfo.refbSpecialMicroActive]='..tostring(oTarget[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()) end
+        if oTarget[M28UnitInfo.refbSpecialMicroActive] then
+            WaitSeconds(0.5)
+            if bDebugMessages == true then LOG(sFunctionRef..': Havew aited another half second, refbSpecialMicroActive='..tostring(oTarget[M28UnitInfo.refbSpecialMicroActive] or false)) end
+        end
+        if not(oTarget[M28UnitInfo.refbSpecialMicroActive]) then
+            if M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), tPositionWhenConsideringDelay) <= iDistanceFromOrigPositionToDodge then
+                --DodgeShot(oTarget, oOptionalWeapon, oAttacker, iTimeToDodge)
+                DodgeShot(oTarget, oWeapon, oAttackerForReferenceOnly, iTimeToDodge)
+            end
+        end
+    end
 end

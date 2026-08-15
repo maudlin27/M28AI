@@ -1649,7 +1649,7 @@ function OnWeaponFired(oWeapon)
 
 
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Time since last weapon event='..GetGameTimeSeconds() - (oWeapon[M28UnitInfo.refiLastWeaponEvent] or -1)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; Time since last weapon event='..GetGameTimeSeconds() - (oWeapon[M28UnitInfo.refiLastWeaponEvent] or -1)) end
             if not(oWeapon[M28UnitInfo.refiLastWeaponEvent]) or GetGameTimeSeconds() - oWeapon[M28UnitInfo.refiLastWeaponEvent] >= 0.5 then
                 oWeapon[M28UnitInfo.refiLastWeaponEvent] = GetGameTimeSeconds()
                 oUnit[M28UnitInfo.refiLastWeaponEvent] = GetGameTimeSeconds()
@@ -1752,6 +1752,10 @@ function OnWeaponFired(oWeapon)
                                 ForkThread(M28Chat.SendMessage, oUnit:GetAIBrain(), 'VendettaSMD', LOC('<LOC X06_T01_560_010>[{i Vendetta}]: Nice try.'), 1, 600, false, true, 'X06_Vedetta_T01_03018', 'X06_VO')
                             end
                         end
+                    end
+                    --Sera destroyer - dont give new orders until attack finished
+                    if oUnit.UnitId == 'xss0201' and iWeaponRangeCategory == 'UWRC_DirectFire' then
+                        M28Micro.TrackTemporaryUnitMicro(oUnit, 1, nil, true)
                     end
                     --T3 arti targeting logic; TML missile tracking
                     if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then

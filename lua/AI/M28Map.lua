@@ -579,6 +579,7 @@ tPondDetails = {}
             subrefWZBestAlliedDFRange = 'AlDFRnge'
             subrefWZBestAlliedSubmersibleRange = 'AlANavRng'
             subrefWZbSubsInScenario2 = 'SInSc2' --true if subs are in scenario 2 (so destroyers can consider attacking to support adjacent zones)
+            subrefWZbSurfaceInScenario2PrevCycle = 'SfInS2' --true if surface combat units are in scenario 2
             refiLastBombardmentSearchRange = 'WZBmbRng' --Last range used for searching for bmobardment targets
             refbLastBombardmentSearchRangeSuccess = 'WZBmbSuc' --true if last time searched for enemies aroudn a location it found results
             refiClosestRaidingPlateauAndLandZone = 'WZClRLZ' --returns {Plateau, LandZone} if htere is a land zone we want to consider as a raiding target
