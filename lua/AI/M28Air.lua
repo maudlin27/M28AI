@@ -12384,8 +12384,8 @@ function GetNovaxTarget(aiBrain, oNovax)
                             iCurValue = iCurValue * 2
                         end
                     end
-
-                    iTimeToKillTarget = (oUnit:GetHealth() + iCurShield + math.min(iMaxShield - iCurShield, iTimeToTarget * iCurDPSMod)) / math.max(0.001, iDPS - iCurDPSMod)
+                    --v317 - assume will take 1s as basic patch for revent novax nerf
+                    iTimeToKillTarget = math.max(1, (oUnit:GetHealth() + iCurShield + math.min(iMaxShield - iCurShield, iTimeToTarget * iCurDPSMod)) / math.max(0.001, iDPS - iCurDPSMod))
                     if iMaxShield == 0 and not (EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then
                         --If target is already in firing range then prioritise low health units; if its outside firing range then instead prioritise higher health units (that are worth a detour to kill)
                         if iTimeToTarget > 0 then
@@ -12394,6 +12394,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                             iCurValue = iCurValue * (1 + 0.2 * (1-M28UnitInfo.GetUnitHealthPercent(oUnit)))
                         end
                     end
+
                     iCurValue = iCurValue / math.max(1.5, iTimeToTarget * 0.9 + iTimeToKillTarget)
 
 
