@@ -550,7 +550,7 @@ tPondDetails = {}
             --subrefOtherLandAndWaterZonesByDistance - use same ref as for land zone
 
             --subreftoLZOrWZAlliedUnits = 'Allies' --USEs SAME REF AS FOR LAND ZONE - table of all allied units in the water zone
-            subrefWZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
+            subrefWZTAlliedSurfaceCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
             --subrefTEnemyUnits = 'Enemies' --table of all enemy units in the water zone - uses same ref as for land zone
             reftWZEnemyAirUnits = 'EnAir' --(same ref as for LZ) - All enemy air units that are currently in the water zone; see also refiTimeOfLastAirUpdate which refreshes this
             --Threat values
@@ -579,7 +579,8 @@ tPondDetails = {}
             subrefWZBestAlliedDFRange = 'AlDFRnge'
             subrefWZBestAlliedSubmersibleRange = 'AlANavRng'
             subrefWZbSubsInScenario2 = 'SInSc2' --true if subs are in scenario 2 (so destroyers can consider attacking to support adjacent zones)
-            subrefWZbSurfaceInScenario2PrevCycle = 'SfInS2' --true if surface combat units are in scenario 2
+            subrefWZbSubsPreviouslyInScenario2 = 'SPInS2' --true if in the last cycle subs were in scenario 2 (used to give a 1 cycle delay on switching to retreating, to cover units moving between zones)
+            subrefWZbSurfaceInScenario2PrevCycle = 'SfInS2' --true if surface combat units are in scenario 2 (used to give a 1 cycle delay on switching to retreating, to cover units moving between zones)
             refiLastBombardmentSearchRange = 'WZBmbRng' --Last range used for searching for bmobardment targets
             refbLastBombardmentSearchRangeSuccess = 'WZBmbSuc' --true if last time searched for enemies aroudn a location it found results
             refiClosestRaidingPlateauAndLandZone = 'WZClRLZ' --returns {Plateau, LandZone} if htere is a land zone we want to consider as a raiding target
@@ -3820,6 +3821,7 @@ function RecordAdjacentWaterZones()
                     iAltSegX = tSegmentXZ[1] + tSegAdjXZ[1]
                     iAltSegZ = tSegmentXZ[2] + tSegAdjXZ[2]
                     iAltWaterZone = tWaterZoneBySegment[iAltSegX][iAltSegZ]
+                    --if bDebugMessages == true then LOG(sFunctionRef..': base iWaterZone='..iWaterZone..'; base segment=X'..tSegmentXZ[1]..'Z'..tSegmentXZ[2]..', Adjusting by X='..tSegAdjXZ[1]..'Z='..tSegAdjXZ[2]..'; adjusted segment WZ='..(tWaterZoneBySegment[iAltSegX][iAltSegZ] or 'nil')) end
                     if iAltWaterZone and not(iAltWaterZone == iWaterZone) and not(tRecordedAdjacentZones[iAltWaterZone]) then
                         if tiPondByWaterZone[iAltWaterZone] == iPond then
                             tRecordedAdjacentZones[iAltWaterZone] = true

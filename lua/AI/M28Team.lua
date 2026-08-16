@@ -4288,7 +4288,7 @@ function SetWaterZoneDefaultTeamValues(tWZData, iTeam)
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWantLandScout] = false
 
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits] = {}
-    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTAlliedCombatUnits] = {}
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTAlliedSurfaceCombatUnits] = {}
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefTEnemyUnits] = {}
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftWZEnemyAirUnits] = {}
     --Threat values
