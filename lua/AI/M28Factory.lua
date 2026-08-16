@@ -1081,7 +1081,58 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, tBaseLZTeamData, iPla
         end
     end
     if bCanPathWithAmphibious then--]]
-                iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat - categories.FIELDENGINEER
+
+                local bGetAmphibiousOrHover = false
+                if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] or 0) == 0 or not(M28Conditions.TeamHasLowMass(iTeam)) then
+                    bGetAmphibiousOrHover = true
+                elseif not(iLandZone == iTargetLandZone) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.01 then
+                    --Save mass
+                else
+                    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+
+                        --Does the enemy have amphibious and hover units? in which case want to get units to protect this zone
+                        local bEnemyHasNearbyHoverOrAmphibious = false
+                        local bEnemyHasLongRangedNavy = false
+                        local tBaseLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                        if tBaseLZTeamData[M28Map.subrefLZbCoreBase] then
+                            bGetAmphibiousOrHover = true --enemy near our core base so build as last resort as naval fac may die soon anyway
+                        else
+
+                            local iAdjWZ, iPond
+                            for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                                iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+                                iPond = M28Map.tiPondByWaterZone[iAdjWZ]
+                                local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                                if M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                    if (tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 50 or ((tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 28 and M28UnitInfo.GetUnitTechLevel(oFactory) == 1) then
+                                        bEnemyHasLongRangedNavy = true
+                                        break
+                                    else
+                                        if tAdjWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] then
+                                            bEnemyHasNearbyHoverOrAmphibious = true
+                                        else
+                                            for iUnit, oUnit in tAdjWZTeamData[M28Map.subrefTEnemyUnits] do
+                                                if EntityCategoryContains(M28UnitInfo.refCategoryAmphibiousCombat, oUnit.UnitId) then
+                                                    bEnemyHasNearbyHoverOrAmphibious = true
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': bEnemyHasNearbyHoverOrAmphibious (unless they have LR df)='..tostring(bEnemyHasNearbyHoverOrAmphibious)..'; bEnemyHasLongRangedNavy='..tostring(bEnemyHasLongRangedNavy)) end
+                            if bEnemyHasNearbyHoverOrAmphibious and not(bEnemyHasLongRangedNavy) then
+                                bGetAmphibiousOrHover = true
+                            end
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Dangerous enemies in WZ, will decide if we want to build hover/amphibious to try and stop them or save mass for our own nave, bGetAmphibiousOrHover='..tostring(bGetAmphibiousOrHover)) end
+                if bGetAmphibiousOrHover then
+                    iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat - categories.FIELDENGINEER
+                end
                 --end
             end
         end

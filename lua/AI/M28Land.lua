@@ -6602,13 +6602,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering iOtherWZ='..iOtherWZ..'; tbWaterZonesAdjacentToThis[iOtherWZ]='..tostring(tbWaterZonesAdjacentToThis[iOtherWZ] or false)..'; iLikelyTargetZone='..iLikelyTargetZone) end
                             if tbWaterZonesAdjacentToThis[iOtherWZ] then
                                 local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iOtherWZ]][M28Map.subrefPondWaterZones][iOtherWZ][M28Map.subrefWZTeamData][iTeam]
-                                if bDebugMessages == true then LOG(sFunctionRef..': subrefWZThreatAlliedSurface for otherLZ='..(tAdjWZTeamData[M28Map.subrefWZThreatAlliedSurface] or 'nil')..'; is subrefWZTAlliedCombatUnits empty='..tostring(M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefWZTAlliedCombatUnits]))) end
-                                if tAdjWZTeamData[M28Map.subrefWZThreatAlliedSurface] > 0 and M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefWZTAlliedCombatUnits]) == false then
+                                if bDebugMessages == true then LOG(sFunctionRef..': subrefWZThreatAlliedSurface for otherLZ='..(tAdjWZTeamData[M28Map.subrefWZThreatAlliedSurface] or 'nil')..'; is subrefWZTAlliedSurfaceCombatUnits empty='..tostring(M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefWZTAlliedSurfaceCombatUnits]))) end
+                                if tAdjWZTeamData[M28Map.subrefWZThreatAlliedSurface] > 0 and M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefWZTAlliedSurfaceCombatUnits]) == false then
                                     --Include this zone unless we think we are giving orders to its units in availablecombatunits
                                     if iAttackingType == M28Map.subrefiLZOrWZTMovingToOtherZone then
                                         --We might have units that are far away, so only include if they are relatively close to our available units, and arent skirmishers
                                         local toUnitsToInclude = {}
-                                        local toPotentialUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryAmphibiousCombat, tAdjWZTeamData[M28Map.subrefWZTAlliedCombatUnits])
+                                        local toPotentialUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryAmphibiousCombat, tAdjWZTeamData[M28Map.subrefWZTAlliedSurfaceCombatUnits])
                                         if M28Utilities.IsTableEmpty(toPotentialUnits) == false then
                                             local iClosestFriendlyToOtherZoneDist = 10000
                                             local oClosestFriendlyToOtherZone
@@ -6638,7 +6638,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         end
                                     else
                                         --Get threat of hover/amphibious units
-                                        local tHoverAndAmphibiousUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryAmphibiousCombat, tAdjWZTeamData[M28Map.subrefWZTAlliedCombatUnits])
+                                        local tHoverAndAmphibiousUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryAmphibiousCombat, tAdjWZTeamData[M28Map.subrefWZTAlliedSurfaceCombatUnits])
                                         if M28Utilities.IsTableEmpty(tHoverAndAmphibiousUnits) == false then
                                             iAdjacentMobileDFThreat = iAdjacentMobileDFThreat + M28UnitInfo.GetCombatThreatRating(tHoverAndAmphibiousUnits, false, false)
                                         end
@@ -9459,8 +9459,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat = M28Navy.IncludeThreatOfAdjacentZone(iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, tWZData, tAdjWZTeamData, iAdjWZ, true, true, true, true, 1)
                                     end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': iAdjacentAlliedSubmersibleThreat='..iAdjacentAlliedSubmersibleThreat..'; iAdjacentEnemyAntiNavyThreat='..iAdjacentEnemyAntiNavyThreat..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; iAdjacentEnemyCombatThreat='..iAdjacentEnemyCombatThreat..'; Do we want to attack using WZ logic='..tostring(M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible], iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, true ))) end
-                                if not(M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible], iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, true )) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': iAdjacentAlliedSubmersibleThreat='..iAdjacentAlliedSubmersibleThreat..'; iAdjacentEnemyAntiNavyThreat='..iAdjacentEnemyAntiNavyThreat..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; iAdjacentEnemyCombatThreat='..iAdjacentEnemyCombatThreat..'; Do we want to attack using WZ logic='..tostring(M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iWaterZone, tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible], iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, true ))) end
+                                if not(M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iWaterZone, tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible], iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, true )) then
                                     bAttackWithEverything = false
                                 end
                             end

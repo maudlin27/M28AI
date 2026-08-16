@@ -497,6 +497,10 @@ tPondDetails = {}
     refiLastBombardmentBSShieldTargetValueByTeam = 'PnBmbShl' --[x] = M28 team, returns value if a battleship switches to targeting an enemy fixed shield, then this records the total enemy fixed shielding in the zone or if higher shielding the unit, so we know if we want to request more shielding
     refiLastBombardmentBSShieldTargetTimeByTeam = 'PnBmbSht' --[x] = M28team, returns floor of time that we last had abattleship switch to targeting a fixed shield
 
+    reftiEnemyFactoryPatrolWZListByTeam = 'PnFcPt' --table of the water zones to patrol when looking for enemy naval factory, ordered based on distance to each other
+    reftoEnemyFactoryUnitsPatrollingByTeam = 'PnFcUn' --table of units that are patrolling to watch for enemy naval factory
+    refbActivePatrolLogicByTeam = 'PnFcAc' --true if have logic running to give patrolling units orders
+
     --Water zones (against tPondDetails)
     subrefPondWZCount = 'PWZCount' --Total number of water zones in a pond (cant use table.getn on below as theyre not ordered from 1-x)
     subrefPondWaterZones = 'PondWZ' --e.g. access the water zone data tables via M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone], where iWaterZone is the NavUtils refPathingTypeNavy pathing result
@@ -524,6 +528,7 @@ tPondDetails = {}
         --subrefTotalMassReclaim
         --subrefLZTotalEnergyReclaim
         --subrefLastReclaimRefresh
+        subrefiTimeSinceLastPatrolAtMidpoint = 'WZTPtM' --if have units patrolling to check for enemy naval fac, this will be time in seconds we last had a unit there
 
         subrefWZTeamData = 'PWZTeam' --Used to house team related data for a particular water zone
             subrefWZbCoreBase = 'LZCoreB' --true if is a 'core' base (i.e. has a naval factory in); uses same ref as LZbCoreBase
@@ -545,7 +550,7 @@ tPondDetails = {}
             --subrefOtherLandAndWaterZonesByDistance - use same ref as for land zone
 
             --subreftoLZOrWZAlliedUnits = 'Allies' --USEs SAME REF AS FOR LAND ZONE - table of all allied units in the water zone
-            subrefWZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
+            subrefWZTAlliedSurfaceCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
             --subrefTEnemyUnits = 'Enemies' --table of all enemy units in the water zone - uses same ref as for land zone
             reftWZEnemyAirUnits = 'EnAir' --(same ref as for LZ) - All enemy air units that are currently in the water zone; see also refiTimeOfLastAirUpdate which refreshes this
             --Threat values
@@ -574,6 +579,8 @@ tPondDetails = {}
             subrefWZBestAlliedDFRange = 'AlDFRnge'
             subrefWZBestAlliedSubmersibleRange = 'AlANavRng'
             subrefWZbSubsInScenario2 = 'SInSc2' --true if subs are in scenario 2 (so destroyers can consider attacking to support adjacent zones)
+            subrefWZbSubsPreviouslyInScenario2 = 'SPInS2' --true if in the last cycle subs were in scenario 2 (used to give a 1 cycle delay on switching to retreating, to cover units moving between zones)
+            subrefWZbSurfaceInScenario2PrevCycle = 'SfInS2' --true if surface combat units are in scenario 2 (used to give a 1 cycle delay on switching to retreating, to cover units moving between zones)
             refiLastBombardmentSearchRange = 'WZBmbRng' --Last range used for searching for bmobardment targets
             refbLastBombardmentSearchRangeSuccess = 'WZBmbSuc' --true if last time searched for enemies aroudn a location it found results
             refiClosestRaidingPlateauAndLandZone = 'WZClRLZ' --returns {Plateau, LandZone} if htere is a land zone we want to consider as a raiding target
@@ -3814,6 +3821,7 @@ function RecordAdjacentWaterZones()
                     iAltSegX = tSegmentXZ[1] + tSegAdjXZ[1]
                     iAltSegZ = tSegmentXZ[2] + tSegAdjXZ[2]
                     iAltWaterZone = tWaterZoneBySegment[iAltSegX][iAltSegZ]
+                    --if bDebugMessages == true then LOG(sFunctionRef..': base iWaterZone='..iWaterZone..'; base segment=X'..tSegmentXZ[1]..'Z'..tSegmentXZ[2]..', Adjusting by X='..tSegAdjXZ[1]..'Z='..tSegAdjXZ[2]..'; adjusted segment WZ='..(tWaterZoneBySegment[iAltSegX][iAltSegZ] or 'nil')) end
                     if iAltWaterZone and not(iAltWaterZone == iWaterZone) and not(tRecordedAdjacentZones[iAltWaterZone]) then
                         if tiPondByWaterZone[iAltWaterZone] == iPond then
                             tRecordedAdjacentZones[iAltWaterZone] = true
@@ -4539,6 +4547,119 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
                         if not(iCurBrainIndex == ArmyBrains[tWZTeamData[reftiClosestFriendlyM28BrainIndex]]) and not(ArmyBrains[tWZTeamData[reftiClosestFriendlyM28BrainIndex]][M28Overseer.refbPrioritiseNavy]) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Will replace closest M28 brain index with this M28Navy one, iBrain='..iBrain..'; oBrain:GetArmyIndex()='..oBrain:GetArmyIndex()..'; iCurBrainIndex='..iCurBrainIndex) end
                             tWZTeamData[reftiClosestFriendlyM28BrainIndex] = iCurBrainIndex
+                        end
+                    end
+                end
+            end
+        end
+
+        --Record WZ enemy factory patrol paths if havent already
+        --Record water zones we want to patrol to check for enemy naval factories
+        if (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
+            local iClosestEnemyBaseDist = 10000
+            local iClosestWZToEnemyBase
+            local tiWaterZonesOfInterestDistToFriendlyBase
+            local iIslandWanted, iCurDist
+            local iWaterZoneOfInterestCount = 0
+            for iPond, tPondSubtable in tPondDetails do
+                if bDebugMessages == true then LOG(sFunctionRef..': Start of loop for identifying enemy factory patrol paths for iPond='..iPond..'; is reftiEnemyFactoryPatrolWZListByTeam nil='..tostring(tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam] == nil)) end
+                iClosestWZToEnemyBase = nil
+                iClosestEnemyBaseDist = 10000
+                tiWaterZonesOfInterestDistToFriendlyBase = {}
+                if tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam][iTeam] == nil then --just want to do this as a 1-off
+                    for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': iWaterZone='..iWaterZone..' for iPond='..iPond..' and iTeam='..iTeam..'; Is scout patrol path subreftPatrolPath empty for this='..tostring(M28Utilities.IsTableEmpty(tWZData[subreftPatrolPath]))..'; is subrefAdjacentLandZones empty='..tostring(M28Utilities.IsTableEmpty(tWZData[subrefAdjacentLandZones]))) end
+                        if M28Utilities.IsTableEmpty(tWZData[subreftPatrolPath]) == false and M28Utilities.IsTableEmpty(tWZData[subrefAdjacentLandZones]) == false then
+                            local tWZTeamData = tWZData[subrefWZTeamData][iTeam]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Mod dist%='..(tWZTeamData[refiModDistancePercent] or 'nil')..'; Land pathing ref of closest enemy base='..(NavUtils.GetLabel(refPathingTypeLand, tWZTeamData[reftClosestEnemyBase]) or 'nil')) end
+                            if tWZTeamData[refiModDistancePercent] >= 0.45 then
+                                --Is an adjacent land zone on the same island as nearest enemy base?
+                                iIslandWanted = NavUtils.GetLabel(refPathingTypeLand, tWZTeamData[reftClosestEnemyBase])
+                                if (iIslandWanted or 0) > 0 then
+                                    for iEntry, tSubtable in tWZData[subrefAdjacentLandZones] do
+                                        local tAltLZ = tAllPlateaus[tSubtable[subrefWPlatAndLZNumber][1]][subrefPlateauLandZones][tSubtable[subrefWPlatAndLZNumber][2]]
+                                        if tAltLZ[subrefLZIslandRef] == iIslandWanted then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': have an adjacent land zone at P'..tSubtable[subrefWPlatAndLZNumber][1]..'Z'..tSubtable[subrefWPlatAndLZNumber][2]..' that has the same island ref as iIslandWanted='..iIslandWanted..' so will add this water zone into the table of WZs by distance; Dist between WZ midpoint and closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tWZTeamData[reftClosestFriendlyBase])) end
+                                            tiWaterZonesOfInterestDistToFriendlyBase[iWaterZone] = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tWZTeamData[reftClosestFriendlyBase])
+                                            iWaterZoneOfInterestCount = iWaterZoneOfInterestCount + 1
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': checking dist between WZ and enemy base, iWaterZone='..iWaterZone..' for iPond='..iPond..'; iTeam='..iTeam..'; Midpoint='..repru(tWZData[subrefMidpoint])..'; reftClosestEnemyBase='..repru(tWZTeamData[reftClosestEnemyBase])) end
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tWZTeamData[reftClosestEnemyBase])
+                            if iCurDist < iClosestEnemyBaseDist then
+                                iClosestEnemyBaseDist = iCurDist
+                                iClosestWZToEnemyBase = iWaterZone
+                            end
+                        end
+                    end
+                    if iClosestWZToEnemyBase and not(tiWaterZonesOfInterestDistToFriendlyBase[iClosestWZToEnemyBase]) then
+                        local tClosestWZData = tPondDetails[iPond][subrefPondWaterZones][iClosestWZToEnemyBase]
+                        local tClosestWZTeamData = tClosestWZData[subrefWZTeamData][iTeam]
+                        tiWaterZonesOfInterestDistToFriendlyBase[iClosestWZToEnemyBase] = M28Utilities.GetDistanceBetweenPositions(tClosestWZData[subrefMidpoint], tClosestWZTeamData[reftClosestFriendlyBase])
+                        iWaterZoneOfInterestCount = iWaterZoneOfInterestCount + 1
+                    end
+                    if M28Utilities.IsTableEmpty(tiWaterZonesOfInterestDistToFriendlyBase) == false then
+                        if not(tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam]) then tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam] = {} end
+                        tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam][iTeam] = {}
+                        local tbWZInPath = {}
+                        --Start with the closest WZ to friendly base
+                        local iClosestDist = 10000
+                        local iClosestWZ
+                        for iWaterZone, iDistToFriendlyBase in tiWaterZonesOfInterestDistToFriendlyBase do
+                            tbWZInPath[iWaterZone] = false
+                            if iDistToFriendlyBase < iClosestDist then
+                                iClosestDist = iDistToFriendlyBase
+                                iClosestWZ = iWaterZone
+                            end
+                        end
+                        table.insert(tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam][iTeam], iClosestWZ)
+                        tbWZInPath[iClosestWZ] = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dealing with iPond='..iPond..'; iClosestWZ to friendly base='..iClosestWZ..'; iWaterZoneOfInterestCount='..iWaterZoneOfInterestCount) end
+                        if iWaterZoneOfInterestCount > 1 then
+
+                            function GetClosestWaterZoneToAddToPath(iBaseWaterZone)
+                                local tBaseWZData = tPondDetails[iPond][subrefPondWaterZones][iBaseWaterZone]
+                                --First check adjacent water zones
+                                if M28Utilities.IsTableEmpty(tBaseWZData[subrefWZAdjacentWaterZones]) == false then
+                                    for iEntry, tSubtable in tBaseWZData[subrefWZAdjacentWaterZones] do
+                                        local iAdjWZ = tSubtable[subrefAWZRef]
+                                        if tiWaterZonesOfInterestDistToFriendlyBase[iAdjWZ] and not(tbWZInPath[iAdjWZ]) then
+                                            return iAdjWZ
+                                        end
+                                    end
+                                end
+                                --Next check all WZs in the pathing list that dont yet have a path
+                                local iClosestDistToUs = 10000
+                                local iCurDist, iClosestWZ
+                                local tBaseMidpoint = tBaseWZData[subrefMidpoint]
+                                for iAltWZ, bInPathAlready in tbWZInPath do
+                                    if not(bInPathAlready) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Getting closest water zone, iBaseWaterZone='..iBaseWaterZone..'; iAltWZ='..iAltWZ..'; iPond='..iPond..'; Pond ref for iBaseWaterZone='..(tiPondByWaterZone[iBaseWaterZone] or 'nil')..'; tBaseMidpoint='..repru(tBaseMidpoint)..'; Midpoint of iAltWZ='..repru(tPondDetails[iPond][subrefPondWaterZones][iAltWZ][subrefMidpoint])) end
+
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tBaseMidpoint, tPondDetails[iPond][subrefPondWaterZones][iAltWZ][subrefMidpoint])
+                                        if iCurDist < iClosestDistToUs then
+                                            iClosestDistToUs = iCurDist
+                                            iClosestWZ = iAltWZ
+                                        end
+                                    end
+                                end
+                                return iClosestWZ
+                            end
+                            local iNextWZToAdd = iClosestWZ
+                            for iCurEntry = 1, iWaterZoneOfInterestCount + 1 do
+                                if iCurEntry > iWaterZoneOfInterestCount then M28Utilities.ErrorHandler('Risk of infinite loop so aborting') break end
+                                iNextWZToAdd = GetClosestWaterZoneToAddToPath(iNextWZToAdd)
+                                if iNextWZToAdd then
+                                    table.insert(tPondSubtable[reftiEnemyFactoryPatrolWZListByTeam][iTeam], iNextWZToAdd)
+                                    tbWZInPath[iNextWZToAdd] = true
+                                else
+                                    break
+                                end
+                            end
+
                         end
                     end
                 end
@@ -7461,11 +7582,14 @@ function RecordWaterZoneAdjacentLandZones()
     local iAdjacencyTablePosition
     local iBaseIntervalIgnoreThreshold = 4
     local iCloseIntervalIgnoreThreshold = 10
+    local iCloseDistanceThreshold = 80
     if iLandZoneSegmentSize >= 2 then
         if iCloseIntervalIgnoreThreshold > 2 then iBaseIntervalIgnoreThreshold = 2 iCloseIntervalIgnoreThreshold = 5
         else iBaseIntervalIgnoreThreshold = 3 iCloseIntervalIgnoreThreshold = 7
         end
     end
+    local iFurtherIntervalIgnoreThreshold = math.max(1, math.ceil(iBaseIntervalIgnoreThreshold * 0.5))
+    if bDebugMessages == true then LOG(sFunctionRef..': iLandZoneSegmentSize='..iLandZoneSegmentSize..'; iBaseIntervalIgnoreThreshold='..iBaseIntervalIgnoreThreshold..'; iCloseIntervalIgnoreThreshold='..iCloseIntervalIgnoreThreshold..'; iFurtherIntervalIgnoreThreshold='..iFurtherIntervalIgnoreThreshold) end
     local iActualIntervalIgnoreThreshold
     local iCurIntervalIgnoreCount --i.e. if we are moving from one midpoint to another, and come across a different land or water zone, it increases the ignorecount by 1 if the midpoints aren't too far apart
     local tiAdditionalWaterZonesAdjacentToPlateauLandZone = {} --[x]=plateau, [y]=LZ; [z] = WZ; returns a count of how many times it appeared
@@ -7518,12 +7642,14 @@ function RecordWaterZoneAdjacentLandZones()
 
     for iPond, tPondSubtable in tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+
             iPlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tWZData[subrefMidpoint])
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iWaterZone='..iWaterZone..'; iPlateau='..(iPlateau or 'nil')..'; Is plateau data empty='..tostring(M28Utilities.IsTableEmpty(tAllPlateaus[(iPlateau or -1)]))) end
             if (iPlateau or 0) > 0 and M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau]) == false then
                 --Cycle through every land zone on the map, and check if it is near this
                 if not(tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau]) then tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau] = {} end
                 for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+
                     if not(tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone]) then tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone] = {} end
                     --Is this land zone adjacent? Might be adjacent the following are both the case:
                     --LZMinX is >= WZMinX and <=WZMaxX; or LZMaxX is >= WZMinX and <=WZMaxX
@@ -7533,25 +7659,26 @@ function RecordWaterZoneAdjacentLandZones()
                         LOG(sFunctionRef..': Considering if land zone '..iLandZone..' is near the water zone '..iWaterZone..'; iSegmentGapAllowed='..iSegmentGapAllowed..'; tLZData[subrefLZMinSegX]='..tLZData[subrefLZMinSegX]..'; tWZData[subrefWZMinSegX]='..tWZData[subrefWZMinSegX]..'; tLZData[subrefLZMaxSegX]='..tLZData[subrefLZMaxSegX]..'; tWZData[subrefWZMaxSegX]='..tWZData[subrefWZMaxSegX]..'; tLZData[subrefLZMinSegZ]='..tLZData[subrefLZMinSegZ]..'; tWZData[subrefWZMinSegZ]='..tWZData[subrefWZMinSegZ]..'; tWZData[subrefWZMaxSegZ]='..tWZData[subrefWZMaxSegZ]..'; tLZData[subrefLZMaxSegZ]='..tLZData[subrefLZMaxSegZ]..'; Test1A='..tostring(tLZData[subrefLZMinSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX])..'; Test1B='..tostring(tLZData[subrefLZMinSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])..'; Test 2A='..tostring(tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX])..'; Test 2B='..tostring(tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])..'; Test 5A='..tostring(tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ])..'; Test 5B='..tostring(tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])..'; Test 6A='..tostring(tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ])..'; Test 6B='..tostring(tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])..'; Tests 3-4 and 7-8 relate to where the X or Z is inside the other')
                     end
                     if ((tLZData[subrefLZMinSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMinSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
-                        or (tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
-                        --Cover where water zone is inside land zone:
-                        or (tWZData[subrefWZMinSegX] >= tLZData[subrefLZMinSegX] and tWZData[subrefWZMaxSegX] <= tLZData[subrefLZMaxSegX])
-                        --or land zone is inside water zone:
-                        or (tLZData[subrefLZMinSegX] >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] <= tWZData[subrefWZMaxSegX]))
-                    and ((tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])
-                         or ((tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ]) and (tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]))
+                            or (tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
                             --Cover where water zone is inside land zone:
-                        or (tWZData[subrefWZMinSegZ] >= tLZData[subrefLZMinSegZ] and tWZData[subrefWZMaxSegZ] <= tLZData[subrefLZMaxSegZ])
-                        --or land zone is inside water zone:
-                        or (tLZData[subrefLZMinSegZ] >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMaxSegZ] <= tWZData[subrefWZMaxSegZ])) then
+                            or (tWZData[subrefWZMinSegX] >= tLZData[subrefLZMinSegX] and tWZData[subrefWZMaxSegX] <= tLZData[subrefLZMaxSegX])
+                            --or land zone is inside water zone:
+                            or (tLZData[subrefLZMinSegX] >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] <= tWZData[subrefWZMaxSegX]))
+                            and ((tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])
+                            or ((tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ]) and (tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]))
+                            --Cover where water zone is inside land zone:
+                            or (tWZData[subrefWZMinSegZ] >= tLZData[subrefLZMinSegZ] and tWZData[subrefWZMaxSegZ] <= tLZData[subrefLZMaxSegZ])
+                            --or land zone is inside water zone:
+                            or (tLZData[subrefLZMinSegZ] >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMaxSegZ] <= tWZData[subrefWZMaxSegZ])) then
                         --It looks like we might overlap, do a more precise calculation drawing a line from the two midpoints to see if we come across other land zones
                         bIsAdjacent = false
                         iDistBetweenMidpoints = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tLZData[subrefMidpoint])
                         iMaxLineInterval = math.floor(iDistBetweenMidpoints / iLineInterval) * iLineInterval
                         iLineAngle = M28Utilities.GetAngleFromAToB(tWZData[subrefMidpoint], tLZData[subrefMidpoint])
-                        if iDistBetweenMidpoints <= 150 then
-                            if iDistBetweenMidpoints <= 75 then iActualIntervalIgnoreThreshold = iCloseIntervalIgnoreThreshold
-                            else iActualIntervalIgnoreThreshold = iBaseIntervalIgnoreThreshold
+                        if iDistBetweenMidpoints <= 225 then
+                            if iDistBetweenMidpoints <= iCloseDistanceThreshold then iActualIntervalIgnoreThreshold = iCloseIntervalIgnoreThreshold
+                            elseif iDistBetweenMidpoints <= 170 then iActualIntervalIgnoreThreshold = iBaseIntervalIgnoreThreshold
+                            else iActualIntervalIgnoreThreshold = iFurtherIntervalIgnoreThreshold
                             end
                         else
                             iActualIntervalIgnoreThreshold = 0
@@ -7566,17 +7693,19 @@ function RecordWaterZoneAdjacentLandZones()
                             tLinePosition = M28Utilities.MoveInDirection(tWZData[subrefMidpoint], iLineAngle, iDistAlongLine, false, false, false)
                             iCurLineSegmentX, iCurLineSegmentZ = GetPathingSegmentFromPosition(tLinePosition)
                             if bDebugMessages == true then
-                                LOG(sFunctionRef..': tLinePosition='..repru(tLinePosition)..'; iCurLineSegmentX='..(iCurLineSegmentX or 'nil')..'; iCurLineSegmentZ='..(iCurLineSegmentZ or 'nil')..'; tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ]='..(tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] or 'nil')..'; tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ]='..(tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] or 'nil')..'; iCurIntervalIgnoreCount='..iCurIntervalIgnoreCount..'; iActualIntervalIgnoreThreshold='..iActualIntervalIgnoreThreshold..'; Will draw this location')
+                                LOG(sFunctionRef..': tLinePosition='..repru(tLinePosition)..'; iCurLineSegmentX='..(iCurLineSegmentX or 'nil')..'; iCurLineSegmentZ='..(iCurLineSegmentZ or 'nil')..'; tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ]='..(tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] or 'nil')..'; tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ]='..(tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] or 'nil')..'; iCurIntervalIgnoreCount='..iCurIntervalIgnoreCount..'; iActualIntervalIgnoreThreshold='..iActualIntervalIgnoreThreshold..'; Will draw this location, iDistAlongLine='..iDistAlongLine)
                                 M28Utilities.DrawLocation(tLinePosition, nil, 200)
                             end
                             if tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] then
                                 if tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] == iLandZone then
                                     bIsAdjacent = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Found an adjacent land zone so aborting') end
                                     break
                                 else
                                     --Not adjacent as is another land zone inbetween
                                     iCurIntervalIgnoreCount = iCurIntervalIgnoreCount + 1
-                                    if iCurIntervalIgnoreCount > iActualIntervalIgnoreThreshold then
+                                    if iCurIntervalIgnoreCount > iActualIntervalIgnoreThreshold and (iDistAlongLine >= iCloseDistanceThreshold or iCurIntervalIgnoreCount > iCloseIntervalIgnoreThreshold) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Not adjacent as another land zone inbetween, and over the intervalignorethreshold so aborting') end
                                         break
                                     end
                                 end
@@ -7585,7 +7714,8 @@ function RecordWaterZoneAdjacentLandZones()
                                     --not adjacent as is another water zone inbetween; record the inbetween waterzone as adjacent though
                                     iCurIntervalIgnoreCount = iCurIntervalIgnoreCount + 1
                                     tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone][iWaterZone] = (tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone][iWaterZone] or 0) + 1
-                                    if iCurIntervalIgnoreCount > iActualIntervalIgnoreThreshold then
+                                    if iCurIntervalIgnoreCount > iActualIntervalIgnoreThreshold and (iDistAlongLine >= iCloseDistanceThreshold or iCurIntervalIgnoreCount > iCloseIntervalIgnoreThreshold) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Another water zone inbetween so aborting') end
                                         break
                                     end
                                 end

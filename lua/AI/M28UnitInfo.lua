@@ -909,7 +909,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                 if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
                                     iMassMod = iMassMod * 2 --i.e. quadruple mass value
                                 else
-                                    iMassMod = iMassMod * 1.25 --increased from 1.1 pre-v128 as if we cant overwhelm the launcher we likely lose every unit
+                                    iMassMod = iMassMod * 1.6 --increased from 1.1 pre-v128 and 1.25 in v325 as if we cant overwhelm the launcher we likely lose every unit, and am sceptical that 3 subs win vs 1 torp launcher given range differential; this way we want roughly 4 subs to win; plus there is the risk if dealing with torp launcher that enemy has engis nearby that can build more, making ith arder to overwhelm
                                 end
                             end
                         end
@@ -1613,7 +1613,7 @@ function CalculateBlueprintThreatsByType()
             ['10010000'] = { false, false, true, false, false, false }, --Antinavy threat only
             ['10000100'] = { false, false, false, false, true, false }, --Submersible threat only
             ['10000010'] = { false, false, false, false, false, true }, --Long range threat only
-            ['10001001'] = {false, false, true, false, false, false, true}, --Allied surface threat
+            ['10001001'] = {false, false, false, true, false, false, true}, --Allied surface threat
         }
         --{bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo}
         local tiAirThreatTypes = {
