@@ -758,8 +758,8 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
             3 ['10000100'] = { false, false, false, true, false }, --Submersible threat only
             4 ['10000010'] = { false, false, false, false, true }, --Long range threat only
             5 ['10001001'] = {false, false, true, false, false, true}, --Allied surface naval threat only
-            6 ['10000000'] = { false, false, false, false, false }, --Normal land threat
-            7['10001000'] = { false, false, true, false, false }, --Normal land threat plus antinavy threat if higher
+            6 ['10001000'] = { false, false, true, false, false }, --Normal land threat plus antinavy threat if higher
+            7 ['10000000'] = { false, false, false, false, false }, --Normal land threat
 
             --]]
         --[[local iThreatRef
@@ -1686,11 +1686,15 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
         local iThreatRef
         if bIncludeAirToAir then
             if bIncludeAirToGround then
-                if bIncludeAirTorpedo then iThreatRef = 10
+                if bIncludeAirTorpedo then iThreatRef = 8
                 else iThreatRef = 9
                 end
-            elseif bIncludeAirTorpedo then iThreatRef = 11
-            else iThreatRef = 12
+            elseif bIncludeNonCombatAir then
+                if bIncludeAirTorpedo then iThreatRef = 10
+                else iThreatRef = 11
+                end
+            else
+                iThreatRef = 12
             end
         elseif bIncludeGroundToAir then iThreatRef = 13
         elseif bIncludeAirToGround then
@@ -1706,14 +1710,15 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
             else iThreatRef = 19
             end
         elseif bIncludeAirTorpedo then iThreatRef = 20
+        else M28Utilities.ErrorHandler('Need to add code for this threat combination')
         end
 
         --[[ bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo
-            8 ['210000'] = { true, false, false, false, false }, --Air AA
+            8 ['210111'] = { true, false, true, true, true }, --Air threat (general)
             9 ['210110'] = { true, false, true, true, false }, --Air threat (general)
-            10 ['210111'] = { true, false, true, true, true }, --Air threat (general)
-            11 ['210011'] = { true, false, false, true, true}, --Air excluding air to ground (but including torp bombers) - i.e. 'air excluding dangerous to land tanks on land'
-            12 ['210010'] = { true, false, false, true, false}, --Air excluding air to ground (i.e. excluding torp bombers as well)
+            10 ['210011'] = { true, false, false, true, true}, --Air excluding air to ground (but including torp bombers) - i.e. 'air excluding dangerous to land tanks on land'
+            11 ['210010'] = { true, false, false, true, false}, --Air excluding air to ground (i.e. excluding torp bombers as well)
+            12 ['210000'] = { true, false, false, false, false }, --Air AA
 
             13 ['201000'] = { false, true, false, false, false }, --Ground AA
             14 ['200111'] = { false, false, true, true, true }, --Air to ground and non-combat; note: The code will set TorpBombers to equal the airtoground value if it's nil, hence use of code ending 111
@@ -2129,23 +2134,23 @@ function CalculateBlueprintThreatsByType()
             3 ['10000100'] = { false, false, false, true, false }, --Submersible threat only
             4 ['10000010'] = { false, false, false, false, true }, --Long range threat only
             5 ['10001001'] = {false, false, true, false, false, true}, --Allied surface naval threat only
-            6 ['10000000'] = { false, false, false, false, false }, --Normal land threat
-            7['10001000'] = { false, false, true, false, false }, --Normal land threat plus antinavy threat if higher --]]
+            6 ['10001000'] = { false, false, true, false, false }, --Normal land threat plus antinavy threat if higher
+            7 ['10000000'] = { false, false, false, false, false }, --Normal land threat  --]]
 
             [1] = { true, false, false, false, false }, --Indirect only
             [2] = { false, true, false, false, false }, --Antinavy threat only
             [3] = { false, false, false, true, false }, --Submersible threat only
             [4] = { false, false, false, false, true }, --Long range threat only
             [5] = {false, false, true, false, false, true}, --Allied surface naval threat only
-            [6] = { false, false, false, false, false }, --Normal land threat
-            [7] = { false, false, true, false, false }, --Normal land threat plus antinavy threat if higher
+            [6] = { false, false, true, false, false }, --Normal land threat plus antinavy threat if higher
+            [7] = { false, false, false, false, false }, --Normal land threat
         }
         --[[ bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo
-            8 ['210000'] = { true, false, false, false, false }, --Air AA
+            8 ['210111'] = { true, false, true, true, true }, --Air threat (general)
             9 ['210110'] = { true, false, true, true, false }, --Air threat (general)
-            10 ['210111'] = { true, false, true, true, true }, --Air threat (general)
-            11 ['210011'] = { true, false, false, true, true}, --Air excluding air to ground (but including torp bombers) - i.e. 'air excluding dangerous to land tanks on land'
-            12 ['210010'] = { true, false, false, true, false}, --Air excluding air to ground (i.e. excluding torp bombers as well)
+            10 ['210011'] = { true, false, false, true, true}, --Air excluding air to ground (but including torp bombers) - i.e. 'air excluding dangerous to land tanks on land'
+            11 ['210010'] = { true, false, false, true, false}, --Air excluding air to ground (i.e. excluding torp bombers as well)
+            12 ['210000'] = { true, false, false, false, false }, --Air AA
 
             13 ['201000'] = { false, true, false, false, false }, --Ground AA
             14 ['200111'] = { false, false, true, true, true }, --Air to ground and non-combat; note: The code will set TorpBombers to equal the airtoground value if it's nil, hence use of code ending 111
@@ -2160,11 +2165,11 @@ function CalculateBlueprintThreatsByType()
 
         --{bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo}
         local tiAirThreatTypes = {
-            [8] = { true, false, false, false, false }, --Air AA
+            [8] = { true, false, true, true, true }, --Air threat (general)
             [9] = { true, false, true, true, false }, --Air threat (general)
-            [10] = { true, false, true, true, true }, --Air threat (general)
-            [11] = { true, false, false, true, true}, --Air excluding air to ground (but including torp bombers) - i.e. 'air excluding dangerous to land tanks on land'
-            [12] = { true, false, false, true, false}, --Air excluding air to ground (i.e. excluding torp bombers as well)
+            [10] = { true, false, false, true, true}, --Air excluding air to ground (but including torp bombers) - i.e. 'air excluding dangerous to land tanks on land'
+            [11] = { true, false, false, true, false}, --Air excluding air to ground (i.e. excluding torp bombers as well)
+            [12] = { true, false, false, false, false }, --Air AA
 
             [13] = { false, true, false, false, false }, --Ground AA
             [14] = { false, false, true, true, true }, --Air to ground and non-combat; note: The code will set TorpBombers to equal the airtoground value if it's nil, hence use of code ending 111
