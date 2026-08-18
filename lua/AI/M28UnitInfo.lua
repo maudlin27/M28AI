@@ -728,9 +728,8 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
             return GetMassCostOfUnits(tUnits, bEnemyUnits)
         end
 
-        local iCurThreat = 0
         local iTotalThreat = 0
-        local iHealthPercentage, iMaxHealth
+        local iMaxHealth
         local iHealthFactor --if unit has 40% health, then threat reduced by (1-40%)*iHealthFactor
         local iCurShield, iMaxShield
         local iOtherAdjustFactor = 1
@@ -951,6 +950,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
             return iBaseThreat
         else
             local iCurThreat
+            local bUseMyShield = M28Utilities.bFAFActive
             for iUnit, oUnit in tUnits do
                 --Get the base threat for the unit
                 if not(oUnit.Dead) then
@@ -971,10 +971,19 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                             end
                         else
                             --Have got the base threat for this type of unit, now adjust threat for unit health if want to calculate actual threat
-                            iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit)
-                            iMaxHealth = oUnit:GetMaxHealth() + iMaxShield
+                            if bUseMyShield then
+                                if oUnit.MyShield.GetHealth then
+                                    iHealthFactor = (oUnit.MyShield:GetHealth() + oUnit:GetHealth()) / (oUnit.MyShield:GetMaxHealth() + oUnit:GetMaxHealth())
+                                else
+                                    iHealthFactor = oUnit:GetHealth() / oUnit:GetMaxHealth()
+                                end
+                            else
+                                iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit)
+                                iMaxHealth = oUnit:GetMaxHealth() + iMaxShield
+                                iHealthFactor = (oUnit:GetHealth() + iCurShield) / (iMaxHealth + iMaxShield)
+                            end
                             if bDebugMessages == true then LOG(sFunctionRef..': iMaxHealth='..(iMaxHealth or 'nil')) end
-                            if iMaxHealth and iMaxHealth > 0 then
+                            if iHealthFactor > 0 then
                                 --Increase threat for veterancy level and adjust for fraction complete
                                 if oUnit.Sync.VeteranLevel > 0 then iOtherAdjustFactor = (1 + oUnit.Sync.VeteranLevel * 0.1)
                                 elseif oUnit:GetFractionComplete() <= 0.75 then iOtherAdjustFactor = 0.1
@@ -988,9 +997,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                                     if bEnemyUnits then
                                         if iOtherAdjustFactor == 1 then iOtherAdjustFactor = 1.1 else iOtherAdjustFactor = 1.1 * iOtherAdjustFactor end
-                                        iHealthFactor = (oUnit:GetHealth() + iCurShield) / (iMaxHealth + iMaxShield) --Want to allow for enemy ACU to be 10% higher threat due to potential of veterancy
                                     else
-                                        iHealthFactor = (oUnit:GetHealth() + iCurShield) / (iMaxHealth + iMaxShield)
                                         if iHealthFactor < 0.5 then iHealthFactor = iHealthFactor * iHealthFactor
                                         elseif iHealthFactor < 0.9 then iHealthFactor = iHealthFactor * (iHealthFactor + 0.1) end
                                     end
@@ -998,12 +1005,9 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                 else
                                     if bEnemyUnits then
                                         --For enemy damaged units treat them as still ahving high threat, since enemy likely could use them effectively still
-                                        iHealthFactor = (oUnit:GetHealth() + iCurShield) / (iMaxHealth + iMaxShield)
                                         if iHealthFactor < 1 then
                                             iHealthFactor = math.max(0.25, iHealthFactor * (1 + (1 - iHealthFactor)))
                                         end
-                                    else
-                                        iHealthFactor = (oUnit:GetHealth() + iCurShield) / (iMaxHealth + iMaxShield)
                                     end
                                 end
                             end
