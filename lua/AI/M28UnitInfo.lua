@@ -1509,10 +1509,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
         local iTotalThreat = 0
         local iTotalByTeamThreat, iCurTeam
         if bRecordByTeam then iTotalByTeamThreat = {} end
-        local iBaseThreat = 0
         local iHealthPercentage
-        local iHealthThreatFactor
-        local iGhettoGunshipAdjust = 0
 
 
         --[[local iThreatRef = '2'
@@ -1826,7 +1823,6 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                             end
                         else
                             --Adjust threat for health
-                            iHealthThreatFactor = 1
                             if iHealthFactor > 0 then
                                 --Assume low health experimental is has more health than it does - e.g. might heal, or might be under construction
                                 if EntityCategoryContains(categories.EXPERIMENTAL, oUnit) then
@@ -1858,19 +1854,17 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                 else
                                     iHealthPercentage = oUnit:GetHealth() / oUnit:GetMaxHealth()
                                 end
-                                iHealthThreatFactor = (1 - (1-iHealthPercentage) * iHealthFactor)
+                                iCurThreat = (1 - (1-iHealthPercentage) * iHealthFactor) * iCurThreat
                             elseif oUnit:GetFractionComplete() < 1 then
                                 if oUnit:GetFractionComplete() >= 0.5 and (bEnemyUnits or oUnit:GetFractionComplete() >= 0.95) then
-                                    iHealthThreatFactor = oUnit:GetFractionComplete()
+                                    iCurThreat = iCurThreat * oUnit:GetFractionComplete()
                                 else
-                                    iHealthThreatFactor = 0
+                                    iCurThreat = 0
                                 end
                             else
-                                iHealthThreatFactor = 1
+                                --no change to default
                             end
-                            --if not(iHealthThreatFactor == 1) then
-                            iCurThreat = iCurThreat * iHealthThreatFactor
-                            --end
+
                             if bIncludeGroundToAir and EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) and IsUnitUnderwater(oUnit) then iCurThreat = iCurThreat * 0.5 end
 
                             --Increase for cargo of transports
@@ -1885,12 +1879,12 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                         --Get mass value ignoring health:
                                         --GetCombatThreatRating(aiBrain, tUnits, bMustBeVisibleToIntelOrSight, iMassValueOfBlipsOverride, iSoloBlipMassOverride, bIndirectFireThreatOnly, bJustGetMassValue)
                                         iCurThreat = iCurThreat + GetCombatThreatRating(tCargo, bEnemyUnits)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Contains LABs so will increase threat by '..iGhettoGunshipAdjust) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Contains LABs so will increase threat by '..GetCombatThreatRating(tCargo, bEnemyUnits)) end
                                     end
                                 end
                             end
 
-                            if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iHealthThreatFactor='..(iHealthThreatFactor or 'nil')..'iGhettoGunshipAdjust='..(iGhettoGunshipAdjust or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit health%='..GetUnitHealthPercent(oUnit)) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit health%='..GetUnitHealthPercent(oUnit)) end
                         end
                     end
 
