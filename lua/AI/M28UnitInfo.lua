@@ -1476,6 +1476,8 @@ function GetCombatThreatRatingOld(tUnits, bEnemyUnits, bJustGetMassValue, bIndir
 end
 
 function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat, bRecordByTeam)
+    --tUnits key must contain [1] for one of the entries (i.e. assumes table of units is sequential numerical key) for performance reasons
+
     --Threat value depends on inputs:
     --bIncludeAntiAir - will include anti-air on ground units
     --bIncludeNonCombatAir - adds threat value for transports and scouts
@@ -1488,12 +1490,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to check if table is empty. bIncludeAirToAir='..tostring(bIncludeAirToAir)..'; bIncludeAirToGround='..tostring(bIncludeAirToGround or false)) end
 
-    if M28Utilities.IsTableEmpty(tUnits) then
-        --if tUnits == nil then
-        if bDebugMessages == true then LOG(sFunctionRef..': Warning: tUnits is empty, returning 0') end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return 0
-    else
+    if tUnits[1].UnitId then
         if bIncludeAirTorpedo == nil then bIncludeAirTorpedo = bIncludeAirToGround end
         local bUnitFitsDesiredCategory
 
@@ -1576,8 +1573,6 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
             --]]
 
 
-        local bAdjustExperimentalAirToGroundThreat = false
-        if not(bEnemyUnits) and bIncludeAirToGround and not(bIncludeAirToAir) then bAdjustExperimentalAirToGroundThreat = true end
         if bBlueprintThreat then
             local oUnit = tUnits[1]
             local oBP = __blueprints[oUnit.UnitId]
@@ -1816,24 +1811,68 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return iMassCost * iMassMod
         else
-            for iUnit, oUnit in tUnits do
-                iCurThreat = 0
-                iBaseThreat = 0
-                iGhettoGunshipAdjust = 0
-                if bDebugMessages == true then LOG(sFunctionRef..': About to check if unit is dead') end
+            local bAdjustExperimentalAirToGroundThreat = false
+            if not(bEnemyUnits) and bIncludeAirToGround and not(bIncludeAirToAir) then bAdjustExperimentalAirToGroundThreat = true end
 
-                if IsUnitValid(oUnit) then
+            for iUnit, oUnit in tUnits do
+                if not(oUnit.Dead) then
                     --Get the base threat for the unit
-                    iBaseThreat = (tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 0)
+                    iCurThreat = (tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 0)
                     --Adjust threat for health
-                    if iBaseThreat > 0 then
+                    if iCurThreat > 0 then
                         if M28Utilities.bCPUPerformanceMode then
-                            if iBaseThreat < 4000 then
-                                iCurThreat = iBaseThreat
-                            else
-                                iCurThreat = iBaseThreat * oUnit:GetHealth() / oUnit:GetMaxHealth()
+                            if iCurThreat >= 4000 then
+                                iCurThreat = iCurThreat * oUnit:GetHealth() / oUnit:GetMaxHealth()
                             end
                         else
+                            --Adjust threat for health
+                            iHealthThreatFactor = 1
+                            if iHealthFactor > 0 then
+                                --Assume low health experimental is has more health than it does - e.g. might heal, or might be under construction
+                                if EntityCategoryContains(categories.EXPERIMENTAL, oUnit) then
+                                    --Does unit have a shield?
+                                    if EntityCategoryContains(refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and not(M28Utilities.bFAFActive)) then
+                                        local iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit, true)
+                                        iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (oUnit:GetMaxHealth() + iMaxShield)
+                                        --Friendly czar
+                                        if bAdjustExperimentalAirToGroundThreat then
+                                            if oUnit.UnitId == 'uaa0310' then
+                                                iCurThreat = iCurThreat * 0.5
+                                            else
+                                                iCurThreat = iCurThreat * 0.65
+                                            end
+                                        end
+                                    else
+                                        iHealthPercentage = GetUnitHealthPercent(oUnit)
+                                        if iHealthPercentage < 1 and oUnit:GetFractionComplete() >= 0.2 then
+                                            if bEnemyUnits then iHealthPercentage = math.min(1, math.max(0.4, iHealthPercentage * 1.5))
+                                            else
+                                                iHealthPercentage = math.min(1, math.max(0.3, iHealthPercentage * 1.4))
+                                            end
+                                        end
+                                        --Other friendly air exp, e.g. soulripper
+                                        if bAdjustExperimentalAirToGroundThreat then
+                                            iCurThreat = iCurThreat * 0.65
+                                        end
+                                    end
+                                else
+                                    iHealthPercentage = oUnit:GetHealth() / oUnit:GetMaxHealth()
+                                end
+                                iHealthThreatFactor = (1 - (1-iHealthPercentage) * iHealthFactor)
+                            elseif oUnit:GetFractionComplete() < 1 then
+                                if oUnit:GetFractionComplete() >= 0.5 and (bEnemyUnits or oUnit:GetFractionComplete() >= 0.95) then
+                                    iHealthThreatFactor = oUnit:GetFractionComplete()
+                                else
+                                    iHealthThreatFactor = 0
+                                end
+                            else
+                                iHealthThreatFactor = 1
+                            end
+                            --if not(iHealthThreatFactor == 1) then
+                            iCurThreat = iCurThreat * iHealthThreatFactor
+                            --end
+                            if bIncludeGroundToAir and EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) and IsUnitUnderwater(oUnit) then iCurThreat = iCurThreat * 0.5 end
+
                             --Increase for cargo of transports
                             if bIncludeAirToGround and EntityCategoryContains(refCategoryTransport, oUnit.UnitId) and oUnit.GetCargo then --Use refcategoryTransport as Brewlan gives torp bombers the transportation category, and checking .GetCargo first doesnt prevent an error
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have an enemy transport, will get its cargo and see if it contains LABs') end
@@ -1845,67 +1884,28 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                     if M28Utilities.IsTableEmpty(tCargo) == false then
                                         --Get mass value ignoring health:
                                         --GetCombatThreatRating(aiBrain, tUnits, bMustBeVisibleToIntelOrSight, iMassValueOfBlipsOverride, iSoloBlipMassOverride, bIndirectFireThreatOnly, bJustGetMassValue)
-                                        iGhettoGunshipAdjust = GetCombatThreatRating(tCargo, bEnemyUnits)
+                                        iCurThreat = iCurThreat + GetCombatThreatRating(tCargo, bEnemyUnits)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Contains LABs so will increase threat by '..iGhettoGunshipAdjust) end
                                     end
                                 end
                             end
 
-                            --Adjust threat for health
-                            iHealthThreatFactor = 1
-                            if iHealthFactor > 0 then
-                                --Assume low health experimental is has more health than it does - e.g. might heal, or might be under construction
-                                if EntityCategoryContains(categories.EXPERIMENTAL, oUnit) then
-                                    --Does unit have a shield?
-                                    if EntityCategoryContains(refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and not(M28Utilities.bFAFActive)) then
-                                        local iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit, true)
-                                        iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (oUnit:GetMaxHealth() + iMaxShield)
-                                    else
-                                        iHealthPercentage = GetUnitHealthPercent(oUnit)
-                                        if iHealthPercentage < 1 and oUnit:GetFractionComplete() >= 0.2 then
-                                            if bEnemyUnits then iHealthPercentage = math.min(1, math.max(0.4, iHealthPercentage * 1.5))
-                                            else
-                                                iHealthPercentage = math.min(1, math.max(0.3, iHealthPercentage * 1.4))
-                                            end
-                                        end
-                                    end
-                                else
-                                    iHealthPercentage = GetUnitHealthPercent(oUnit)
-                                end
-                                iHealthThreatFactor = (1 - (1-iHealthPercentage) * iHealthFactor) * iHealthThreatFactor
-                            elseif oUnit:GetFractionComplete() < 1 then
-                                if oUnit:GetFractionComplete() >= 0.5 and (bEnemyUnits or oUnit:GetFractionComplete() >= 0.95) then
-                                    iHealthThreatFactor = oUnit:GetFractionComplete()
-                                else
-                                    iHealthThreatFactor = 0
-                                end
-                            end
-                            if bAdjustExperimentalAirToGroundThreat and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
-                                if EntityCategoryContains(refCategoryCzar, oUnit.UnitId) then
-                                    --Friendly czar
-                                    iBaseThreat = iBaseThreat * 0.5
-                                else
-                                    --e.g. friendly soulripper
-                                    iBaseThreat = iBaseThreat * 0.65
-                                end
-                            end
-                            if bIncludeGroundToAir and EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) and IsUnitUnderwater(oUnit) then iBaseThreat = iBaseThreat * 0.5 end
-                            iCurThreat = iBaseThreat * iHealthThreatFactor + iGhettoGunshipAdjust
                             if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iHealthThreatFactor='..(iHealthThreatFactor or 'nil')..'iGhettoGunshipAdjust='..(iGhettoGunshipAdjust or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit health%='..GetUnitHealthPercent(oUnit)) end
                         end
                     end
-                end
 
-                if iCurThreat > 0 then
-                    if bRecordByTeam then
-                        iCurTeam = (oUnit:GetAIBrain().M28Team or 0)
-                        iTotalByTeamThreat[iCurTeam] = (iTotalByTeamThreat[iCurTeam] or 0) + iCurThreat
 
-                    else
-                        iTotalThreat = iTotalThreat + iCurThreat
+                    if iCurThreat > 0 then
+                        if bRecordByTeam then
+                            iCurTeam = (oUnit:GetAIBrain().M28Team or 0)
+                            iTotalByTeamThreat[iCurTeam] = (iTotalByTeamThreat[iCurTeam] or 0) + iCurThreat
+
+                        else
+                            iTotalThreat = iTotalThreat + iCurThreat
+                        end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iCurThreat='..iCurThreat..'; iTotalThreat='..iTotalThreat) end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Unit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iCurThreat='..iCurThreat..'; iTotalThreat='..iTotalThreat) end
             end
         end
 
@@ -1929,6 +1929,11 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return iTotalThreat
         end
+    else
+        --if tUnits == nil then
+        if bDebugMessages == true then LOG(sFunctionRef..': Warning: tUnits is empty, returning 0') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return 0
     end
     M28Profiler.ErrorHandler('Code shouldve returend before now, will return 0')
     return 0
