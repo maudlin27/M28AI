@@ -961,7 +961,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                     end
 
                     if iCurThreat == 0 and bSubmersibleOnly and bEnemyUnits and EntityCategoryContains(refCategoryAmphibious, oUnit.UnitId) and IsUnitUnderwater(oUnit) then
-                        iCurThreat = oUnit[refiUnitMassCost] * 0.35
+                        iCurThreat = oUnit[refiUnitMassCost] * 0.35 --presumably still wanted a threat value for torpedo launchers to attack
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iBaseThreat='..(iBaseThreat or 0)..'; DF threat override='..(oUnit[refiDFMassThreatOverride] or 'nil')..'; tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]='..(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 'nil')..'; bJustGetMassValue='..tostring(bJustGetMassValue)..'; iThreatRef='..iThreatRef..'; iBaseThreat='..iBaseThreat..'; bJustGetMassValue='..tostring(bJustGetMassValue)..'; bCPUPerformanceMode='..tostring(M28Utilities.bCPUPerformanceMode)) end
                     if iCurThreat > 0 then
@@ -1503,7 +1503,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                 iHealthFactor = 0.15
             end
         elseif bIncludeAirToGround == true then iHealthFactor = 0.5
-        else iHealthFactor = 0 end
+        else iHealthFactor = 0 end --E.g. SAMs give the same AA threat regardless of health
 
         local iCurThreat = 0
         local iTotalThreat = 0
@@ -1832,7 +1832,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                         iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (oUnit:GetMaxHealth() + iMaxShield)
                                         --Friendly czar
                                         if bAdjustExperimentalAirToGroundThreat then
-                                            if oUnit.UnitId == 'uaa0310' then
+                                            if oUnit.UnitId == 'uaa0310' then --czar
                                                 iCurThreat = iCurThreat * 0.5
                                             else
                                                 iCurThreat = iCurThreat * 0.65
@@ -1846,8 +1846,8 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                                 iHealthPercentage = math.min(1, math.max(0.3, iHealthPercentage * 1.4))
                                             end
                                         end
-                                        --Other friendly air exp, e.g. soulripper
-                                        if bAdjustExperimentalAirToGroundThreat then
+                                        --Other friendly air exp, e.g. soulripper, but not ahwassa
+                                        if bAdjustExperimentalAirToGroundThreat and not(oUnit.UnitId == 'xsa0402') then
                                             iCurThreat = iCurThreat * 0.65
                                         end
                                     end

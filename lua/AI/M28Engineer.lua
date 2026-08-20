@@ -444,6 +444,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
     local bCanBuildStructure = false
     if aiBrain.CanBuildStructureAt and (aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation) == true or (bConsideringResourceLocation and (EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild) and ((EntityCategoryContains(M28UnitInfo.refCategoryMex, sBlueprintToBuild) and M28Conditions.CanBuildOnMexLocation(tTargetLocation)) or EntityCategoryContains(M28UnitInfo.refCategoryHydro, sBlueprintToBuild) and M28Conditions.CanBuildOnHydroLocation(tTargetLocation))))) then
         bCanBuildStructure = true
+        local iSkirtSizeRadius
         if bOnlyCheckBlacklist then
             --NOTE: COPIED THIS BELOW for blacklist, didnt do separate function due to performance fears
             local iPlateau = iOptionalPlateauGroupOrZero
@@ -455,6 +456,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
             if bDebugMessages == true then LOG(sFunctionRef..': Checking against blacklist for the floor of target location and in the building radius, is blacklist nil for floor='..tostring(tLZData[M28Map.subrefBuildLocationBlacklistByPosition][math.floor(tTargetLocation[1])][math.floor(tTargetLocation[3])] == nil)..'; FloorX='..math.floor(tTargetLocation[1])..'; FloorZ='..math.floor(tTargetLocation[3])) end
             local iFloorX = math.floor(tTargetLocation[1])
             local iFloorZ = math.floor(tTargetLocation[3])
+            iSkirtSizeRadius =  __blueprints[sBlueprintToBuild].Physics.SkirtSizeX * 0.5
             for iBlacklistX = iFloorX - iSkirtSizeRadius, iFloorX + iSkirtSizeRadius do
                 if tLZData[M28Map.subrefBuildLocationBlacklistByPosition][iBlacklistX] then
                     for iBlacklistZ = iFloorZ - iSkirtSizeRadius, iFloorZ + iSkirtSizeRadius do
@@ -480,7 +482,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
         if bDebugMessages == true then LOG(sFunctionRef..': Passed hte basic aiBrain check of whether se can build a structure at the target location, bCheckForQueuedBuildings='..tostring(bCheckForQueuedBuildings or false)..'; bCanBuildStructure after checking alt blueprints='..tostring(bCanBuildStructure)) end
         if bCanBuildStructure then
 
-            local iSkirtSizeRadius = __blueprints[sBlueprintToBuild].Physics.SkirtSizeX * 0.5
+
             if bCheckForQueuedBuildings == true then
                 if bDebugMessages == true then LOG(sFunctionRef..': Checking for queued buildings, iOptionalPlateauGroupOrZero='..(iOptionalPlateauGroupOrZero or 'nil')..'; iOptionalLandOrWaterZone='..(iOptionalLandOrWaterZone or 'nil')) end
                 if iOptionalPlateauGroupOrZero and iOptionalLandOrWaterZone then
@@ -520,6 +522,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
             if bCanBuildStructure and not(bConsideringResourceLocation) then
                 --Check in case scathis is blocking us
                 if M28Utilities.IsTableEmpty(tAllScathis) == false then
+                    if not(iSkirtSizeRadius) then iSkirtSizeRadius =  __blueprints[sBlueprintToBuild].Physics.SkirtSizeX * 0.5 end
                     for iUnit, oUnit in tAllScathis do
                         if M28Utilities.GetDistanceBetweenPositions(tTargetLocation, oUnit:GetPosition()) < (iSkirtSizeRadius + oUnit:GetBlueprint().Physics.SkirtSizeX * 0.5) then
                             bCanBuildStructure = false
@@ -535,6 +538,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
                     -- compute build locations and issue the capping
 
                     -- find all units that may prevent us from building
+                    if not(iSkirtSizeRadius) then iSkirtSizeRadius =  __blueprints[sBlueprintToBuild].Physics.SkirtSizeX * 0.5 end
                     local tNearbyStructures = GetUnitsInRect(tTargetLocation[1] - (iSkirtSizeRadius + 4), tTargetLocation[3] - (iSkirtSizeRadius + 4), tTargetLocation[1] + (iSkirtSizeRadius + 4), tTargetLocation[3] + (iSkirtSizeRadius + 4))
                     if M28Utilities.IsTableEmpty(tNearbyStructures) == false then
                         tNearbyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryUpgraded, tNearbyStructures)
@@ -567,6 +571,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
                 if bDebugMessages == true then LOG(sFunctionRef..': Checking against blacklist for the floor of target location and in the building radius, is blacklist nil for floor='..tostring(tLZData[M28Map.subrefBuildLocationBlacklistByPosition][math.floor(tTargetLocation[1])][math.floor(tTargetLocation[3])] == nil)..'; FloorX='..math.floor(tTargetLocation[1])..'; FloorZ='..math.floor(tTargetLocation[3])) end
                 local iFloorX = math.floor(tTargetLocation[1])
                 local iFloorZ = math.floor(tTargetLocation[3])
+                if not(iSkirtSizeRadius) then iSkirtSizeRadius =  __blueprints[sBlueprintToBuild].Physics.SkirtSizeX * 0.5 end
                 for iBlacklistX = iFloorX - iSkirtSizeRadius, iFloorX + iSkirtSizeRadius do
                     if tLZData[M28Map.subrefBuildLocationBlacklistByPosition][iBlacklistX] then
                         for iBlacklistZ = iFloorZ - iSkirtSizeRadius, iFloorZ + iSkirtSizeRadius do
@@ -4497,7 +4502,9 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     --local tNearbyEnemiesByZone = {}
     local bCheckForEnemies = false
     local toNavalEnemiesAdjacentToLand
+    local bAlreadyIncludedNavalEnemiesAdjToLand
     local bCheckIfEnemyIsActuallyEnemy = false
+    local tEnemiesInThisAndAdjacentZones
     if M28Map.bIsCampaignMap and (M28Overseer.tbSpecialCodeForMission[41] or (ScenarioInfo.QAICommander and M28UnitInfo.IsUnitValid(ScenarioInfo.QAICommander))) then
         bCheckIfEnemyIsActuallyEnemy = true
     end
@@ -4736,6 +4743,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                             iActualEnemyCategorySearch = iNormalEnemyCategorySearch
                                         end
                                         local tNearbyEnemiesByZone
+                                        bAlreadyIncludedNavalEnemiesAdjToLand = false
                                         if M28Utilities.bCPUPerformanceMode then
                                             tNearbyEnemiesByZone = tLZTeamData[M28Map.subrefTEnemyUnits]
                                             iNearestEnemy = iActualEnemySearchRange
@@ -4748,34 +4756,47 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                             if bDebugMessages == true then LOG(sFunctionRef..': Using getunitsaroundpoint to check for enemies, tLZTeamData[M28Map.refiRadarCoverage]='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')) end
                                         else
                                             --Rely on memory
-                                            tNearbyEnemiesByZone = {}
-                                            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                                                for iUnit, oUnit in tLZTeamData[M28Map.subrefTEnemyUnits] do
-                                                    table.insert(tNearbyEnemiesByZone, oUnit)
+                                            if tEnemiesInThisAndAdjacentZones == nil then
+                                                tEnemiesInThisAndAdjacentZones = {}
+                                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                                    for iUnit, oUnit in tLZTeamData[M28Map.subrefTEnemyUnits] do
+                                                        table.insert(tEnemiesInThisAndAdjacentZones, oUnit)
+                                                    end
                                                 end
-                                            end
-                                            --Include adjacent zones
-                                            if bIsWaterZone then
-                                                --Water zone
-                                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
-                                                    for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestCombatEnemies] do
-                                                        if not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iLandZone) then
-                                                            table.insert( tNearbyEnemiesByZone, oUnit)
+                                                --Include adjacent zones
+                                                if bIsWaterZone then
+                                                    --Water zone
+                                                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
+                                                        for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestCombatEnemies] do
+                                                            if not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iLandZone) then
+                                                                table.insert( tEnemiesInThisAndAdjacentZones, oUnit)
+                                                            end
+                                                        end
+                                                    end
+                                                else
+                                                    --Land zone
+                                                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                                        for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                                                            if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
+                                                                table.insert( tEnemiesInThisAndAdjacentZones, oUnit)
+                                                            end
                                                         end
                                                     end
                                                 end
-                                            else
-                                                --Land zone
-                                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
-                                                    for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
-                                                        if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
-                                                            table.insert( tNearbyEnemiesByZone, oUnit)
+                                                if toNavalEnemiesAdjacentToLand then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Updating nearby enemies to include toNavalEnemiesAdjacentToLand') end
+                                                    if not(tEnemiesInThisAndAdjacentZones) then tEnemiesInThisAndAdjacentZones = toNavalEnemiesAdjacentToLand
+                                                    else
+                                                        for iEnemy, oEnemy in toNavalEnemiesAdjacentToLand do
+                                                            table.insert(tEnemiesInThisAndAdjacentZones, oEnemy)
                                                         end
                                                     end
                                                 end
                                             end
+                                            bAlreadyIncludedNavalEnemiesAdjToLand = true
+                                            tNearbyEnemiesByZone = tEnemiesInThisAndAdjacentZones
                                         end
-                                        if toNavalEnemiesAdjacentToLand then
+                                        if toNavalEnemiesAdjacentToLand and not(bAlreadyIncludedNavalEnemiesAdjToLand) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Updating nearby enemies to include toNavalEnemiesAdjacentToLand') end
                                             if not(tNearbyEnemiesByZone) then tNearbyEnemiesByZone = toNavalEnemiesAdjacentToLand
                                             else

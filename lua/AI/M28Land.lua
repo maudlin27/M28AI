@@ -3161,8 +3161,8 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
     local sFunctionRef = 'ManageMAAInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2) --Get a LZ up to 3 land zones away to retreat to (i.e. will pick rally point and then move 2 towards it)
-    local tAmphibiousRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, true)
+    local tRallyPoint
+    local tAmphibiousRallyPoint
     local bRetreatWithAllMAA = false
     local bAttackMoveWithMAA = false
 
@@ -3283,8 +3283,10 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                 if oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] then
                     local tCurRallyPoint
                     if bAmphibiousUnit then
+                        if not(tAmphibiousRallyPoint) then tAmphibiousRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, true) end
                         tCurRallyPoint = tAmphibiousRallyPoint
                     else
+                        if not(tRallyPoint) then tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2) end
                         tCurRallyPoint = tRallyPoint
                     end
                     iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
@@ -3307,16 +3309,20 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                     M28Orders.IssueTrackedMove(oUnit, tTempRetreatLocation, 6, false, 'ORun'..iLandZone)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
                     --IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+                    if not(tAmphibiousRallyPoint) then tAmphibiousRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, true) end
                     M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'MAAConsA'..iLandZone)
                 else
+                    if not(tRallyPoint) then tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2) end
                     if bDebugMessages == true then LOG(sFunctionRef..'; Will retreat to rally point, angle to rally='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)..'; Dist to rally='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)) end
                     M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'MAAConsL'..iLandZone)
                 end
                 oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = GetGameTimeSeconds()
             elseif bRetreatWithAllMAA then
                 if bAmphibiousUnit then
+                    if not(tAmphibiousRallyPoint) then tAmphibiousRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, true) end
                     M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'ARun'..iLandZone)
                 else
+                    if not(tRallyPoint) then tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2) end
                     M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'Run'..iLandZone)
                 end
                 oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = GetGameTimeSeconds()
@@ -3336,8 +3342,10 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
         if bRetreatWithAllMAA then
             for iUnit, oUnit in tMAAToAdvance do
                 if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
+                    if not(tAmphibiousRallyPoint) then tAmphibiousRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, true) end
                     M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'MAACons2A'..iLandZone)
                 else
+                    if not(tRallyPoint) then tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2) end
                     M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'MAACons2L'..iLandZone)
                 end
             end
@@ -3625,8 +3633,10 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                 --Go to rally point instead
                 for iUnit, oUnit in tMAAToAdvance do
                     if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
+                        if not(tAmphibiousRallyPoint) then tAmphibiousRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, true) end
                         M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 10, false, 'ABRtr'..iLandZone)
                     else
+                        if not(tRallyPoint) then tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2) end
                         M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'BRtr'..iLandZone)
                     end
                 end
