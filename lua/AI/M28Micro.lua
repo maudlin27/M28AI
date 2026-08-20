@@ -1574,7 +1574,9 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
         --If bomber already has micro active then dont run this
         if bContinue and oBomber[M28UnitInfo.refbSpecialMicroActive] and not(oBomber[M28UnitInfo.refbLowerPriorityMicroActive]) and (not(oBomber[M28UnitInfo.refiGameTimeToResetMicroActive]) or GetGameTimeSeconds() < oBomber[M28UnitInfo.refiGameTimeToResetMicroActive]) then
             --Wait 1 second just in cae temporary delay
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             if oBomber[M28UnitInfo.refbSpecialMicroActive] and not(oBomber[M28UnitInfo.refbLowerPriorityMicroActive]) then
                 bContinue = false
             end
@@ -1677,7 +1679,9 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
                 end
             else
                 --Wait a few ticks so definitely cant be as good as normal
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitTicks(8)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             end
 
             if bAdjustHoverMicroCount then aiBrain[refiCurUnitsHoverMicroing] = aiBrain[refiCurUnitsHoverMicroing] - 1 end
@@ -3521,6 +3525,7 @@ function IsTargetRunningAway(oPotentialTarget, oUnit, iCurSpeed, iOurMaxSpeed, i
                         --Is enemy going in similar direction to us?
                         if M28Utilities.GetAngleDifference(iCurFacingAngle, M28UnitInfo.GetUnitFacingAngle(oPotentialTarget)) <= 10 then
                             if bDebugMessages == true then LOG(sFunctionRef..': Target is unsuitable') end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         end
                     end
