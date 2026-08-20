@@ -13018,7 +13018,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if tWZTeamData[M28Map.subrefWZbCoreBase] then
                     bHaveAdjWZWithCoreBase = true
                 end
-                iHighestValuePondValue = math.max(iHighestValuePondValue, M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]])
+                iHighestValuePondValue = math.max(iHighestValuePondValue, (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]] or 0))
             end
             if iHighestValuePondValue > 8 then
                 for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
