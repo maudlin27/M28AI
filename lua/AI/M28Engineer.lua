@@ -421,7 +421,7 @@ function IsBuildLocationBlockedByResources(tLZOrWZData, iBuildingRadius, tTarget
     return false
 end
 
-function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation)
+function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation, bOnlyCheckBlacklist, bJustDoSimpleCheck)
     --iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding and bCheckForOverlappingBuildings are optional
     --iOptionalPlateauGroupOrZero and iOptionalLandOrWaterZone: If specified, then will check this zone for queued units, if bCheckForQueuedBuildings is true
     --bCheckBlacklistIfNoGameEnder - will checkblacklist if either this is true, or the zone contains a gameender
@@ -433,17 +433,42 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
 
 
     if bDebugMessages == true then
-        LOG(sFunctionRef..': About to see if we can build '..(sBlueprintToBuild or 'nil')..' at '..repru(tTargetLocation)..'; iEngiActionToIgnore='..(iEngiActionToIgnore or 'nil')..'; bClearActionsIfNotStartedBuilding='..tostring((bClearActionsIfNotStartedBuilding or false))..'; surface height at target='..GetSurfaceHeight(tTargetLocation[1], tTargetLocation[3])..'; aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation)='..tostring(aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation)))
+        LOG(sFunctionRef..': About to see if we can build '..(sBlueprintToBuild or 'nil')..' at '..repru(tTargetLocation)..'; iEngiActionToIgnore='..(iEngiActionToIgnore or 'nil')..'; bClearActionsIfNotStartedBuilding='..tostring((bClearActionsIfNotStartedBuilding or false))..'; surface height at target='..GetSurfaceHeight(tTargetLocation[1], tTargetLocation[3])..'; aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation)='..tostring(aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation))..'; bJustDoSimpleCheck='..tostring(bJustDoSimpleCheck or false))
         if sBlueprintToBuild == 'ueb0103' then LOG(sFunctionRef..': Extra check for size 14 - can we build naval fac here? aiBrain:CanBuildStructureAt='..tostring(aiBrain:CanBuildStructureAt('xsb0103', tTargetLocation))) end
     end
 
-    if M28Utilities.bCPUPerformanceMode then
+    if bJustDoSimpleCheck or M28Utilities.bCPUPerformanceMode then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation)
     end
     local bCanBuildStructure = false
     if aiBrain.CanBuildStructureAt and (aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation) == true or (bConsideringResourceLocation and (EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild) and ((EntityCategoryContains(M28UnitInfo.refCategoryMex, sBlueprintToBuild) and M28Conditions.CanBuildOnMexLocation(tTargetLocation)) or EntityCategoryContains(M28UnitInfo.refCategoryHydro, sBlueprintToBuild) and M28Conditions.CanBuildOnHydroLocation(tTargetLocation))))) then
         bCanBuildStructure = true
+        if bOnlyCheckBlacklist then
+            --NOTE: COPIED THIS BELOW for blacklist, didnt do separate function due to performance fears
+            local iPlateau = iOptionalPlateauGroupOrZero
+            local iLandZone = iOptionalLandOrWaterZone
+            if not(iOptionalLandOrWaterZone) or not(iOptionalPlateauGroupOrZero) then
+                iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+            end
+            local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking against blacklist for the floor of target location and in the building radius, is blacklist nil for floor='..tostring(tLZData[M28Map.subrefBuildLocationBlacklistByPosition][math.floor(tTargetLocation[1])][math.floor(tTargetLocation[3])] == nil)..'; FloorX='..math.floor(tTargetLocation[1])..'; FloorZ='..math.floor(tTargetLocation[3])) end
+            local iFloorX = math.floor(tTargetLocation[1])
+            local iFloorZ = math.floor(tTargetLocation[3])
+            for iBlacklistX = iFloorX - iSkirtSizeRadius, iFloorX + iSkirtSizeRadius do
+                if tLZData[M28Map.subrefBuildLocationBlacklistByPosition][iBlacklistX] then
+                    for iBlacklistZ = iFloorZ - iSkirtSizeRadius, iFloorZ + iSkirtSizeRadius do
+                        if tLZData[M28Map.subrefBuildLocationBlacklistByPosition][iBlacklistX][iBlacklistZ] then
+                            bCanBuildStructure = false
+                            break
+                        end
+                    end
+                    if not(bCanBuildStructure) then break end
+                end
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return bCanBuildStructure
+        end
         if tsExtraBlueprintsToCheck[sBlueprintToBuild] then
             for iEntry, sAltBlueprint in tsExtraBlueprintsToCheck[sBlueprintToBuild] do
                 if not(aiBrain:CanBuildStructureAt(sAltBlueprint, tTargetLocation)) then
@@ -532,6 +557,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
                 if not(bCanBuildStructure) and bDebugMessages == true then LOG(sFunctionRef..': Skirt size is overlaping with a building that could have upgraded so will return false') end
             end
             if bCanBuildStructure and not(bConsideringResourceLocation) and (bCheckBlacklistIfNoGameEnder or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbStartedOnUnitWantingSpecialShielding]) then
+                --NOTE: COPIED THIS CODE ABOVE (didnt do function due to performance fears)
                 local iPlateau = iOptionalPlateauGroupOrZero
                 local iLandZone = iOptionalLandOrWaterZone
                 if not(iOptionalLandOrWaterZone) or not(iOptionalPlateauGroupOrZero) then
@@ -539,17 +565,20 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
                 end
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                 if bDebugMessages == true then LOG(sFunctionRef..': Checking against blacklist for the floor of target location and in the building radius, is blacklist nil for floor='..tostring(tLZData[M28Map.subrefBuildLocationBlacklistByPosition][math.floor(tTargetLocation[1])][math.floor(tTargetLocation[3])] == nil)..'; FloorX='..math.floor(tTargetLocation[1])..'; FloorZ='..math.floor(tTargetLocation[3])) end
-                local iFloorX = math.floor(tTargetLocation[1])
-                local iFloorZ = math.floor(tTargetLocation[3])
-                for iBlacklistX = iFloorX - iSkirtSizeRadius, iFloorX + iSkirtSizeRadius do
-                    if tLZData[M28Map.subrefBuildLocationBlacklistByPosition][iBlacklistX] then
-                        for iBlacklistZ = iFloorZ - iSkirtSizeRadius, iFloorZ + iSkirtSizeRadius do
-                            if tLZData[M28Map.subrefBuildLocationBlacklistByPosition][iBlacklistX][iBlacklistZ] then
-                                bCanBuildStructure = false
-                                break
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefBuildLocationBlacklistByPosition]) then bCheckBlacklistIfNoGameEnder = false
+                else
+                    local iFloorX = math.floor(tTargetLocation[1])
+                    local iFloorZ = math.floor(tTargetLocation[3])
+                    for iBlacklistX = iFloorX - iSkirtSizeRadius, iFloorX + iSkirtSizeRadius do
+                        if tLZData[M28Map.subrefBuildLocationBlacklistByPosition][iBlacklistX] then
+                            for iBlacklistZ = iFloorZ - iSkirtSizeRadius, iFloorZ + iSkirtSizeRadius do
+                                if tLZData[M28Map.subrefBuildLocationBlacklistByPosition][iBlacklistX][iBlacklistZ] then
+                                    bCanBuildStructure = false
+                                    break
+                                end
                             end
+                            if not(bCanBuildStructure) then break end
                         end
-                        if not(bCanBuildStructure) then break end
                     end
                 end
                 --Approach for v18 and earlier
@@ -577,7 +606,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
     return bCanBuildStructure
 end
 
-function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCheckLastBlacklistEntry, iBuildingRadius)
+function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCheckLastBlacklistEntry, iBuildingRadius, bOnlyCheckBlacklistLocations, bJustDoSimpleCheck)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckIfBuildableLocationsNearPositionStillValid'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -605,7 +634,7 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
             if bDebugMessages == true then
                 LOG(sFunctionRef..': Want to see if existing build locations are still valid, iAffectedDistanceRadius='..iAffectedDistanceRadius..'; iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Buildable locations before update for size 8=='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][8] or 'nil')..'; bCheckLastBlacklistEntry='..tostring(bCheckLastBlacklistEntry or false))
             end
-            CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iAffectedDistanceRadius, bCheckLastBlacklistEntry)
+            CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iAffectedDistanceRadius, bCheckLastBlacklistEntry, bOnlyCheckBlacklistLocations, bJustDoSimpleCheck)
 
             --Search for more building locations for every building where we havent considered the full amount if we havent considered any this cycle
             --[[local iTotalSegmentCount, sBlueprintSizeRef
@@ -616,11 +645,11 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
                 iTotalSegmentCount = tLZOrWZData[M28Map.subrefLZTotalSegmentCount]
                 sBlueprintSizeRef = tsBlueprintsBySize
             end--]]
-            if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iBuildingRadius * 2] or 0) <= 10 then
+            if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iBuildingRadius * 2] or 0) <= 10 and (not(bOnlyCheckBlacklistLocations) or (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iBuildingRadius * 2] or 0) < 3) then
                 if (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) <= 30 then
                     local iSegmentsToConsider = 4
                     if (tLZOrWZData[M28Map.subrefiCumulativeSegmentsConsideredForBuilding] or 0) < (tLZOrWZData[M28Map.subrefLZTotalSegmentCount] or 0) then iSegmentsToConsider = 15 end
-                    SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iSegmentsToConsider)
+                    SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iSegmentsToConsider, bJustDoSimpleCheck)
                 end
             end
 
@@ -669,7 +698,7 @@ function GetBuildingMidpointPositionFromPathingSegments(iSegmentX, iSegmentZ)
     return {x, GetTerrainHeight(x, z), z}
 end
 
-function FindBuildableLocationsForSegment(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iSegmentX, iSegmentZ)
+function FindBuildableLocationsForSegment(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iSegmentX, iSegmentZ, bUseSimpleCheck)
     --Use if e.g. a building has died nearby and this may now have a greater build range
     --First get a blueprint of the same size (or just use htis if this is a different size)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -688,11 +717,12 @@ function FindBuildableLocationsForSegment(aiBrain, iPlateauOrZero, iLandOrWaterZ
     local iHighestCurSize = (tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] or 0)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, Time='..GetGameTimeSeconds()..'; Brain='..aiBrain.Nickname..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; iHighestCurSize='..iHighestCurSize..'; iMaxBuildingSize='..iMaxBuildingSize) end
     if iHighestCurSize < iMaxBuildingSize then
+        local bCheckForBlacklist = not(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition]))
         for iSize, sGenericBlueprint in sBlueprintTable do
 
             if iSize > iHighestCurSize then
-                --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation))
-                if CanBuildAtLocation(aiBrain, sGenericBlueprint, tCurPosition,     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          true,                           false) then
+                --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation, bOnlyCheckBlacklist, bJustDoSimpleCheck)
+                if CanBuildAtLocation(aiBrain, sGenericBlueprint, tCurPosition,     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckForBlacklist,                           false,            false,          bUseSimpleCheck) then
                     if not(tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX]) then
                         if not(tLZOrWZData[M28Map.subrefBuildableSizeBySegment]) then tLZOrWZData[M28Map.subrefBuildableSizeBySegment] = {} end
                         tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX] = {}
@@ -734,7 +764,7 @@ function FindBuildableLocationsForSegment(aiBrain, iPlateauOrZero, iLandOrWaterZ
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iAffectedDistanceRadius, bCheckBlacklistIfNoGameEnder)
+function CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iAffectedDistanceRadius, bCheckBlacklistIfNoGameEnder, bOnlyCheckBlacklistLocation, bUseSimpleCheck)
     --Use if e.g. a building has just started construction meaning we likely cant build nearby
     --First get a blueprint of the same size (or just use htis if this is a different size)
     --bCheckBlacklistIfNoGameEnder - if this is true then will check to the blacklist; if this is false then won't check unless there is a gameender in the zone
@@ -752,73 +782,86 @@ function CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone
     local iLastValidSize
     local GetPositionFromPathingSegments = GetBuildingMidpointPositionFromPathingSegments
     if bDebugMessages == true then LOG(sFunctionRef..': About to search from SegmentX='..math.max(1, iBaseSegmentX - iSegmentSearchSize)..' to '..math.min(iBaseSegmentX + iSegmentSearchSize, M28Map.iMaxLandSegmentX)..' and Z='..math.max(1, iBaseSegmentZ - iSegmentSearchSize)..' to '..math.min(iBaseSegmentZ + iSegmentSearchSize, M28Map.iMaxLandSegmentZ)) end
-    for iSegmentX = math.max(1, iBaseSegmentX - iSegmentSearchSize), math.min(iBaseSegmentX + iSegmentSearchSize, M28Map.iMaxLandSegmentX), 1 do
-        for iSegmentZ = math.max(1, iBaseSegmentZ - iSegmentSearchSize), math.min(iBaseSegmentZ + iSegmentSearchSize, M28Map.iMaxLandSegmentZ), 1 do
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurSegmentX='..iSegmentX..'Z'..iSegmentZ..'; Buildable size='..(tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] or 0)) end
-            if (tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] or 0) > 0 then
-                iLastValidSize = nil
-                for iSize, sBlueprint in sBlueprintTable do
-                    if iSize > (tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] or 0) then
-                        break
-                    else
-                        if bDebugMessages == true then
-                            LOG(sFunctionRef..': Checking if buildable for iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; iSize='..iSize..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; bCheckBlacklistIfNoGameEnder='..tostring(bCheckBlacklistIfNoGameEnder)..'; Can build here='..tostring(CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder, false)))
-                            --T3 pgen size - show buildable in blue nonbuildable in red
-                            if iSize == 8 then
-                                local bCanBuild = CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder, false)
-                                if bCanBuild then M28Utilities.DrawLocation(GetPositionFromPathingSegments(iSegmentX, iSegmentZ), 1)
-                                else
-                                    M28Utilities.DrawLocation(GetPositionFromPathingSegments(iSegmentX, iSegmentZ), 2)
-                                end
-                            end
-                        end
-                        if CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder, false) then
-                            --No change needed, location is still valid
-                            iLastValidSize = iSize
+    if bCheckBlacklistIfNoGameEnder then
+        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition]) then
+            bCheckBlacklistIfNoGameEnder = false
+        end
+        if bOnlyCheckBlacklistLocation and bUseSimpleCheck then
+            M28Utilities.ErrorHandler('Conflict between doign simple check and blacklist, will go with blacklist')
+            bUseSimpleCheck = false
+        end
+    end
+    if bOnlyCheckBlacklistLocation and not(bCheckBlacklistIfNoGameEnder) then
+        --Do nothing - i.e. there is no bkaclist to consider
+    else
+        for iSegmentX = math.max(1, iBaseSegmentX - iSegmentSearchSize), math.min(iBaseSegmentX + iSegmentSearchSize, M28Map.iMaxLandSegmentX), 1 do
+            for iSegmentZ = math.max(1, iBaseSegmentZ - iSegmentSearchSize), math.min(iBaseSegmentZ + iSegmentSearchSize, M28Map.iMaxLandSegmentZ), 1 do
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurSegmentX='..iSegmentX..'Z'..iSegmentZ..'; Buildable size='..(tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] or 0)) end
+                if (tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] or 0) > 0 then
+                    iLastValidSize = nil
+                    for iSize, sBlueprint in sBlueprintTable do
+                        if iSize > (tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] or 0) then
+                            break
                         else
-                            --Cant build anymore, remove this and any subsequent locations
-                            for iRemoveSize, sBlueprint in sBlueprintTable do
-                                if iRemoveSize > iLastValidSize then
-                                    if tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iRemoveSize][iSegmentX][iSegmentZ] then
-                                        tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iRemoveSize][iSegmentX][iSegmentZ] = nil
-                                        tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iRemoveSize] = math.max(0, (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iRemoveSize] or 1) - 1)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Just removed recording segmentX'..iSegmentX..'Z'..iSegmentZ..' from being buildable in plateau '..iPlateauOrZero..' Zone '..iLandOrWaterZone..', count by size for this zone for iRemoveSIze '..iRemoveSize..' and iSize='..iSize..'='..tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iRemoveSize]) end
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Checking if buildable for iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; iSize='..iSize..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; bCheckBlacklistIfNoGameEnder='..tostring(bCheckBlacklistIfNoGameEnder)..'; Can build here='..tostring(CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder, false)))
+                                --T3 pgen size - show buildable in blue nonbuildable in red
+                                if iSize == 8 then
+                                    local bCanBuild = CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder, false, bUseSimpleCheck)
+                                    if bCanBuild then M28Utilities.DrawLocation(GetPositionFromPathingSegments(iSegmentX, iSegmentZ), 1)
+                                    else
+                                        M28Utilities.DrawLocation(GetPositionFromPathingSegments(iSegmentX, iSegmentZ), 2)
                                     end
                                 end
                             end
-                            tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] = iLastValidSize
-                            if bDebugMessages == true then LOG(sFunctionRef..': Finished removing buildable entries, tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ]='..(tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] or 'nil')..'; tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][8][iSegmentX][iSegmentZ]='..tostring(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][8][iSegmentX][iSegmentZ] or false)..'; iLastValidSize='..(iLastValidSize or 'nil')) end
-                            break
+                            if CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder, false, bOnlyCheckBlacklistLocation, bUseSimpleCheck) then
+                                --No change needed, location is still valid
+                                iLastValidSize = iSize
+                            else
+                                --Cant build anymore, remove this and any subsequent locations
+                                for iRemoveSize, sBlueprint in sBlueprintTable do
+                                    if iRemoveSize > iLastValidSize then
+                                        if tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iRemoveSize][iSegmentX][iSegmentZ] then
+                                            tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iRemoveSize][iSegmentX][iSegmentZ] = nil
+                                            tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iRemoveSize] = math.max(0, (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iRemoveSize] or 1) - 1)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Just removed recording segmentX'..iSegmentX..'Z'..iSegmentZ..' from being buildable in plateau '..iPlateauOrZero..' Zone '..iLandOrWaterZone..', count by size for this zone for iRemoveSIze '..iRemoveSize..' and iSize='..iSize..'='..tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iRemoveSize]) end
+                                        end
+                                    end
+                                end
+                                tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] = iLastValidSize
+                                if bDebugMessages == true then LOG(sFunctionRef..': Finished removing buildable entries, tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ]='..(tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] or 'nil')..'; tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][8][iSegmentX][iSegmentZ]='..tostring(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][8][iSegmentX][iSegmentZ] or false)..'; iLastValidSize='..(iLastValidSize or 'nil')) end
+                                break
+                            end
                         end
                     end
                 end
             end
         end
-    end
-    if tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][2] <= 0 and tLZOrWZData[M28Map.subrefLZTotalSegmentCount] >= 50 and GetGameTimeSeconds() >= 60 then
-        M28Utilities.ErrorHandler('Dont have any locations that even a 2x2 building in P'..(iPlateauOrZero or 'nil')..'Z'..(iLandOrWaterZone or 'nil')..' can build in so likely something has gone wrong, will refresh the build count')
-        LOG('Count by size before update='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize]))
-        local iCurCount
-        for iSize, sBlueprint in sBlueprintTable do
-            iCurCount = 0
+        if tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][2] <= 0 and tLZOrWZData[M28Map.subrefLZTotalSegmentCount] >= 50 and GetGameTimeSeconds() >= 60 then
+            M28Utilities.ErrorHandler('Dont have any locations that even a 2x2 building in P'..(iPlateauOrZero or 'nil')..'Z'..(iLandOrWaterZone or 'nil')..' can build in so likely something has gone wrong, will refresh the build count')
+            LOG('Count by size before update='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize]))
+            local iCurCount
+            for iSize, sBlueprint in sBlueprintTable do
+                iCurCount = 0
 
-            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]) == false then
-                for iSegmentX, tSubtable in tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize] do
-                    for iSegmentZ, bValid in tSubtable do
-                        iCurCount = iCurCount + 1
+                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]) == false then
+                    for iSegmentX, tSubtable in tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize] do
+                        for iSegmentZ, bValid in tSubtable do
+                            iCurCount = iCurCount + 1
+                        end
                     end
                 end
+                tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] = iCurCount
             end
-            tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] = iCurCount
+            LOG('Count by size after update='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize]))
         end
-        LOG('Count by size after update='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize]))
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 
-function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider)
+function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider, bJustDoSimpleCheck)
     --Updates the plateau with a general buildable locations (if there are any) for iLandOrWaterZone
     --Will treat locations immediately adjacent to mexes as being unbuildable, to avoid taking up mass storage positions
     --iOptionalMaxSegmentsToConsider - will stop searching if reach this number of segments
@@ -886,7 +929,7 @@ function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, 
         for iSegmentCount = iSegmentStart, iSegmentEnd do
             tSegmentXZ = tLZOrWZData[iSegmentRef][iSegmentCount]
             if bDebugMessages == true then LOG(sFunctionRef..': About to find buildable locations for segment X'..(tSegmentXZ[1] or 'nil')..' Z'..(tSegmentXZ[2] or 'nil')..'; iSegmentCount='..(iSegmentCount or 'nil')..'; iSegmentStart='..(iSegmentStart or 'nil')..'; iSegmentEnd='..(iSegmentEnd or 'nil')) end
-            FindBuildableLocationsForSegment(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tSegmentXZ[1], tSegmentXZ[2])
+            FindBuildableLocationsForSegment(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tSegmentXZ[1], tSegmentXZ[2], bJustDoSimpleCheck)
             tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] = (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) + 1
         end
         tLZOrWZData[M28Map.subrefiLastSegmentEntryConsideredForBuilding] = iSegmentEnd
@@ -910,7 +953,7 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
     local iSizeToUse = iSize
     if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) < 10 or (M28Map.bIsCampaignMap and (iSize >= 14 or (iSize >= 3 and GetGameTimeSeconds() <= 300))) or ((iOptionalMaxCycleSize or 100) <= 20 and not(M28Utilities.bCPUPerformanceMode)) then
         --SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider)
-        SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, nil)
+        SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, nil, true)
     end
     if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) == 0 then
         for iCurSize = iSize + 1, iMaxBuildingSize do
@@ -960,13 +1003,13 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SearchForBuildableLocationsNearTarget(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iAffectedDistanceRadius)
+function SearchForBuildableLocationsNearTarget(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iAffectedDistanceRadius, bJustDoSimpleCheck)
     local iDistanceSearchSize = math.max(iAffectedDistanceRadius, 8)
     --local iSegmentSearchSize = math.ceil(iAffectedDistanceRadius + iMaxBuildingSize * 0.5 / M28Map.iLandZoneSegmentSize)
     iSegmentSearchSize = math.ceil(iDistanceSearchSize / M28Map.iLandZoneSegmentSize)
     for iSegmentX = math.max(1, iBaseSegmentX - iSegmentSearchSize), math.min(iBaseSegmentX + iSegmentSearchSize, M28Map.iMaxLandSegmentX), 1 do
         for iSegmentZ = math.max(1, iBaseSegmentZ - iSegmentSearchSize), math.min(iBaseSegmentZ + iSegmentSearchSize, M28Map.iMaxLandSegmentZ), 1 do
-            FindBuildableLocationsForSegment(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iSegmentX, iSegmentZ)
+            FindBuildableLocationsForSegment(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iSegmentX, iSegmentZ, bJustDoSimpleCheck)
         end
     end
 end
@@ -1053,6 +1096,7 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
     local iValidBuildingCount = 0
     local bHaveValidLocation = false
     local bDontCheckForNoRush = not(M28Overseer.bNoRushActive)
+
     local function AddAdjacencyLocationsToPotentialLocations(tAdjacencyBuildingPosition, iAdjacencyBuildingRadius, iNewBuildingRadius, tOptionalGETemplateToAvoid)
         local iCurZ, iCurX
         local iCycleSize = math.abs(iAdjacencyBuildingRadius - iNewBuildingRadius)
@@ -1671,7 +1715,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local sFunctionRef = 'GetBestBuildLocationForTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    local bDoDetailedCanBuildCheck = not(bForceOverlappingBuildingCheck) and not(M28Utilities.bCPUPerformanceMode)
 
     local iHighestPriority = -10000
     local iCurPriority, iCurDistance
@@ -2049,15 +2093,21 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                 end
             end--]]
             if iCurPriority > iHighestPriority then
-                iHighestPriority = iCurPriority
-                iBestLocationRef = iCurLocation
-                bBestLocationBuildableImmediately = bLocationBuildableImmediately
-                if iCurPriority <= iPartUnbuildableValue and iCurPriority > iUnbuildableValue and iPartUnbuildableValue - iCurPriority < iCurPriority - iUnbuildableValue then
-                    iBestTargetXAndZAdjust = {0.1, 0.1}
-                else
-                    iBestTargetXAndZAdjust = nil
+                --                                  CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation, bOnlyCheckBlacklist, bJustDoSimpleCheck)
+                if bDoDetailedCanBuildCheck and not(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurLocation,        nil,                        nil,                      nil,                    nil,                            true,                      true,                           true,                      bResource)) then
+                    iCurPriority = iUnbuildableValue
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Have a new best priority, iHighestPriority='..iHighestPriority) end
+                if iCurPriority > iHighestPriority then
+                    iHighestPriority = iCurPriority
+                    iBestLocationRef = iCurLocation
+                    bBestLocationBuildableImmediately = bLocationBuildableImmediately
+                    if iCurPriority <= iPartUnbuildableValue and iCurPriority > iUnbuildableValue and iPartUnbuildableValue - iCurPriority < iCurPriority - iUnbuildableValue then
+                        iBestTargetXAndZAdjust = {0.1, 0.1}
+                    else
+                        iBestTargetXAndZAdjust = nil
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a new best priority, iHighestPriority='..iHighestPriority) end
+                end
             end
         end
     end
@@ -2837,7 +2887,7 @@ function SlowlyRefreshBuildableLandZoneLocations(oOrigBrain)
         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
         if (iLandZone or 0) > 0 then
                 --SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider)
-            SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZone, iSegmentsBeforeWaiting * 10)
+            SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZone, iSegmentsBeforeWaiting * 10, true)
 
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitTicks(1)
@@ -2870,7 +2920,7 @@ function SlowlyRefreshBuildableLandZoneLocations(oOrigBrain)
                 if tLandZoneInfo[M28Map.subrefBuildLocationsBySizeAndSegment] then
                     if tLandZoneInfo[M28Map.subrefLZTotalSegmentCount] >= 80 or tLandZoneInfo[M28Map.subrefLZOrWZMexCount] > 0 then
                         --SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider)
-                        SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZone, iSegmentsBeforeWaiting)
+                        SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZone, iSegmentsBeforeWaiting, true)
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         WaitTicks(1)
                         iTicksWaitedThisCycle = iTicksWaitedThisCycle + 1
@@ -2935,7 +2985,7 @@ function RecordBuildableCoreWaterZoneLocationsNearStartOfGame()
     if M28Utilities.IsTableEmpty(tWZShortlist) == false then
         --First ensure we have basic sizes for the WZ and some entries
         for iEntry, iWaterZone in tWZShortlist do
-            SearchForBuildableLocationsForLandOrWaterZone(aiBrain, 0, iWaterZone, iSegmentsBeforeWaiting)
+            SearchForBuildableLocationsForLandOrWaterZone(aiBrain, 0, iWaterZone, iSegmentsBeforeWaiting, false)
         end
 
         local iTotalCycles = 0
@@ -2962,7 +3012,7 @@ function RecordBuildableCoreWaterZoneLocationsNearStartOfGame()
             --Cycle through every entry
             for iEntry, iWaterZone in tWZShortlist do
                         --SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider)
-                SearchForBuildableLocationsForLandOrWaterZone(aiBrain, 0, iWaterZone, iSegmentsBeforeWaiting)
+                SearchForBuildableLocationsForLandOrWaterZone(aiBrain, 0, iWaterZone, iSegmentsBeforeWaiting, false)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitTicks(1)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -5915,7 +5965,7 @@ function DelayedBlacklistReset(tLZOrWZData, iX, iZ, iResetTimeInSeconds, oOption
     end
 end
 
-function RecordBlacklistLocation(tLocation, iRadius, iResetTimeInSeconds, oOptionalUnitToTrack)
+function RecordBlacklistLocation(tLocation, iRadius, iResetTimeInSeconds, oOptionalUnitToTrack, bUpdateBuildableLocations, aiBrainOverrideForBuildableLocations, iOverrideRadiusForBuildableLocations)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordBlacklistLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -5958,6 +6008,9 @@ function RecordBlacklistLocation(tLocation, iRadius, iResetTimeInSeconds, oOptio
                     if oOptionalUnitToTrack then
                         table.insert(oOptionalUnitToTrack[reftUnitBlacklistSegmentXZ], {iX, iZ})
                         if bDebugMessages == true then LOG(sFunctionRef..': Added blacklist location for oOptionalUnitToTrack='..oOptionalUnitToTrack.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalUnitToTrack)..'; X'..iX..'Z'..iZ) end
+                    end
+                    if bUpdateBuildableLocations then
+                        CheckIfBuildableLocationsNearPositionStillValid((aiBrainOverrideForBuildableLocations or oOptionalUnitToTrack:GetAIBrain()), tLocation, true, (iOverrideRadiusForBuildableLocations or iRadius), true)
                     end
                 else
                     --Already reocrded as a blacklist so wont rerecord/add a new reset to it
@@ -6052,13 +6105,12 @@ function MonitorEngineerForBlacklistLocation(oEngineer)
                             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tOrigBuildLocation)
                             if bDebugMessages == true then LOG(sFunctionRef..': time='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..': Want to add to blacklist, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; sOrigBlueprint='..sOrigBlueprint) end
                             if iPlateau and iLandZone then
-                                RecordBlacklistLocation(tOrigBuildLocation, 1, 480) --i.e. reset after 8 minutes
+                                RecordBlacklistLocation(tOrigBuildLocation, 1, 480, nil, true, oEngineer:GetAIBrain(), M28UnitInfo.GetBuildingSize(sOrigBlueprint) * 0.5) --i.e. reset after 8 minutes
 
                                 --Prev approach below:
                                 --table.insert(tLZData[M28Map.subrefBuildLocationBlacklist], {[M28Map.subrefBlacklistLocation] = tOrigBuildLocation, [M28Map.subrefBlacklistSize] = iRadius, [M28Map.subrefBlacklistType] = M28Map.BlacklistTimeout})
 
-                                --Update existing build locations to remove if they are near here
-                                CheckIfBuildableLocationsNearPositionStillValid(oEngineer:GetAIBrain(), tOrigBuildLocation, true, M28UnitInfo.GetBuildingSize(sOrigBlueprint) * 0.5)
+                                --Update existing build locations to remove if they are near here (incorporated into recordblacklistlocation)
 
                                 --Clear this engineer and any assisting engineers (assisting engineers are cleared via ClearEngineerTracking)
                                 M28Orders.IssueTrackedClearCommands(oEngineer)
@@ -9523,9 +9575,9 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
 
 
                 --Set a blacklist for this location
-                RecordBlacklistLocation(tNewMidpoint, tBaseTable[M28Map.subrefiSize] + 1, 600)
-                --Update buildable areas around here
-                CheckIfBuildableLocationsNearPositionStillValid(oEngineer:GetAIBrain(), tNewMidpoint, true, tBaseTable[M28Map.subrefiSize])
+                RecordBlacklistLocation(tNewMidpoint, tBaseTable[M28Map.subrefiSize] + 1, 600, nil, true, oEngineer:GetAIBrain(), tBaseTable[M28Map.subrefiSize])
+                --Remove any buildable areas around here (incorporated into recordblacklist location v318)
+                --CheckIfBuildableLocationsNearPositionStillValid(oEngineer:GetAIBrain(), tNewMidpoint, true, tBaseTable[M28Map.subrefiSize])
                 table.insert(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.tPotentiallyActiveGETemplates], tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef])
                 if bDebugMessages == true then
                     local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tNewMidpoint)
@@ -9890,7 +9942,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     if (tLZOrWZData[M28Map.subrefiCumulativeSegmentsConsideredForBuilding] or 0) < (tLZOrWZData[M28Map.subrefLZTotalSegmentCount] or 0) then iSegmentsToConsider = 20 end
 
                     --SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider)
-                    SearchForBuildableLocationsForLandOrWaterZone(M28Team.GetFirstActiveM28Brain(iTeam), iPlateauOrZero, iLandOrWaterZone, iSegmentsToConsider)
+                    SearchForBuildableLocationsForLandOrWaterZone(M28Team.GetFirstActiveM28Brain(iTeam), iPlateauOrZero, iLandOrWaterZone, iSegmentsToConsider, true)
                 end
                 if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iExpectedBuildingSize] or 0) == 0 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Setting build power to 0 as no buildable locations, unless we have a category of the desired type under construction, tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick]='..(tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 'nil')..'; repru of tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize] for all sizes='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize])) end
@@ -11410,7 +11462,7 @@ function GetBPMinTechAndUnitForFixedShields(tLZData, tLZTeamData, iTeam, bCoreZo
 
             for iUnit, oUnit in tLZTeamData[M28Map.reftoLZUnitWantingFixedShield] do
                 --Increase likelihood the build location we want is available
-                if not(M28Utilities.bCPUPerformanceMode) or (oUnit[refiFailedShieldConstructionCount] or 0) > 0 then SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZoneRef, 15) end
+                if not(M28Utilities.bCPUPerformanceMode) or (oUnit[refiFailedShieldConstructionCount] or 0) > 0 then SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZoneRef, 15, true) end
                 if (oUnit[refiFailedShieldConstructionCount] or 0) <= iLowestShieldAttempt then
                     iCurMass = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete()
                     if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iCurMass='..reprs(iCurMass)..'; iHighestMassValue='..reprs(iHighestMassValue)..'; (oUnit[refiFailedShieldConstructionCount]='..reprs(oUnit[refiFailedShieldConstructionCount])..'; iLowestShieldAttempt='..reprs(iLowestShieldAttempt)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Build cost mass via blueprint='..(__blueprints[oUnit.UnitId].Economy.BuildCostMass or 'nil'))

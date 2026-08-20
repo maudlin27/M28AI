@@ -4083,7 +4083,7 @@ function ReserveLocationsForGameEnder(oUnit)
                         iRecordedCount = iRecordedCount + 1
                         table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
                         --Blacklist the location
-                        M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
+                        M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit, true, nil, 5)
                         if bDebugMessages == true then
                             LOG(sFunctionRef..': Added shild build location '..repru(tLocation)..' against the game ender and will record blacklist, Will draw shield locations in black')
                             M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iNewBuildingRadius), 3, 100)
@@ -4098,7 +4098,7 @@ function ReserveLocationsForGameEnder(oUnit)
                                         iRecordedCount = iRecordedCount + 1
                                         table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
                                         --Blacklist the location
-                                        M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
+                                        M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit, true, nil, 5)
                                         if bDebugMessages == true then
                                             LOG(sFunctionRef..': Added further shild build location '..repru(tLocation)..' against the game ender and will record blacklist, Will draw shield location')
                                             M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iNewBuildingRadius), 4, 100)
@@ -4109,12 +4109,13 @@ function ReserveLocationsForGameEnder(oUnit)
                         end
                     end
 
-                    --Update any buildable locaitons around here
-                    if iRecordedCount > 0 then
+                    --Update any buildable locaitons around here - have incorporated into blacklist code in v318
+                    --[[if iRecordedCount > 0 then
                         for iLocation, tLocation in oUnit[reftLocationsForPriorityShield] do
+                            --Remove any buildable locations around here
                             M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, true, 5)
                         end
-                    end
+                    end--]]
 
 
                     --CLear any engineers with queued orders that will conflict with a shield location

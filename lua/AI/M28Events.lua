@@ -2377,12 +2377,12 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         if EntityCategoryContains(M28UnitInfo.refCategoryStructure + categories.MOBILE - M28UnitInfo.refCategoryMex - M28UnitInfo.refCategoryHydro, oConstruction.UnitId) then
                             if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oConstruction.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Just started construction of unit '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; Is it valid to build a T1 pgen at this location='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt('ueb1101', oConstruction:GetPosition()))) end
-                                ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), false, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
+                                ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), false, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5, false, true)
                             else
                                 --i.e. experimentalal started, the CanBuildStructureAt check doesnt work properly for this so first need to record a blacklist (will only have recorded for 4m) and then check for this
                                 if bDebugMessages == true then LOG(sFunctionRef..': Just started construction of experimental mobile unit='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; Is it valid to build a T1 pgen at this location='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt('ueb1101', oConstruction:GetPosition()))) end
-                                M28Engineer.RecordBlacklistLocation(oConstruction:GetPosition(), M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5, 420, oConstruction)
-                                ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), true, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
+                                M28Engineer.RecordBlacklistLocation(oConstruction:GetPosition(), M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5, 420, oConstruction, true)
+                                --ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), true, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5) --incorporated into recordblacklistlocation v318
                             end
                         end
                         --end
@@ -2683,7 +2683,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
 
                         if not(oJustBuilt[M28UnitInfo.refbConstructionStart]) then
-                            M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oBrainJustBuilt, oJustBuilt:GetPosition(), false, M28UnitInfo.GetBuildingSize(oJustBuilt.UnitId) * 0.5)
+                            M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oBrainJustBuilt, oJustBuilt:GetPosition(), false, M28UnitInfo.GetBuildingSize(oJustBuilt.UnitId) * 0.5, false, true)
                         end
                         M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
                         if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then

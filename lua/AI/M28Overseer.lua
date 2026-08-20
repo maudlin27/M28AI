@@ -2586,7 +2586,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                         end
                         if iCurCycleCount >= 10000 then break end
-                        M28Engineer.SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, math.min(100, math.floor(iTotalSegments * 0.1)))
+                        M28Engineer.SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, math.min(100, math.floor(iTotalSegments * 0.1)), false)
                         iTotalSegments = table.getn(tMidpointLZData[M28Map.subrefLZSegments])
                         iSegmentStart = (tMidpointLZData[M28Map.subrefiLastSegmentEntryConsideredForBuilding] or 0)
                         if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; iTotalSegments='..iTotalSegments..'; iSegmentStart='..iSegmentStart) end

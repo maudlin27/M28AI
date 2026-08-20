@@ -10317,7 +10317,7 @@ function RecordBackupGameEnderLocation()
                     if (tLZData[subrefiCumulativeSegmentsConsideredForBuilding] or 0) < tLZData[subrefLZTotalSegmentCount] * 0.35 then
                         iSegmentsToSearch = math.max(50, tLZData[subrefLZTotalSegmentCount] * 0.2)
                     end
-                    M28Engineer.SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZone, iSegmentsToSearch)
+                    M28Engineer.SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZone, iSegmentsToSearch, true)
                     if bDebugMessages == true then LOG(sFunctionRef..': After searching, subrefiLastSegmentEntryConsideredForBuilding='..(tLZData[subrefiLastSegmentEntryConsideredForBuilding] or 'nil')..'; subrefiCumulativeSegmentsConsideredForBuilding='..(tLZData[subrefiCumulativeSegmentsConsideredForBuilding] or 'nil')..'; iSegmentsToSearch='..iSegmentsToSearch) end
                     iClosestDistToMid = 10000
                     iMidpointX, iMidpointZ = GetPathingSegmentFromPosition(tLZData[subrefMidpoint])
