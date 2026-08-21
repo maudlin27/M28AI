@@ -299,6 +299,7 @@ tAirSubteamData = {}
 
     refbNoRecentExpBomberAttackOrders = 'M28AExpBA' --true if we just sent any available exp bombers to rally last cycle and it's been a while sine they've fired (so can wait longer before considering new orders)
     refbTooMuchGroundNavalAAForTorpBombers = 'M28TooMuchAAForTorps' --true if have avoided targeting a water zone with torps due to groundAA threat in a water zone
+    refbTooMuchAirAAForTorpBombers = 'M28TrpEnAAA' --true if have avoided targeting a water zone with our torp bombers due to airaa threat
     refbNoAvailableTorpsForEnemies = 'M28NoAvailTorps' --true if have enemy naval unit in a wz we want to defend, and we lack available torp bombers
     refbNoAirAAForCoreEnemies = 'M28NoAirAAAv' --true if we have no airaa units to manage or ran out of airaa when trying to attack enemy
     reftAirRallyPoint = 'M28ASTRally' --Contains the location of the air subteam's rally point

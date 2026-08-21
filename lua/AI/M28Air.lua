@@ -3945,9 +3945,17 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                     if bZoneHasTooMuchAA then
                         --If using torp bombers check if reason for failure is due to enemy groundAA threat
                         if bDebugMessages == true then LOG(sFunctionRef..': TOo much AA in water zone, bDoDetailedCheckForAA='..tostring(bDoDetailedCheckForAA or false)..'; bUsingTorpBombers='..tostring(bUsingTorpBombers or false)..'; bIgnoreAirAAThreat='..tostring(bIgnoreAirAAThreat or false)..'; Is there too much AirAA in the zone='..tostring(IsThereAAInZone(tWZTeamData, false, -1, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat))) end
-                        if bUsingTorpBombers and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers]) and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) and not(IsThereAAInZone(tWZTeamData, true, 100000000, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat)) then
-                            --We are only ignoring this target because there is too much groundAA in the water zone
-                            M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] = true
+                        if bUsingTorpBombers then
+                            if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers]) and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) and not(IsThereAAInZone(tWZTeamData, false, -1, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat)) then
+                                --We are only ignoring this target because there is too much groundAA in the water zone
+                                M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] = true
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have too much enemy AirAA, bIgnoreAirAAThreat='..tostring(bIgnoreAirAAThreat or false)..'; refbTooMuchAirAAForTorpBombers='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchAirAAForTorpBombers] or false)..'; refbTooMuchGroundNavalAAForTorpBombers='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] or false)..'; IsThereAAInZone='..tostring(IsThereAAInZone(tWZTeamData, false, -1, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat))..'; iAirAAThreatThreshold='..(iAirAAThreatThreshold or 'nil')..'; tWZTeamData airAA threat='..(tWZTeamData[M28Map.refiEnemyAirAAThreat] or 'nil')) end
+                                if not(bIgnoreAirAAThreat) and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchAirAAForTorpBombers]) and ((not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers]) and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])) or IsThereAAInZone(tWZTeamData, false, -1, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat)) then
+                                    M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchAirAAForTorpBombers] = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Recording we have too much AirAA for torp bombers') end
+                                end
+                            end
                         end
 
                         if bDoDetailedCheckForAA and (bIgnoreAirAAThreat or IsThereAAInZone(tWZTeamData, false, -1, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat)) then
@@ -6809,7 +6817,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageTorpedoBombers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] >= 1000 then bDebugMessages = true end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.reftWaterZonesHasFriendlyTorps] = {}
     local tAvailableBombers, tBombersForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryTorpBomber - M28UnitInfo.refCategoryGunship, true)
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, false, false, true) + M28UnitInfo.GetAirThreatLevel(tBombersForRefueling, false, false, false, false, false, true) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, false, false, true)
@@ -6824,6 +6832,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
         end
     end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] = false
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchAirAAForTorpBombers] = false
     local oRecentlyAttackingTorpBomber = M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]
     M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber] = nil
     if M28UnitInfo.IsUnitValid(oRecentlyAttackingTorpBomber) and ((oRecentlyAttackingTorpBomber[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oRecentlyAttackingTorpBomber[M28UnitInfo.refiLastWeaponEvent] <= 20) or oRecentlyAttackingTorpBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack) then
@@ -6989,10 +6998,12 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
             local iAAThreatThreshold
 
             local iAirAAThreatThreshold = 0
-            if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iAirAAThreatThreshold = iTorpBomberThreat * 0.25
+            if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
+                iAirAAThreatThreshold = math.max(iTorpBomberThreat * 0.25, math.min(iTorpBomberThreat * 0.75, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.5))
             elseif not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
                 iAirAAThreatThreshold = math.min(iTorpBomberThreat * 0.15, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.25)
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': iAirAAThreatThreshold='..iAirAAThreatThreshold..'; refbHaveAirControl='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; refbFarBehindOnAir='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) end
 
             --Consider targeting any priority units first
             if M28Conditions.IsTableOfUnitsStillValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoPriorityTorpedoUnitTargets]) then
@@ -7166,7 +7177,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                                     end
                                 end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Want to attack, enemy AA threat threshold='..iAAThreatThreshold..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false, iAAThreatThreshold, 0))..'; bIgnoreDueToSimilarAngleAAThreat='..tostring(bIgnoreDueToSimilarAngleAAThreat)..'; bDoDetailedCheck='..tostring(bDoDetailedCheck)) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want to attack, enemy AA threat threshold='..iAAThreatThreshold..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false, iAAThreatThreshold, 0))..'; bIgnoreDueToSimilarAngleAAThreat='..tostring(bIgnoreDueToSimilarAngleAAThreat)..'; bDoDetailedCheck='..tostring(bDoDetailedCheck)..'; Actual check of if enemy has too much AA='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false,      iAAThreatThreshold,     iAirAAThreatThreshold, true, iAirSubteam) or (bDoDetailedCheck and not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone,        0,              iWaterZone,         false,              iAAThreatThreshold,      iAirAAThreatThreshold,     true,           iAirSubteam,        true,               false,                      nil,                                        false,                                      nil,                                        true,                               false,                              true,                                       true))))) end
                             --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA)
                             if bIgnoreDueToSimilarAngleAAThreat then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Ignoring due to nearby angle zone that does have significant threat') end
@@ -7378,7 +7389,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
     end
 
     --Send units for refueling
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished giving torp bomber orders, is table of air for refueling empty='..tostring(M28Utilities.IsTableEmpty(tBombersForRefueling))..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies])..'; toFrontAttackingTorpBomber at end of code='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished giving torp bomber orders, is table of air for refueling empty='..tostring(M28Utilities.IsTableEmpty(tBombersForRefueling))..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies])..'; toFrontAttackingTorpBomber at end of code='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) or 'nil')..'; refbTooMuchAirAAForTorpBombers='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchAirAAForTorpBombers])) end
     --Run the function even if no units wanting refueling so already attached untis can be sent on their way
     SendUnitsForRefueling(tBombersForRefueling, iTeam, iAirSubteam)
     if bDebugMessages == true and M28Utilities.IsTableEmpty(tBombersForRefueling) == false then
