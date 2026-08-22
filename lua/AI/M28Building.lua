@@ -2161,8 +2161,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                                     if iCurDist <= 60 or (oACU[refiTMLShotsFired] or 0) == 0 or (oACU[M28UnitInfo.reftRecentUnitPositions][4] and M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][4], oACU:GetPosition()) <= 0.1) then
                                                         --Is there TMD protecting the ACU from us?
                                                         local tACULZData, tACULZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), false, iTeam)
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of TMD in ACU LZ empty='..tostring(M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]))) end
-                                                        if M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]) then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of TMD in ACU LZ empty='..tostring(M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]))..'; ACU y position='..oACU:GetPosition()[2]..'; iMapWaterHeight='..M28Map.iMapWaterHeight) end
+                                                        if M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]) and not(M28Map.IsUnderwater({oACU:GetPosition()[1], oACU:GetPosition()[2] + (oACU:GetBlueprint().SizeY or 0) + iAOE - 0.5, oACU:GetPosition()[3]}, false)) then
 
                                                             local tNearbyTMD = oACU:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oACU:GetPosition(), iTMLMissileRange + 30, 'Ally')
                                                             local bProtectedByTMD = false
