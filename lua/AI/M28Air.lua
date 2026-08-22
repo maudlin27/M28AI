@@ -2749,7 +2749,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                     --Is the front bomber closer to the enemy than our front gunship?
                     local bBomberCloserThanGunship = false
                     local tFrontBomberData, tFrontBomberTeamData = M28Map.GetLandOrWaterZoneData(oBomber:GetPosition(), true, iTeam)
-                    if tFrontBomberTeamData and M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tFrontBomberTeamData[M28Map.reftClosestFriendlyBase]) <= 125 then
+                    if tFrontBomberTeamData and M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tFrontBomberTeamData[M28Map.reftClosestFriendlyBase]) <= 120 and (M28Map.iMapSize >= 1000 or (M28Map.iMapSize >= 512 and M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tFrontBomberTeamData[M28Map.reftClosestFriendlyBase]) <= 100) or (M28Map.iMapSize < 512 and M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tFrontBomberTeamData[M28Map.reftClosestFriendlyBase]) <= 75)) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Bomber close enough to friendly base that dont need to worry about protecting it') end
                     else
                         if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]) then
@@ -2777,22 +2777,19 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                         if bDebugMessages == true then LOG(sFunctionRef..': bBomberCloserThanGunship='..tostring(bBomberCloserThanGunship)..'; tFrontBomberTeamData=nil='..tostring(tFrontBomberTeamData == nil)) end
                         if bBomberCloserThanGunship then
                             --Do we likely have multiple bombers assigned (strike damage 5k+), indicating a significant bomber attack?
-                            local iStrikeDamage = 0
-                            local iThreshold = 5000
-                            local bHaveEnoughTargets = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is reftoActiveBomberTargets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoActiveBomberTargets]))) end
                             if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoActiveBomberTargets]) == false then
+                                local iStrikeDamage = 0
+                                local iThreshold = math.min(5000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 1.5)
                                 for iTarget, oTarget in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoActiveBomberTargets] do
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Currently targeting oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' with refiStrikeDamageAssigned='..(oTarget[refiStrikeDamageAssigned] or 'nil')) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Currently targeting oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' with refiStrikeDamageAssigned='..(oTarget[refiStrikeDamageAssigned] or 'nil')..'; iStrikeDamage before increase='..iStrikeDamage..'; iThreshold='..iThreshold) end
                                     iStrikeDamage = iStrikeDamage + (oTarget[refiStrikeDamageAssigned] or 0)
                                     if iStrikeDamage >= iThreshold then
-                                        bHaveEnoughTargets = true
+                                        --Move the support point to be closer to the bomber, assuming can find a valid location
+                                        GetPotentialBomberSupportPoint(true)
                                         break
                                     end
                                 end
-                            end
-                            if bHaveEnoughTargets then
-                                --Move the support point to be closer to the bomber, assuming can find a valid location
-                                GetPotentialBomberSupportPoint(true)
                             end
                         end
                     end
@@ -2805,10 +2802,13 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         end
         --Torp bombers
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering if should try and support torp bomber, M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) or 'nil')..'; Have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber][refoStrikeDamageAssigned]='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber][refoStrikeDamageAssigned].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber][refoStrikeDamageAssigned]) or 'nil')..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][M28UnitInfo.refiLastBombFired]='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][M28UnitInfo.refiLastBombFired] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) end
-        if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and (M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][refoStrikeDamageAssigned]) or (M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][M28UnitInfo.refiLastBombFired] <= 15)) and M28Map.iMapSize >= 512 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 1500 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if should try and support torp bomber, M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) or 'nil')..'; Have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][refoStrikeDamageAssigned]='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][refoStrikeDamageAssigned].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][refoStrikeDamageAssigned]) or 'nil')..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][M28UnitInfo.refiLastBombFired]='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][M28UnitInfo.refiLastBombFired] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat])
+            if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) and M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][refoStrikeDamageAssigned]) then LOG(sFunctionRef..': Dist between torp bomber and target='..M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][refoStrikeDamageAssigned]:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]:GetPosition())) end
+        end
+        if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and (M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][refoStrikeDamageAssigned]) or (M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][M28UnitInfo.refiLastBombFired] <= 15)) and ((M28Map.iMapSize >= 512 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 1500) or (true and GetGameTimeSeconds() >= 9.5*60 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 175 and M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][refoStrikeDamageAssigned]) and M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber][refoStrikeDamageAssigned]:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]:GetPosition()) <= 120)) then
             --Ignore if t3 bomber is almost further from rally than torp bomber
             local iTorpDistToRally = M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirRallyPoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': iTorpDistToRally='..iTorpDistToRally..'; bConsideredForT3Bomber='..tostring(bConsideredForT3Bomber or false)) end
             if iTorpDistToRally >= 50 and (not(bConsideredForT3Bomber) or M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber]:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirRallyPoint]) + 40 < iTorpDistToRally) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will consider a support point for torpedo bombers') end
                 ConsiderChangingSupportPointToSupportBomber(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber], true)
@@ -6817,7 +6817,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageTorpedoBombers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] >= 1000 then bDebugMessages = true end
+
     M28Team.tAirSubteamData[iAirSubteam][M28Team.reftWaterZonesHasFriendlyTorps] = {}
     local tAvailableBombers, tBombersForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryTorpBomber - M28UnitInfo.refCategoryGunship, true)
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, false, false, true) + M28UnitInfo.GetAirThreatLevel(tBombersForRefueling, false, false, false, false, false, true) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, false, false, true)
