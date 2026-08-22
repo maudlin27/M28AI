@@ -7064,6 +7064,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
             if M28Utilities.IsTableEmpty(tAvailableBombers) == false and M28Utilities.IsTableEmpty(tiWaterZoneByDistance) == false then
                 local bIgnoreDueToSimilarAngleAAThreat, iCurZoneAngleToRally
                 local bDoDetailedCheck = true
+                local iDetailedChecksDone = 0
                 function ConsiderRecordingFrontTorpedoBomber()
                     if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) and M28UnitInfo.GetMassCostOfUnits(tEnemyTargets, true) >= 1500 then
                         local iCurDistToRally
@@ -7321,7 +7322,10 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                             end
                         end
                         --Only do detailed check for the first water zone with potential enemy targets
-                        bDoDetailedCheck = false
+                        if bDoDetailedCheck then
+                            iDetailedChecksDone = iDetailedChecksDone + 1
+                            if iDetailedChecksDone >= 3 then bDoDetailedCheck = false end
+                        end
                     end
                 end
             end

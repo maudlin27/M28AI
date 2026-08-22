@@ -298,7 +298,7 @@ tAirSubteamData = {}
     subrefiOurExpBomberThreat = 'M28ASTXpBmb' --our threat in experimental bombers; also used as a team variable
 
     refbNoRecentExpBomberAttackOrders = 'M28AExpBA' --true if we just sent any available exp bombers to rally last cycle and it's been a while sine they've fired (so can wait longer before considering new orders)
-    refbTooMuchGroundNavalAAForTorpBombers = 'M28TooMuchAAForTorps' --true if have avoided targeting a water zone with torps due to groundAA threat in a water zone
+    refbTooMuchGroundNavalAAForTorpBombers = 'M28TooMuchAAForTorps' --true if have avoided targeting a water zone with torps due to groundAA threat in a water zone; see also refbNoAvailableTorpsForEnemies which is set to true if we havent attacked due to having insufficient torp bombers (so does similar role but decided not to try and combine/unpick the two for now)
     refbTooMuchAirAAForTorpBombers = 'M28TrpEnAAA' --true if have avoided targeting a water zone with our torp bombers due to airaa threat
     refbNoAvailableTorpsForEnemies = 'M28NoAvailTorps' --true if have enemy naval unit in a wz we want to defend, and we lack available torp bombers
     refbNoAirAAForCoreEnemies = 'M28NoAirAAAv' --true if we have no airaa units to manage or ran out of airaa when trying to attack enemy
