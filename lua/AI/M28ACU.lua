@@ -381,7 +381,7 @@ function ACUActionBuildMex(aiBrain, oACU, iAreaToSearchOverride)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function MoveACUToNearbyWaterForFactory(aiBrain, oACU, tLZOrWZData)
+function MoveACUToNearbyWaterForFactory(aiBrain, oACU, tLZOrWZData, iOptionalMinPondValue)
     local sFunctionRef = 'MoveACUToNearbyWaterForFactory'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -395,20 +395,22 @@ function MoveACUToNearbyWaterForFactory(aiBrain, oACU, tLZOrWZData)
     local iClosestWZWithoutBuildLocation = 100000
     for iEntry, tSubtable in tLZOrWZData[M28Map.subrefAdjacentWaterZones] do
         local iAdjWZ = tSubtable[M28Map.subrefAWZRef]
-        local tAdjWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ]
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to move to adjacent water zone '..iAdjWZ..'; Midpoint='..repru(tAdjWZData[M28Map.subrefMidpoint])..'; Straight line dist to ACU='..M28Utilities.GetDistanceBetweenPositions(tAdjWZData[M28Map.subrefMidpoint], oACU:GetPosition())..'; AWZ dist='..tSubtable[M28Map.subrefAWZDistance]..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAdjWZData[M28Map.subrefMidpoint]))) end
-        if M28Conditions.IsLocationInPlayableArea(tAdjWZData[M28Map.subrefMidpoint]) then
-            local tAdjWZTeamData = tAdjWZData[M28Map.subrefWZTeamData][iTeam]
-            if bDebugMessages == true then LOG(sFunctionRef..': Does WZ contain naval build location='..tostring(tAdjWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation])) end
-            if tAdjWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] then
-                if tSubtable[M28Map.subrefAWZDistance] < iClosestWZWithBuildLocation then
-                    iClosestWZWithBuildLocation = tSubtable[M28Map.subrefAWZDistance]
-                    iClosestWZRefWithBuild = iAdjWZ
-                end
-            else
-                if tSubtable[M28Map.subrefAWZDistance] < iClosestWZWithoutBuildLocation then
-                    iClosestWZWithoutBuildLocation = tSubtable[M28Map.subrefAWZDistance]
-                    iClosestWZRefWithoutBuild = iAdjWZ
+        if not(iOptionalMinPondValue) or (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iAdjWZ]] or 0) >= iOptionalMinPondValue then
+            local tAdjWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ]
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to move to adjacent water zone '..iAdjWZ..'; Midpoint='..repru(tAdjWZData[M28Map.subrefMidpoint])..'; Straight line dist to ACU='..M28Utilities.GetDistanceBetweenPositions(tAdjWZData[M28Map.subrefMidpoint], oACU:GetPosition())..'; AWZ dist='..tSubtable[M28Map.subrefAWZDistance]..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAdjWZData[M28Map.subrefMidpoint]))) end
+            if M28Conditions.IsLocationInPlayableArea(tAdjWZData[M28Map.subrefMidpoint]) then
+                local tAdjWZTeamData = tAdjWZData[M28Map.subrefWZTeamData][iTeam]
+                if bDebugMessages == true then LOG(sFunctionRef..': Does WZ contain naval build location='..tostring(tAdjWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation])) end
+                if tAdjWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] then
+                    if tSubtable[M28Map.subrefAWZDistance] < iClosestWZWithBuildLocation then
+                        iClosestWZWithBuildLocation = tSubtable[M28Map.subrefAWZDistance]
+                        iClosestWZRefWithBuild = iAdjWZ
+                    end
+                else
+                    if tSubtable[M28Map.subrefAWZDistance] < iClosestWZWithoutBuildLocation then
+                        iClosestWZWithoutBuildLocation = tSubtable[M28Map.subrefAWZDistance]
+                        iClosestWZRefWithoutBuild = iAdjWZ
+                    end
                 end
             end
         end
@@ -780,7 +782,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     end
                 else
                     --End early game status if we already have various units (e.g. prebuilt base or campaign)
-                    if aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 1 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] / aiBrain[M28Economy.refiBrainResourceMultiplier] >= 250 and aiBrain[M28Economy.refiGrossMassBaseIncome] / aiBrain[M28Economy.refiBrainResourceMultiplier] >= 2 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 4 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 4 >= math.min((tLZOrWZData[M28Map.subrefLZOrWZMexCount] or 0), 4) then
+                    if aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 1 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] / aiBrain[M28Economy.refiBrainResourceMultiplier] >= 25 and aiBrain[M28Economy.refiGrossMassBaseIncome] / aiBrain[M28Economy.refiBrainResourceMultiplier] >= 2 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 4 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 4 >= math.min((tLZOrWZData[M28Map.subrefLZOrWZMexCount] or 0), 4) and (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0) then
+
                         if bDebugMessages == true then LOG(sFunctionRef..': We seem to have a decent base already so flagging to end early build order, will still look for action noow though') end
                         oACU[refbDoingInitialBuildOrder] = false
                     end
@@ -789,8 +792,49 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
                     --local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; ACU pos='..repru(oACU:GetPosition())..'; Cur mexes='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex)..'; Cur Pgens='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower)..'; Mass stored='..aiBrain:GetEconomyStored('MASS')..'; Energy stored='..aiBrain:GetEconomyStored('ENERGY')) end
-                    if (iPlateauOrZero or 0) > 0 and iLZOrWZ > 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; ACU pos='..repru(oACU:GetPosition())..'; Cur mexes='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex)..'; Cur Pgens='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower)..'; Mass stored='..aiBrain:GetEconomyStored('MASS')..'; Energy stored='..aiBrain:GetEconomyStored('ENERGY')..'; refiGrossEnergyBaseIncome='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Approaching ACU threat='..M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLZOrWZ, iTeam)) end
+
+                    --Naval fac on naval maps once have 2 factories
+                    local bGettingNavalFacInstead = false
+                    local iApproachingEnemyACUThreat = M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLZOrWZ, iTeam)
+                    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and (aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0 or (iApproachingEnemyACUThreat >= 700 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySubmarine) == 0 and M28Map.iMapSize <= 512 and iApproachingEnemyACUThreat <= 1400 and (tLZOrWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 0) <= 200)) and (iPlateauOrZero == 0 or M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false) and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 1 and (aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) >= 2 or M28Map.iMapSize <= 256) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 12 * aiBrain[M28Economy.refiBrainResourceMultiplier] and (aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 1 or M28Map.iMapSize <= 500) then
+                        --Check if the WZ we are in, or the adjacent water zone, are in a high value pond
+                        if iPlateauOrZero == 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will get naval fac if in high value pond, refiPriorityPondValues='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iLZOrWZ]] or 'nil')..'; subrefWZThreatEnemySubmersible='..(tLZOrWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 'nil')..'; subrefTThreatEnemyCombatTotal='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')) end
+                            if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iLZOrWZ]] or 0) >= 15 then
+                                --Either build factory or torpedo launcher, depending on if enemy units
+                                if iApproachingEnemyACUThreat >= 700 and iApproachingEnemyACUThreat <= 1400 and (tLZOrWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 0) <= 200 then --if multiple ACUs then risk is they just make landfall and kill torp launcher
+                                    ACUBuildUnit(aiBrain, oACU, M28UnitInfo.refCategoryTorpedoLauncher, 40, 20, nil, nil, nil)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will try building torp launcher to deal with approaching ACU threat') end
+                                    bGettingNavalFacInstead = true
+                                elseif aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0 then
+                                    ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refActionBuildNavalFactory)
+                                    bGettingNavalFacInstead = true
+                                end
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..' Will cancel attempt to build naval fac') end
+                            end
+                        else
+                            --Do we have adjacent WZ in high value pond?
+                            local iAdjWZ
+                            for _, tSubtable in tLZOrWZData[M28Map.subrefAdjacentWaterZones] do
+                                iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+                                if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iLZOrWZ]] or 0) >= 15 then
+                                    --Move to nearby WZ
+                                    MoveACUToNearbyWaterForFactory(aiBrain, oACU, tLZOrWZData, 15)
+                                    M28Orders.UpdateRecordedOrders(oACU)
+                                    if oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': ACU has a move order') end
+                                        bGettingNavalFacInstead = true
+                                    else
+                                        M28Utilities.ErrorHandler('Thought ACU would move to adjacent WZ to build naval fac but it doesnt have move order so aborting')
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    if not(bGettingNavalFacInstead) and (iPlateauOrZero or 0) > 0 and iLZOrWZ > 0 then
                         --Do we want to build a mex, hydro or factory?
                         if bDebugMessages == true then LOG(sFunctionRef..': Current land factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
                         local iMinEnergyPerTickWanted = 14 * iResourceMod --i.e. 6 T1 PGens given ACU gives 2 E
@@ -1137,7 +1181,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                     end
                                 end
                             else
-                                --Have initial power and mexes built, get second factory now subject to the cap
+                                --Have initial power and mexes built, get second factory now subject to the cap; get naval fac if naval map and lack one
+
                                 if iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < iFactoryCap then
                                     local bWantAirFactory = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData, aiBrain)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Checking if want more factories, iCurLandFactories='..iCurLandFactories..'; Want more factories='..tostring(M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ))..'; Cur air factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)..'; bWantAirFactory='..tostring(bWantAirFactory)) end
@@ -1341,7 +1386,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 end
                             end
                         end
-                    else
+                    elseif not(bGettingNavalFacInstead) then
                         --ACU is underwater so presumably water based start position
 
                         if (iLZOrWZ or 0) == 0 then
