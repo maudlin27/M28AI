@@ -1912,7 +1912,7 @@ function ManageMassStalls(iTeam)
                             end
                             for iUnit = iTotalUnits, 1, -1 do
                                 oUnit = tRelevantUnits[iUnit]
-                                if oUnit.UnitId == 'xsb0103' then bDebugMessages = true else bDebugMessages = false end
+
                                 --for iUnit, oUnit in tRelevantUnits do
                                 bApplyActionToUnit = false
                                 iCurUnitMassUsage = 0
@@ -2573,7 +2573,7 @@ function ManageEnergyStalls(iTeam)
 
                                 for iUnit = iTotalUnits, 1, -1 do
                                     oUnit = tRelevantUnits[iUnit]
-                                    if oUnit.UnitId == 'xsb0103' then bDebugMessages = true else bDebugMessages = false end
+
                                     --for iUnit, oUnit in tRelevantUnits do
                                     bApplyActionToUnit = false
                                     iCurUnitEnergyUsage = 0

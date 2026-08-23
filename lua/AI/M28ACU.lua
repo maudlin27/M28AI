@@ -626,7 +626,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
     local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-    bDebugMessages = true
+
 
     local tLZOrWZData
     local tLZOrWZTeamData
@@ -2654,7 +2654,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
     local sFunctionRef = 'DoesACUWantToRun'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 0 then bDebugMessages = true end
+
 
     local bWantToRun = false
     local iTeam = oACU:GetAIBrain().M28Team
@@ -6636,7 +6636,7 @@ function GetACUOrder(aiBrain, oACU)
         tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
         tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
     end
-    if iPlateauOrZero == 0 then bDebugMessages = true end
+
     tLZOrWZTeamData[M28Map.refbACUInTrouble] = false --will set to true later (if want ACU to run)
     oACU[refbACUAvailableToDoSnipeAttack] = false --will set to true later
 
