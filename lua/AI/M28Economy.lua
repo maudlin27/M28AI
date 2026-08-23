@@ -1912,7 +1912,7 @@ function ManageMassStalls(iTeam)
                             end
                             for iUnit = iTotalUnits, 1, -1 do
                                 oUnit = tRelevantUnits[iUnit]
-
+                                if oUnit.UnitId == 'xsb0103' then bDebugMessages = true else bDebugMessages = false end
                                 --for iUnit, oUnit in tRelevantUnits do
                                 bApplyActionToUnit = false
                                 iCurUnitMassUsage = 0
@@ -1925,7 +1925,7 @@ function ManageMassStalls(iTeam)
                                         end
                                     else
                                         if bDebugMessages == true then
-                                            LOG(sFunctionRef .. ': About to consider pausing unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; will first check category specific logic for if we want to go ahead with pausing4')
+                                            LOG(sFunctionRef .. ': About to consider pausing unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; will first check category specific logic for if we want to go ahead with pausing4, refbPrimaryFactoryForIslandOrPond='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false))
                                             if oUnit.GetWorkProgress then
                                                 local oUnitTarget = oUnit:GetFocusUnit()
                                                 if oUnitTarget then
@@ -2070,7 +2070,7 @@ function ManageMassStalls(iTeam)
                                         elseif iCategoryRef == M28UnitInfo.refCategoryTML and M28UnitInfo.GetMissileCount(oUnit) == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1.2 then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Dealing with TML that has no missile so dont want to pause it') end
                                             bApplyActionToUnit = false
-                                        --Dont pause t1-t2 mexes that arent upgrading due to bug where pausing the unit causes it to get mass without the energy cost
+                                            --Dont pause t1-t2 mexes that arent upgrading due to bug where pausing the unit causes it to get mass without the energy cost
                                         elseif (iCategoryRef == M28UnitInfo.refCategoryT2Mex or iCategoryRef == M28UnitInfo.refCategoryT1Mex) then
                                             --dont pause if the unit isnt upgrading
                                             if not(oUnit.UnitBeingBuilt) and (not(oUnit.GetWorkprogress) or (oUnit:GetWorkProgress() or 0) == 0) and not(oUnit:IsUnitState('Upgrading')) then
@@ -2573,7 +2573,7 @@ function ManageEnergyStalls(iTeam)
 
                                 for iUnit = iTotalUnits, 1, -1 do
                                     oUnit = tRelevantUnits[iUnit]
-
+                                    if oUnit.UnitId == 'xsb0103' then bDebugMessages = true else bDebugMessages = false end
                                     --for iUnit, oUnit in tRelevantUnits do
                                     bApplyActionToUnit = false
                                     iCurUnitEnergyUsage = 0
@@ -2680,7 +2680,9 @@ function ManageEnergyStalls(iTeam)
                                                 end
                                             elseif bConsideringFactory then
                                                 --Primary factions - if dealing with T1 (or T2 with lots of E) and is a primary factory, then dont pause, as too big a risk we pause an expansion and lose the whole expansion
-                                                if (oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and (oBrain[refiGrossEnergyBaseIncome] >= 300 or (oBrain[refiGrossEnergyBaseIncome] >= 150 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3, oUnit.UnitId)) or (oBrain[refiGrossEnergyBaseIncome] >= 100 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oUnit.UnitId))))) and (oBrain[refiGrossEnergyBaseIncome] >= 30 or oBrain[refiGrossEnergyBaseIncome] * oBrain[refiBrainBuildRateMultiplier] >= 30) and (oBrain[refiGrossEnergyBaseIncome] >= 150 or (oBrain[refiGrossEnergyBaseIncome] >= 80 * oBrain[refiBrainBuildRateMultiplier] and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3 + M28UnitInfo.refCategoryNavalFactory * categories.TECH1, oUnit.UnitId)) or EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oUnit.UnitId)) and (oBrain[refiGrossEnergyBaseIncome] >= 300 or not(oUnit:IsUnitState('Upgrading')) or bDontPauseUpgradingT1LandOrT2Land or (oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] and oBrain[refiGrossEnergyBaseIncome] >= 85 * oBrain[refiBrainBuildRateMultiplier] and EntityCategoryContains(categories.TECH1, oUnit.UnitId)))
+                                                if (oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and (oBrain[refiGrossEnergyBaseIncome] >= 300 or (oBrain[refiGrossEnergyBaseIncome] >= 150 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3, oUnit.UnitId)) or (oBrain[refiGrossEnergyBaseIncome] >= 100 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oUnit.UnitId)))))
+                                                and (((oBrain[refiGrossEnergyBaseIncome] >= 30 or oBrain[refiGrossEnergyBaseIncome] * oBrain[refiBrainBuildRateMultiplier] >= 30) and (oBrain[refiGrossEnergyBaseIncome] >= 150 or (oBrain[refiGrossEnergyBaseIncome] >= 80 * oBrain[refiBrainBuildRateMultiplier] and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3 + M28UnitInfo.refCategoryNavalFactory * categories.TECH1, oUnit.UnitId)) or EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oUnit.UnitId)) and (oBrain[refiGrossEnergyBaseIncome] >= 300 or not(oUnit:IsUnitState('Upgrading')) or bDontPauseUpgradingT1LandOrT2Land or (oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] and oBrain[refiGrossEnergyBaseIncome] >= 85 * oBrain[refiBrainBuildRateMultiplier] and EntityCategoryContains(categories.TECH1, oUnit.UnitId))))
+                                                or (oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] and EntityCategoryContains(categories.TECH1 - categories.AIR, oUnit.UnitId) and oBrain[refiGrossEnergyBaseIncome] * oBrain[refiBrainBuildRateMultiplier] >= (30 + 2 * (oUnit[M28Factory.refiTotalBuildCount] or 0))))
                                                  then
                                                     bApplyActionToUnit = false
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Primary fac for island/pond or just a land fac when we have enough gross energy to support land so wont pause') end
