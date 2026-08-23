@@ -4671,11 +4671,13 @@ function MovePotentialBlockingUnitsFromFactory(oFactory)
                 if oUnit:GetFractionComplete() == 1 and oUnit:GetAIBrain().M28AI and oUnit:GetAIBrain().M28Team == aiBrain.M28Team and not(oUnit:IsUnitState('Upgrading')) then
                     --Move the unit unless we've recently given such an order
                     if GetGameTimeSeconds() - (oUnit[refiTimeOfLastFacBlockOrder] or -100) > 10 then
-
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and move potential blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                        M28Orders.IssueTrackedMove(oUnit, oFactory[reftFactoryRallyPoint], 0, false, 'FacBlock', true)
-                        M28Micro.TrackTemporaryUnitMicro(oUnit, 2)
-                        oUnit[refiTimeOfLastFacBlockOrder] = GetGameTimeSeconds()
+                        --Dont move ACU if its underwater or on early build order or building
+                        if not(oUnit[M28ACU.refbTreatingAsACU]) or (not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(oUnit:IsUnitState('Building')) and not(oUnit[M28ACU.refbDoingInitialBuildOrder])) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and move potential blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                            M28Orders.IssueTrackedMove(oUnit, oFactory[reftFactoryRallyPoint], 0, false, 'FacBlock', true)
+                            M28Micro.TrackTemporaryUnitMicro(oUnit, 2)
+                            oUnit[refiTimeOfLastFacBlockOrder] = GetGameTimeSeconds()
+                        end
                     end
                 end
             end
