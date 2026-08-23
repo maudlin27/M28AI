@@ -3289,7 +3289,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                         if not(tRallyPoint) then tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2) end
                         tCurRallyPoint = tRallyPoint
                     end
-                    iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
+                    iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tCurRallyPoint)
                     iAngleToNearestUnit = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
                     if bDebugMessages == true then LOG(sFunctionRef..': iAngleToRally='..iAngleToRally..'; iAngleToNearestUnit='..iAngleToNearestUnit..'; Angle dif='..M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestUnit)) end
                     if M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestUnit) <= 60 then --tried with lower value of 45 and led to MAA moving closer to enemy

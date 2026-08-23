@@ -695,7 +695,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                         end
                                     end
                                 end
-                                if oTarget.UnitId == 'xss0201' and not(bCancelDodge) and oTarget[M28UnitInfo.refiLastWeaponEvent] and oTarget[M28UnitInfo.refbSpecialMicroActive] and GetGameTimeSeconds() -  oTarget[M28UnitInfo.refiLastWeaponEvent] < 1 then
+                                if (oTarget.UnitId == 'xss0201' or oTarget.UnitId == 'xes0307') and not(bCancelDodge) and oTarget[M28UnitInfo.refiLastWeaponEvent] and oTarget[M28UnitInfo.refbSpecialMicroActive] and GetGameTimeSeconds() -  oTarget[M28UnitInfo.refiLastWeaponEvent] < 1 then
                                     bCancelDodge = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': Wont dodge for sera destroyer as it has recently fired, but if time to impact is a while want to consider dodging in a moment, iTimeUntilImpact='..iTimeUntilImpact) end
                                     --Dont bother dodging if missile attack and we are moving away from it

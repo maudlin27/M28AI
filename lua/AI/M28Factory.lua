@@ -4671,11 +4671,13 @@ function MovePotentialBlockingUnitsFromFactory(oFactory)
                 if oUnit:GetFractionComplete() == 1 and oUnit:GetAIBrain().M28AI and oUnit:GetAIBrain().M28Team == aiBrain.M28Team and not(oUnit:IsUnitState('Upgrading')) then
                     --Move the unit unless we've recently given such an order
                     if GetGameTimeSeconds() - (oUnit[refiTimeOfLastFacBlockOrder] or -100) > 10 then
-
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and move potential blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                        M28Orders.IssueTrackedMove(oUnit, oFactory[reftFactoryRallyPoint], 0, false, 'FacBlock', true)
-                        M28Micro.TrackTemporaryUnitMicro(oUnit, 2)
-                        oUnit[refiTimeOfLastFacBlockOrder] = GetGameTimeSeconds()
+                        --Dont move ACU if its underwater or on early build order or building
+                        if not(oUnit[M28ACU.refbTreatingAsACU]) or (not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(oUnit:IsUnitState('Building')) and not(oUnit[M28ACU.refbDoingInitialBuildOrder])) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and move potential blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                            M28Orders.IssueTrackedMove(oUnit, oFactory[reftFactoryRallyPoint], 0, false, 'FacBlock', true)
+                            M28Micro.TrackTemporaryUnitMicro(oUnit, 2)
+                            oUnit[refiTimeOfLastFacBlockOrder] = GetGameTimeSeconds()
+                        end
                     end
                 end
             end
@@ -5934,6 +5936,15 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             end
         end
 
+        --Inties to support torp bombers if both us and enemy lack t3 air
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if iFactoryTechLevel <= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 3 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.5 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchAirAAForTorpBombers] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 80 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering building inties to support torp bombers unless already have large airaa threat relative to torps') end
+            if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] * 5 > M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
+            end
+        end
+
 
         if bDebugMessages == true then LOG(sFunctionRef..': end of low power builders') end
 
@@ -6407,7 +6418,14 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             end
 
 
-
+            --Asfs/inties to support torp bombers if not attacking enemy with our torps due to their air force
+            iCurrentConditionToTry = iCurrentConditionToTry + 1
+            if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchAirAAForTorpBombers] and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering building inties to support torp bombers unless already have large airaa threat relative to torps') end
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] * 5 > M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] then
+                    if ConsiderBuildingCategory(iAirAASearchCategory) then return sBPIDToBuild end
+                end
+            end
 
             --General production - depends on if we have highest tech level, or if we dont have t3 air yet
             if bDebugMessages == true then
