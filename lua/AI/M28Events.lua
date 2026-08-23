@@ -1753,8 +1753,8 @@ function OnWeaponFired(oWeapon)
                             end
                         end
                     end
-                    --Sera destroyer - dont give new orders until attack finished
-                    if oUnit.UnitId == 'xss0201' and iWeaponRangeCategory == 'UWRC_DirectFire' then
+                    --Sera destroyer and uef batt;ecruiser - dont give new orders until attack finished
+                    if (oUnit.UnitId == 'xss0201' or oUnit.UnitId == 'xes0307') and iWeaponRangeCategory == 'UWRC_DirectFire' then
                         M28Micro.TrackTemporaryUnitMicro(oUnit, 1, nil, true)
                     end
                     --T3 arti targeting logic; TML missile tracking
