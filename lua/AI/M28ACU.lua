@@ -3183,6 +3183,9 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                                 bEnemyHasPDOrSignificantACUs = true
                                                             elseif iNearbyEnemyLRDFThreat >= 700 and iTotalNearbyEnemyACUCount >= 1 then
                                                                 bEnemyHasPDOrSignificantACUs = true
+                                                            elseif oACU[refiUpgradeCount] == 0 and iNearbyEnemyLRDFThreat >= 200 and iHealthPercent <= 0.95 and (iTotalNearbyEnemyACUCount >= 1 or iNearbyEnemyLRDFThreat >= 500 or not(M28Conditions.CanUnitUseOvercharge(aiBrain, oACU, tLZTeamData))) then
+                                                                bEnemyHasPDOrSignificantACUs = true
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': lack any upgrades so running from pd') end
                                                             end
                                                             if bDebugMessages == true then LOG(sFunctionRef..': bEnemyHasPDOrSignificantACUs='..tostring(bEnemyHasPDOrSignificantACUs or false)..'; iNearbyEnemyLRDFThreat='..iNearbyEnemyLRDFThreat..'; iACUThreat='..iACUThreat) end
                                                         end
@@ -3237,6 +3240,10 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                             if M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), toLRUnits, 5, iTeam, true, nil, nil, nil, nil, false) then
                                                                 bWantToRun = true
                                                             end
+                                                        end
+                                                        if oACU[refiUpgradeCount] == 0 and not(bWantToRun) and iNearbyEnemyLRDFThreat >= 200 and iHealthPercent <= 0.95 then
+                                                            bWantToRun = true
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': lack upgrades so running from pd') end
                                                         end
                                                     end
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to run after checking if enemy has PD or significnat ACUs, bEnemyHasPDOrSignificantACUs='..tostring(bEnemyHasPDOrSignificantACUs)..'; iEnemyNearbyThreat='..iEnemyNearbyThreat..'; iAggressiveFactor='..iAggressiveFactor..'; iACUFactor='..iACUFactor..'; iACUThreat='..iACUThreat..'; iAllyNearbyThreat='..iAllyNearbyThreat) end
