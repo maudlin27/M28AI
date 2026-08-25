@@ -998,7 +998,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                     if bEnemyUnits then
                                         if iOtherAdjustFactor == 1 then iOtherAdjustFactor = 1.1 else iOtherAdjustFactor = 1.1 * iOtherAdjustFactor end
                                     else
-                                        if iHealthFactor < 0.5 then iHealthFactor = iHealthFactor * iHealthFactor
+                                        if iHealthFactor < 0.5 and (iHealthFactor < 0.3 or (bUseMyShield and (not(oUnit.MyShield) or oUnit.MyShield:GetHealth() / oUnit.MyShield:GetMaxHealth() < 0.5)) or (not(bUseMyShield) and ((iCurShield or 0) < 0 or iCurShield / iMaxShield < 0.5))) then iHealthFactor = iHealthFactor * iHealthFactor
                                         elseif iHealthFactor < 0.9 then iHealthFactor = iHealthFactor * (iHealthFactor + 0.1) end
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': ACU iCurThreat='..iCurThreat..'; iHeatlhFactor='..iHealthFactor..'; iOtherAdjustFactor='..iOtherAdjustFactor..'; iHealthPercentage='..iHealthPercentage) end
