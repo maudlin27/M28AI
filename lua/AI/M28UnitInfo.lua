@@ -867,7 +867,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                 elseif oUnit.UnitId == 'url0402' then --Monkeylord - not great in a close up fight
                                     iMassMod = 0.9
                                 elseif oUnit.UnitId == 'ual0201' then --Aurora - has a good range but much weaker in close up combat
-                                    iMassMod = 0.8
+                                    iMassMod = 0.75 --sandbox test: mantis vs aurora, with aurora starting in range of mantis: 6 mantis vs 12 aurora: 11 aurora survive; 9 aurora vs 6 mantis: 5 aurora survive; 8 aurora vs 6 mantis: 1 mantis survives
                                 else iMassMod = 1
                                 end
                             elseif EntityCategoryContains(refCategoryFatboy, oUnit.UnitId) then
