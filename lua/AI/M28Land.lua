@@ -6345,6 +6345,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 tOurDFAndT1ArtiUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandCombat, tAvailableUnitOverride or tAvailableCombatUnits)
                 if M28Utilities.IsTableEmpty(tOurDFAndT1ArtiUnits) == false then
                     iOurDFAndT1ArtiCombatThreat = M28UnitInfo.GetCombatThreatRating(tOurDFAndT1ArtiUnits, false)
+
                     if not(tAvailableUnitOverride) and M28Utilities.IsTableEmpty(tUnavailableUnitsInThisLZ) == false then
                         local tUnavailableDFAndT1Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandCombat, tUnavailableUnitsInThisLZ)
                         if M28Utilities.IsTableEmpty(tUnavailableDFAndT1Arti) == false then
@@ -9058,7 +9059,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             iDistToNearestEnemyThreshold = iDistToNearestEnemyThreshold - 7
                                         end
                                         for iACU, oACU in toEnemyACUsNearZone do
-                                            if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) <= iDistThresholdForACU or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) <= iDistToNearestEnemyThreshold and (M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.3 and ((oACU[M28ACU.refiUpgradeCount] or 0) >= 2 or M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.5)) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemy ACU near closest enemy unit, oACU owned by '..oACU:GetAIBrain().Nickname..' is dist='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])..' from friendly base, and dist='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition())..' from nearest enemy, iDistToNearestEnemyThreshold='..iDistToNearestEnemyThreshold..'; ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)) end
+                                            if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) <= iDistThresholdForACU or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) <= iDistToNearestEnemyThreshold and (M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.3 and ((oACU[M28ACU.refiUpgradeCount] or 0) >= 1 or M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.5 or M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU, tLZTeamData))) then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy ACU is too close to nearest enemy unit so wont have our units attack') end
                                                 bAttackWithEverything = false
                                                 break
