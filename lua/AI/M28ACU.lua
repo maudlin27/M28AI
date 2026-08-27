@@ -2752,7 +2752,9 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                     local iPercentMod = 1
                     if oACU[refbUseACUAggressively] then iPercentMod = 0.5 end
                     if bDebugMessages == true then LOG(sFunctionRef..': iHealthPercent='..iHealthPercent) end
-                    if (iHealthPercent <= 0.6 * iPercentMod or (iHealthPercent <= 0.75 * iPercentMod and (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 80)) and (not(bAgainstEnemyACUAndMightWin) or iHealthPercent <= 0.5 * iPercentMod) then
+                    if (iHealthPercent <= 0.6 * iPercentMod or (iHealthPercent <= 0.75 * iPercentMod and (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 80)) and (not(bAgainstEnemyACUAndMightWin) or iHealthPercent <= 0.5 * iPercentMod)
+                    and (iHealthPercent <= 0.3 or iMaxShield == 0 or iCurShield / iMaxShield + iHealthPercent <= iPercentMod)
+                     then
                         if bDebugMessages == true then LOG(sFunctionRef..': ACU is injured so want to run') end
                         bWantToRun = true
                     else
@@ -3096,8 +3098,10 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                             then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will run based on ACUThreat and nearby ally and enemy threat') end
                                                 bWantToRun = true
-                                                --Be more cautious in assassination mode
-                                            elseif iHealthPercent < 0.75 and not(oACU[refbUseACUAggressively]) and not(bWantToRun) and M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and iACUThreat * math.min(1, iACUFactor) < iEnemyNearbyThreat * 1.25 and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) >= 25 then
+                                                --Be more cautious in assassination mode, unless are behind
+                                            elseif iHealthPercent < 0.75 and not(oACU[refbUseACUAggressively]) and not(bWantToRun) and M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and iACUThreat * math.min(1, iACUFactor) < iEnemyNearbyThreat * 1.25 and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) >= 25
+                                            and (iACUThreat < iEnemyNearbyThreat or oACU[refiUpgradeCount] <= 1 or M28Conditions.GetEnemyTeamActualMassIncome(iTeam) < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) >= 150)
+                                            then
                                                 bWantToRun = true
                                                 if bDebugMessages == true then LOG(sFunctionRef..': We think we can win but our ACU is getting low health and if we lose it we lose the game so will retreat') end
                                             else
@@ -3183,6 +3187,9 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                                 bEnemyHasPDOrSignificantACUs = true
                                                             elseif iNearbyEnemyLRDFThreat >= 700 and iTotalNearbyEnemyACUCount >= 1 then
                                                                 bEnemyHasPDOrSignificantACUs = true
+                                                            elseif oACU[refiUpgradeCount] == 0 and iNearbyEnemyLRDFThreat >= 200 and iHealthPercent <= 0.95 and (iTotalNearbyEnemyACUCount >= 1 or iNearbyEnemyLRDFThreat >= 500 or not(M28Conditions.CanUnitUseOvercharge(aiBrain, oACU, tLZTeamData))) then
+                                                                bEnemyHasPDOrSignificantACUs = true
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': lack any upgrades so running from pd') end
                                                             end
                                                             if bDebugMessages == true then LOG(sFunctionRef..': bEnemyHasPDOrSignificantACUs='..tostring(bEnemyHasPDOrSignificantACUs or false)..'; iNearbyEnemyLRDFThreat='..iNearbyEnemyLRDFThreat..'; iACUThreat='..iACUThreat) end
                                                         end
@@ -3237,6 +3244,10 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                             if M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), toLRUnits, 5, iTeam, true, nil, nil, nil, nil, false) then
                                                                 bWantToRun = true
                                                             end
+                                                        end
+                                                        if oACU[refiUpgradeCount] == 0 and not(bWantToRun) and iNearbyEnemyLRDFThreat >= 200 and iHealthPercent <= 0.95 then
+                                                            bWantToRun = true
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': lack upgrades so running from pd') end
                                                         end
                                                     end
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to run after checking if enemy has PD or significnat ACUs, bEnemyHasPDOrSignificantACUs='..tostring(bEnemyHasPDOrSignificantACUs)..'; iEnemyNearbyThreat='..iEnemyNearbyThreat..'; iAggressiveFactor='..iAggressiveFactor..'; iACUFactor='..iACUFactor..'; iACUThreat='..iACUThreat..'; iAllyNearbyThreat='..iAllyNearbyThreat) end

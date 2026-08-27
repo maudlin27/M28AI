@@ -867,7 +867,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                 elseif oUnit.UnitId == 'url0402' then --Monkeylord - not great in a close up fight
                                     iMassMod = 0.9
                                 elseif oUnit.UnitId == 'ual0201' then --Aurora - has a good range but much weaker in close up combat
-                                    iMassMod = 0.8
+                                    iMassMod = 0.75 --sandbox test: mantis vs aurora, with aurora starting in range of mantis: 6 mantis vs 12 aurora: 11 aurora survive; 9 aurora vs 6 mantis: 5 aurora survive; 8 aurora vs 6 mantis: 1 mantis survives
                                 else iMassMod = 1
                                 end
                             elseif EntityCategoryContains(refCategoryFatboy, oUnit.UnitId) then
@@ -998,7 +998,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                     if bEnemyUnits then
                                         if iOtherAdjustFactor == 1 then iOtherAdjustFactor = 1.1 else iOtherAdjustFactor = 1.1 * iOtherAdjustFactor end
                                     else
-                                        if iHealthFactor < 0.5 then iHealthFactor = iHealthFactor * iHealthFactor
+                                        if iHealthFactor < 0.5 and (iHealthFactor < 0.3 or (bUseMyShield and (not(oUnit.MyShield) or oUnit.MyShield:GetHealth() / oUnit.MyShield:GetMaxHealth() < 0.5)) or (not(bUseMyShield) and ((iCurShield or 0) < 0 or iCurShield / iMaxShield < 0.5))) then iHealthFactor = iHealthFactor * iHealthFactor
                                         elseif iHealthFactor < 0.9 then iHealthFactor = iHealthFactor * (iHealthFactor + 0.1) end
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': ACU iCurThreat='..iCurThreat..'; iHeatlhFactor='..iHealthFactor..'; iOtherAdjustFactor='..iOtherAdjustFactor..'; iHealthPercentage='..iHealthPercentage) end

@@ -1301,11 +1301,12 @@ function IsUnitInRangeOfLRIndirectFireUnits(oUnit, tLZTeamData, iDistThreshold)
     end
 end
 
-function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange, bIncludeEnemyIndirectRangeIfNoDFRange, iIndirectDistThresholdOverride)
+function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange, bIncludeEnemyIndirectRangeIfNoDFRange, iIndirectDistThresholdOverride, iCheckEnemyDFRangeIfAtLeastThis, iDistIfEnemyDFRangeAtLeastSpecifiedAmount)
     --Returns true if our distance to any of tUnitsToCheck is <= iDistThreshold; if bIncludeEnemyDFRange is true then our distance to the units is reduced by the enemy unit's DF range (meaning it returns true if we are within iDistThreshold of the enemy unit being able to shoot at us);
     --iAltThresholdToDFRange - if bIncludeEnemyDFRange is true and this also has a value specified, then if we are within iAltThresholdToDFRange will return true regardless of the iDistThreshold test; i.e. we will both check if enemy dist-DF range is within iDistThreshold, or if enemy dist is within iAltThresholdToDFRange
     --oUnitIfConsideringAngleAndLastShot - if we have a unit that is very vulnerable at lcose range (e.g. a skirmisher unit), then including this here will mean a check is done of the enemy unit facing angle and unit state (to factor in how easily it could close in to us) to decide whether to run or not
     --iIndirectDistThresholdOverride - iDistThreshold to use when checking IF ranges, only relevant if bIncludeEnemyIndirectRangeIfNoDFRange is true and the unit lacks a DF attack
+    --iCheckEnemyDFRangeIfAtLeastThis - if bIncludeEnemyDFRange is false, but this is specified, then will treat as being close an enemy DF unit that exceeds this range awhere dist to us - their DF range is <= iDistIfEnemyDFRangeAtLeastSpecifiedAmount
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CloseToEnemyUnit'
@@ -1315,7 +1316,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
 
     local iCurDist
     if bDebugMessages == true then
-        LOG(sFunctionRef..': tStartPosition='..repru(tStartPosition)..'; Size of tUnitsToCheck='..table.getn(tUnitsToCheck)..'; iDistThreshold='..iDistThreshold..'; bIncludeEnemyDFRange='..tostring(bIncludeEnemyDFRange or false)..'; bIncludeEnemyIndirectRangeIfNoDFRange='..tostring(bIncludeEnemyIndirectRangeIfNoDFRange or false))
+        LOG(sFunctionRef..': tStartPosition='..repru(tStartPosition)..'; Size of tUnitsToCheck='..table.getn(tUnitsToCheck)..'; iDistThreshold='..iDistThreshold..'; bIncludeEnemyDFRange='..tostring(bIncludeEnemyDFRange or false)..'; bIncludeEnemyIndirectRangeIfNoDFRange='..tostring(bIncludeEnemyIndirectRangeIfNoDFRange or false)..'; iCheckEnemyDFRangeIfAtLeastThis='..(iCheckEnemyDFRangeIfAtLeastThis or 'nil'))
         for iUnit, oUnit in tUnitsToCheck do
             LOG(sFunctionRef..': Dist to oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' = '..M28Utilities.GetDistanceBetweenPositions(tStartPosition, oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..' based on last known position of '..repru(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; actual unit position='..repru(oUnit:GetPosition())..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Is distance less tahn threshold='..tostring(M28Utilities.GetDistanceBetweenPositions(tStartPosition, oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) < iDistThreshold))
         end
@@ -1381,7 +1382,9 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bIncludeEnemyDFRange='..tostring(bIncludeEnemyDFRange or false)..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; iCurDist='..iCurDist..'; iDistThreshold='..iDistThreshold..'; iAltThresholdToDFRange='..(iAltThresholdToDFRange or 'nil')) end
-            if (bIncludeEnemyDFRange and (iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iDistThreshold or iCurDist <= (iAltThresholdToDFRange or 0) or (bIncludeEnemyIndirectRangeIfNoDFRange and (oUnit[M28UnitInfo.refiDFRange] or 0) == 0 and oUnit[M28UnitInfo.refiIndirectRange] and iCurDist - oUnit[M28UnitInfo.refiIndirectRange] <= (iIndirectDistThresholdOverride or iDistThreshold)) or (bIncludeEnemyAntiNavyRange and iCurDist - (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) <= iDistThreshold))) or (not(bIncludeEnemyDFRange) and iCurDist <= iDistThreshold) then
+            if (bIncludeEnemyDFRange and (iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iDistThreshold or iCurDist <= (iAltThresholdToDFRange or 0) or (bIncludeEnemyIndirectRangeIfNoDFRange and (oUnit[M28UnitInfo.refiDFRange] or 0) == 0 and oUnit[M28UnitInfo.refiIndirectRange] and iCurDist - oUnit[M28UnitInfo.refiIndirectRange] <= (iIndirectDistThresholdOverride or iDistThreshold)) or (bIncludeEnemyAntiNavyRange and iCurDist - (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) <= iDistThreshold))) or (not(bIncludeEnemyDFRange) and iCurDist <= iDistThreshold)
+                    or (iCheckEnemyDFRangeIfAtLeastThis and (oUnit[M28UnitInfo.refiDFRange] or -1) >= (iCheckEnemyDFRangeIfAtLeastThis or 0) and iCurDist - oUnit[M28UnitInfo.refiDFRange] <= iDistIfEnemyDFRangeAtLeastSpecifiedAmount)
+            then
                 --Structure specific
                 if not(iOptionalDistThresholdForStructure) or iCurDist <= iOptionalDistThresholdForStructure or not(EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) or (bIncludeEnemyDFRange and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and iCurDist <= math.min(iDistThreshold, iOptionalDistThresholdForStructure) + (oUnit[M28UnitInfo.refiDFRange] or 0)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
@@ -1755,8 +1758,32 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                             --Can only path to enemy with navy, and we lack T3 air, and have <50% mass stored - then dont get more facs at core base
                         elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.5 and not(iCurIsland == iEnemyIsland) and tLZTeamData[M28Map.subrefLZbCoreBase] and (iAverageCurAirAndLandFactories >= 3 or not(DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))) then
                             if bDebugMessages == true then LOG(sFunctionRef..': No more facs at core base as not at risk of overflowing and want to consderve resources for navy') end
+                            --Build fewer land facs once reach T2; below triggers if are at T2, on same island as core base, already have a good number of land factories, and have factory in this zone, and either arent too far from base or dont have many land facs then get another
+                        elseif iAverageCurAirAndLandFactories >= 6 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 and tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
+
+                            if not(iLandFacsInZone) then
+                                iLandFacsInZone = 0
+                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                    local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                    if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
+                                        iLandFacsInZone = table.getn(tFriendlyFactory)
+                                    end
+                                end
+                            end
+                            if iLandFacsInZone > 0 and
+                                    --If we are upgrading current land fac then might be a case for building a second land fac, assuming we arent close to core base on same island
+                                    (iLandFacsInZone >= 2 or (iLandFacsInZone >= 1 and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase]) <= 220 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.75))
+                                    and (iLandFacsInZone >= 3 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] < 3 or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory - categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false)
+                            then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Dont want to get lots of t1 facs now that we have tech 2+') end
+                                bWantMoreFactories = false --redundancy
+                            else
+                                bWantMoreFactories = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want more land facs gen after checking iLandFacsInZone='..iLandFacsInZone..'; iAverageCurAirAndLandFactories='..iAverageCurAirAndLandFactories..'; subrefLZbCoreBase='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; refiOurHighestLandFactoryTech='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]..'; Island ref='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; Closest base island ref='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) or 'nil')..'; Dist to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase])..'; subrefiTeamAverageMassPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) end
+                            end
+
                         else
-                            if bDebugMessages == true then LOG(sFunctionRef..': Want more factories general') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want more factories') end
                             bWantMoreFactories = true
                         end
                     else
@@ -1850,7 +1877,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                         --Naval facs - want to get more land/air facs if we have lost navy
                         or (aiBrain[M28Overseer.refbPrioritiseNavy] and iPlateau > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 or (GetGameTimeSeconds() <= 600 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) == 0)))
                         or (iLandFacsInZone + iAirFacsInZone >= 3 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < 2)
-                        then
+                then
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want more facs as want to tech or turtle, unless this zone has no factories') end
                     bWantMoreFactories = false
                     bDecided = true
@@ -1956,7 +1983,7 @@ function CanUnitUseOvercharge(aiBrain, oUnit, tLZTeamDataIfACU)
                         --Cant use overcharge due to lack of energy - do we want to flag as such for power stall purposes?
                         local iTeam = aiBrain.M28Team
                         if bDebugMessages == true then LOG(sFunctionRef..': Team gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Active M28 brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Economy stored ratio='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Mex E storage='..aiBrain[M28Economy.refiMaxEnergyStorage]..'; iEnergyNeeded='..(iEnergyNeeded or 'nil')..'; Is tLZTeamDataIfACU nil='..tostring(tLZTeamDataIfACU == nil)) end
-                        if tLZTeamDataIfACU and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 50 + 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.9 and aiBrain[M28Economy.refiMaxEnergyStorage] >= (iEnergyNeeded or 7500) and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                        if aiBrain.M28AI and tLZTeamDataIfACU and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 50 + 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.9 and aiBrain[M28Economy.refiMaxEnergyStorage] >= (iEnergyNeeded or 7500) and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                             --Is ACU in dangerous zone?
                             if tLZTeamDataIfACU[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 400 and (tLZTeamDataIfACU[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 1000 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.75) then
                                 --Do we have dangerous enemies within our combat range that we could be overcharging?
