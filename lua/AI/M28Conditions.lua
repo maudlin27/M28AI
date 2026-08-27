@@ -1755,8 +1755,32 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                             --Can only path to enemy with navy, and we lack T3 air, and have <50% mass stored - then dont get more facs at core base
                         elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.5 and not(iCurIsland == iEnemyIsland) and tLZTeamData[M28Map.subrefLZbCoreBase] and (iAverageCurAirAndLandFactories >= 3 or not(DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))) then
                             if bDebugMessages == true then LOG(sFunctionRef..': No more facs at core base as not at risk of overflowing and want to consderve resources for navy') end
+                            --Build fewer land facs once reach T2; below triggers if are at T2, on same island as core base, already have a good number of land factories, and have factory in this zone, and either arent too far from base or dont have many land facs then get another
+                        elseif iAverageCurAirAndLandFactories >= 6 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 and tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
+
+                            if not(iLandFacsInZone) then
+                                iLandFacsInZone = 0
+                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                    local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                    if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
+                                        iLandFacsInZone = table.getn(tFriendlyFactory)
+                                    end
+                                end
+                            end
+                            if iLandFacsInZone > 0 and
+                                    --If we are upgrading current land fac then might be a case for building a second land fac, assuming we arent close to core base on same island
+                                    (iLandFacsInZone >= 2 or (iLandFacsInZone >= 1 and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase]) <= 220 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.75))
+                                    and (iLandFacsInZone >= 3 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] < 3 or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory - categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false)
+                            then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Dont want to get lots of t1 facs now that we have tech 2+') end
+                                bWantMoreFactories = false --redundancy
+                            else
+                                bWantMoreFactories = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want more land facs gen after checking iLandFacsInZone='..iLandFacsInZone..'; iAverageCurAirAndLandFactories='..iAverageCurAirAndLandFactories..'; subrefLZbCoreBase='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; refiOurHighestLandFactoryTech='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]..'; Island ref='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; Closest base island ref='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) or 'nil')..'; Dist to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase])..'; subrefiTeamAverageMassPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) end
+                            end
+
                         else
-                            if bDebugMessages == true then LOG(sFunctionRef..': Want more factories general') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want more factories') end
                             bWantMoreFactories = true
                         end
                     else
@@ -1850,7 +1874,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                         --Naval facs - want to get more land/air facs if we have lost navy
                         or (aiBrain[M28Overseer.refbPrioritiseNavy] and iPlateau > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 or (GetGameTimeSeconds() <= 600 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) == 0)))
                         or (iLandFacsInZone + iAirFacsInZone >= 3 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < 2)
-                        then
+                then
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want more facs as want to tech or turtle, unless this zone has no factories') end
                     bWantMoreFactories = false
                     bDecided = true

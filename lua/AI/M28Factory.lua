@@ -1281,7 +1281,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
-
+    
 
     local iEngisInZone
     function GetEngiCountInZone()
@@ -2765,89 +2765,99 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get indirect fire to protet pd') end
                             end
                         end
-                        if not(bDontGetCombat) and (iTankLC < 3 or
-                                ((not(bHaveLowMass) or iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or (tiLandFactoriesByTechInZone[iFactoryTechLevel + 1] == 0 and (iFactoryTechLevel == 2 or tiLandFactoriesByTechInZone[3] ==0))) and iTankLC < M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)))) then
-                            if iFactoryTechLevel < 3 then
-                                if ConsiderBuildingCategory(iCategoryToGet) then
-                                    return sBPIDToBuild
-                                end
-                            else
-                                --If are overflowing mass, no enemies in cur LZ, at T3, and need BP, then get engineers
-                                if bDebugMessages == true then LOG(sFunctionRef .. ': Checking for mass overflow exception where will get engis instead; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]=' .. tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) .. '; Stored%=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; Want BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; iTankLC=' .. iTankLC) end
-                                local bGetEngineersInstead = false
-                                if iTankLC >= 4 and not (bHaveLowMass) and not (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.95 and tLZTeamData[M28Map.subrefTbWantBP] then
-
-                                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) then
-                                        bGetEngineersInstead = true
-                                    else
-                                        local oNearestDFEnemy
-                                        oNearestDFEnemy = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], oFactory:GetPosition())
-                                        if oNearestDFEnemy then
-                                            if M28Utilities.GetDistanceBetweenPositions(oFactory:GetPosition(), oNearestDFEnemy:GetPosition()) >= 70 then
-                                                bGetEngineersInstead = true
-                                            end
-                                        else
-                                            bGetEngineersInstead = true
-                                        end
-                                    end
-                                end
-                                if bGetEngineersInstead then
-                                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
-                                else
-                                    --Enemies near to base/land factory, and we have a category to get; however want to still consider unit ratios but based on these LZs before going with the standard support category - i.e. consider indirect fire if have lots of DF and T3 land
-                                    local iDFTotalThreat = tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
-                                    local iIndirectTotalThreat = tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
-                                    local iEnemyAirToGroundThreat = tLZTeamData[M28Map.refiEnemyAirToGroundThreat]
-                                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
-                                        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                                            iDFTotalThreat = iDFTotalThreat + M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatAllyMobileDFTotal]
-                                            iIndirectTotalThreat = iIndirectTotalThreat + M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatAllyMobileIndirectTotal]
-                                            iEnemyAirToGroundThreat = iEnemyAirToGroundThreat + M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.refiEnemyAirToGroundThreat]
-                                        end
-                                    end
-                                    local iDirectThreatPerIndirectThreatWanted
-                                    if M28Map.iMapSize >= 512 then
-                                        if M28Map.iMapSize >= 1000 then iDirectThreatPerIndirectThreatWanted = 7
-                                        else iDirectThreatPerIndirectThreatWanted = 8
-                                        end
-                                    else
-                                        iDirectThreatPerIndirectThreatWanted = 9
-                                    end
-                                    if EntityCategoryContains(categories.AEON, oFactory.UnitId) then
-                                        if iDirectThreatPerIndirectThreatWanted >= 5 then iDirectThreatPerIndirectThreatWanted = iDirectThreatPerIndirectThreatWanted - 2
-                                        else iDirectThreatPerIndirectThreatWanted = iDirectThreatPerIndirectThreatWanted - 0.5
-                                        end
-                                    end
-                                    --If we have just built indirectfire then make it less likely to build another
-                                    if oFactory[refsLastBlueprintBuilt] and EntityCategoryContains(M28UnitInfo.refCategoryIndirect, oFactory[refsLastBlueprintBuilt]) then
-                                        iDirectThreatPerIndirectThreatWanted = iDirectThreatPerIndirectThreatWanted * 2
-                                    end
-
-                                    if M28Utilities.bQuietModActive then --Az request for more mobile t3 arti in QUIET
-                                        iDirectThreatPerIndirectThreatWanted = iDirectThreatPerIndirectThreatWanted * 0.5
-                                    end
-                                    local iIndirectThreatWanted = math.max(100, math.min(10000, iDFTotalThreat) / iDirectThreatPerIndirectThreatWanted)
-                                    if iDFTotalThreat > 10000 then
-                                        iDirectThreatPerIndirectThreatWanted = iDirectThreatPerIndirectThreatWanted * 2
-                                        iIndirectThreatWanted = iIndirectThreatWanted + math.min(30000, iDFTotalThreat - 10000) / iDirectThreatPerIndirectThreatWanted
-                                        if iDFTotalThreat > 40000 then
-                                            iDirectThreatPerIndirectThreatWanted = iDirectThreatPerIndirectThreatWanted * 1.5
-                                            iIndirectThreatWanted = iIndirectThreatWanted + (iDFTotalThreat - 40000) / iDirectThreatPerIndirectThreatWanted
-                                        end
-                                    end
-
-
-                                    if iDFTotalThreat >= 8000 and iIndirectTotalThreat < iIndirectThreatWanted and iEnemyAirToGroundThreat <= tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] then
-                                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryT3MobileArtillery) then return sBPIDToBuild end
-                                    elseif ConsiderBuildingCategory(iCategoryToGet) then
+                        --Core base exception or base cloes to core base if have high tank LC and higher tech factory
+                        if iCategoryToGet and iTankLC >= 10 and iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech] and (iTankLC >= 20 or iFactoryTechLevel == 2) and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] and (bHaveLowMass or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2 and not(bHaveLowPower)))
+                                and (tLZTeamData[M28Map.subrefLZbCoreBase] or (M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase]) <= 250 and tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])))
+                                and M28Utilities.DoesCategoryContainCategory(iCategoryToGet, M28UnitInfo.refCategoryLandCombat, false)
+                                and ((iFactoryTechLevel == 1 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat - categories.TECH1) >= 5) or (iFactoryTechLevel == 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 4)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Wont get land combat category afterall as we are below highest tech and already have some units of that tech, and arent in danger of overflowing, and are relatively close to our core base') end
+                            iCategoryToGet = nil
+                        end
+                        if iCategoryToGet then
+                            if not(bDontGetCombat) and (iTankLC < 3 or
+                                    ((not(bHaveLowMass) or iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or (tiLandFactoriesByTechInZone[iFactoryTechLevel + 1] == 0 and (iFactoryTechLevel == 2 or tiLandFactoriesByTechInZone[3] ==0))) and iTankLC < M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)))) then
+                                if iFactoryTechLevel < 3 then
+                                    if ConsiderBuildingCategory(iCategoryToGet) then
                                         return sBPIDToBuild
                                     end
+                                else
+                                    --If are overflowing mass, no enemies in cur LZ, at T3, and need BP, then get engineers
+                                    if bDebugMessages == true then LOG(sFunctionRef .. ': Checking for mass overflow exception where will get engis instead; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]=' .. tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) .. '; Stored%=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; Want BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; iTankLC=' .. iTankLC) end
+                                    local bGetEngineersInstead = false
+                                    if iTankLC >= 4 and not (bHaveLowMass) and not (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.95 and tLZTeamData[M28Map.subrefTbWantBP] then
+
+                                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) then
+                                            bGetEngineersInstead = true
+                                        else
+                                            local oNearestDFEnemy
+                                            oNearestDFEnemy = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], oFactory:GetPosition())
+                                            if oNearestDFEnemy then
+                                                if M28Utilities.GetDistanceBetweenPositions(oFactory:GetPosition(), oNearestDFEnemy:GetPosition()) >= 70 then
+                                                    bGetEngineersInstead = true
+                                                end
+                                            else
+                                                bGetEngineersInstead = true
+                                            end
+                                        end
+                                    end
+                                    if bGetEngineersInstead then
+                                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+                                    else
+                                        --Enemies near to base/land factory, and we have a category to get; however want to still consider unit ratios but based on these LZs before going with the standard support category - i.e. consider indirect fire if have lots of DF and T3 land
+                                        local iDFTotalThreat = tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
+                                        local iIndirectTotalThreat = tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
+                                        local iEnemyAirToGroundThreat = tLZTeamData[M28Map.refiEnemyAirToGroundThreat]
+                                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                                iDFTotalThreat = iDFTotalThreat + M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatAllyMobileDFTotal]
+                                                iIndirectTotalThreat = iIndirectTotalThreat + M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatAllyMobileIndirectTotal]
+                                                iEnemyAirToGroundThreat = iEnemyAirToGroundThreat + M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.refiEnemyAirToGroundThreat]
+                                            end
+                                        end
+                                        local iDirectThreatPerIndirectThreatWanted
+                                        if M28Map.iMapSize >= 512 then
+                                            if M28Map.iMapSize >= 1000 then iDirectThreatPerIndirectThreatWanted = 7
+                                            else iDirectThreatPerIndirectThreatWanted = 8
+                                            end
+                                        else
+                                            iDirectThreatPerIndirectThreatWanted = 9
+                                        end
+                                        if EntityCategoryContains(categories.AEON, oFactory.UnitId) then
+                                            if iDirectThreatPerIndirectThreatWanted >= 5 then iDirectThreatPerIndirectThreatWanted = iDirectThreatPerIndirectThreatWanted - 2
+                                            else iDirectThreatPerIndirectThreatWanted = iDirectThreatPerIndirectThreatWanted - 0.5
+                                            end
+                                        end
+                                        --If we have just built indirectfire then make it less likely to build another
+                                        if oFactory[refsLastBlueprintBuilt] and EntityCategoryContains(M28UnitInfo.refCategoryIndirect, oFactory[refsLastBlueprintBuilt]) then
+                                            iDirectThreatPerIndirectThreatWanted = iDirectThreatPerIndirectThreatWanted * 2
+                                        end
+
+                                        if M28Utilities.bQuietModActive then --Az request for more mobile t3 arti in QUIET
+                                            iDirectThreatPerIndirectThreatWanted = iDirectThreatPerIndirectThreatWanted * 0.5
+                                        end
+                                        local iIndirectThreatWanted = math.max(100, math.min(10000, iDFTotalThreat) / iDirectThreatPerIndirectThreatWanted)
+                                        if iDFTotalThreat > 10000 then
+                                            iDirectThreatPerIndirectThreatWanted = iDirectThreatPerIndirectThreatWanted * 2
+                                            iIndirectThreatWanted = iIndirectThreatWanted + math.min(30000, iDFTotalThreat - 10000) / iDirectThreatPerIndirectThreatWanted
+                                            if iDFTotalThreat > 40000 then
+                                                iDirectThreatPerIndirectThreatWanted = iDirectThreatPerIndirectThreatWanted * 1.5
+                                                iIndirectThreatWanted = iIndirectThreatWanted + (iDFTotalThreat - 40000) / iDirectThreatPerIndirectThreatWanted
+                                            end
+                                        end
+
+
+                                        if iDFTotalThreat >= 8000 and iIndirectTotalThreat < iIndirectThreatWanted and iEnemyAirToGroundThreat <= tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] then
+                                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryT3MobileArtillery) then return sBPIDToBuild end
+                                        elseif ConsiderBuildingCategory(iCategoryToGet) then
+                                            return sBPIDToBuild
+                                        end
+                                    end
                                 end
-                            end
-                        else
-                            if bDontGetCombat then iCategoryToGet = iCategoryToGet - categories.DIRECTFIRE - categories.INDIRECTFIRE end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will just try and get the support category, subject to adjustment if bDontGetCombat is true, bDontGetCombat='..tostring(bDontGetCombat)) end
-                            if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild
+                            else
+                                if bDontGetCombat then iCategoryToGet = iCategoryToGet - categories.DIRECTFIRE - categories.INDIRECTFIRE end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will just try and get the support category, subject to adjustment if bDontGetCombat is true, bDontGetCombat='..tostring(bDontGetCombat)) end
+                                if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild
+                                end
                             end
                         end
                     end

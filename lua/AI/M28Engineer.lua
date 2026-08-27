@@ -17018,7 +17018,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
             if iFactoriesWanted >= 1 and ((bExpansionOnSameIslandAsBase and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap]) and not(M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone)) then
                 if bDebugMessages == true then LOG(sFunctionRef..': We dont actually want more factories in this zone, so limiting factories wanted to just 1 (or 2 if lots of mexes and we wanted 4+') end
-                if tLZData[M28Map.subrefLZOrWZMexCount] >= 4 and (tLZTeamData[M28Map.refiModDistancePercent] >= 0.25 or iFactoriesWanted >= 4) then
+                if tLZData[M28Map.subrefLZOrWZMexCount] >= 4 and (tLZTeamData[M28Map.refiModDistancePercent] >= 0.25 or iFactoriesWanted >= 4) and (M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase]) >= 250 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 1) then
                     iFactoriesWanted = math.min(3, math.max(1, iFactoriesWanted * 0.6))
                 else
                     iFactoriesWanted = 1
@@ -17320,9 +17320,11 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Paragon - always want at least 1 factory in every minor LZ
     if aiBrain[M28Economy.refbBuiltParagon] and not(bTeammateHasBuiltHere) and iFactoriesWanted <= 0 and tLZData[M28Map.subrefLZTotalSegmentCount] >= 20 and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) >= 1 then iFactoriesWanted = math.max(iFactoriesWanted, 1) end
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': iExistingFactory='..GetExistingFactoryNumber()..'; iFactoriesWanted='..iFactoriesWanted..'; P'..iPlateau..'Z'..iLandZone..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; Signif mass reclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]..'; iCurPriority='..iCurPriority..';  Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': iExistingFactory='..GetExistingFactoryNumber()..'; iFactoriesWanted='..iFactoriesWanted..'; P'..iPlateau..'Z'..iLandZone..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; Signif mass reclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]..'; iCurPriority='..iCurPriority..'; Dist to closest base='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase])..'; Island ref='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; Island ref of closest base='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) or 'nil')..'; refiOurHighestLandFactoryTech='..(aiBrain[M28Economy.refiOurHighestLandFactoryTech] or 'nil')..'; Time='..GetGameTimeSeconds()) end
     --If we have dropped here recently, and mod dist is high, then prioritise getting reclaim over land fac as enemy will likely kill us soon
-    if GetExistingFactoryNumber() < iFactoriesWanted and (tLZTeamData[M28Map.refiModDistancePercent] <= 0.75 or tLZData[M28Map.subrefTotalSignificantMassReclaim] < 250 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.75 or (tLZTeamData[M28Map.subrefLZFortify] and GetExistingFactoryNumber() == 0)) then
+    if GetExistingFactoryNumber() < iFactoriesWanted and (tLZTeamData[M28Map.refiModDistancePercent] <= 0.75 or tLZData[M28Map.subrefTotalSignificantMassReclaim] < 250 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.75 or (tLZTeamData[M28Map.subrefLZFortify] and GetExistingFactoryNumber() == 0))
+            and (GetExistingFactoryNumber() == 0 or not(tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) or (not(bHaveLowMass) and (aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 or M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase]) >= 200)))
+    then
         iBPWanted = 10
         if bExistingFactoryIsComplete and bHaveLowMass then iBPWanted = 5 end
         --If we have dropped engineerz in this zone then prioritise the first land fac more
@@ -17700,7 +17702,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --Assign more BP to factories
     iCurPriority = iCurPriority + 1
-    if GetExistingFactoryNumber() < iFactoriesWanted and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then
+    if GetExistingFactoryNumber() < iFactoriesWanted and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) and (GetExistingFactoryNumber() == 0 or M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 and not(bHaveLowMass))) then
         --Dont want to build air factories at a core expansion point, instead only want land
         iBPWanted = 10
         if bEngineersRecentlyRunFromEnemy then iBPWanted = 5
@@ -17788,6 +17790,18 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 if bDebugMessages == true then LOG(sFunctionRef..': Will get t1 radar but just with 1 engi') end
                 HaveActionToAssign(refActionBuildT1Radar, 1, 5)
             end
+        end
+    end
+
+    --Want more factories, but have unbuilt mexes - lower priorioty builder in place of above higher priority builder
+    if GetExistingFactoryNumber() < iFactoriesWanted and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then
+        iBPWanted = 10
+        if bEngineersRecentlyRunFromEnemy then iBPWanted = 5  end
+        if bDebugMessages == true then LOG(sFunctionRef..': Want more BP for land factories, iBPWanted='..iBPWanted..' iExistingFactory='..iExistingFactory..'; iFactoriesWanted='..iFactoriesWanted) end
+        if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 750 or aiBrain[M28Overseer.refbPrioritiseAir]) and M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) then
+            HaveActionToAssign(refActionBuildAirFactory, 1, iBPWanted, nil)
+        else
+            HaveActionToAssign(refActionBuildLandFactory, 1, iBPWanted, nil)
         end
     end
 
