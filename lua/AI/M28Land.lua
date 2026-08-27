@@ -5594,9 +5594,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             else
                 bEnemyHasNoDFUnits = M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies])
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearest enemy to midpoint, bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits)..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))) end
 
             toEnemyACUsNearZone = EntityCategoryFilterDown(categories.COMMAND, tLZTeamData[M28Map.reftoNearestDFEnemies])
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearest enemy to midpoint, bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits)..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; is toEnemyACUsNearZone empty='..tostring(M28Utilities.IsTableEmpty(toEnemyACUsNearZone))) end
             local oNearestEnemyStructureToMidpoint
             local iClosestDist = 100000
             local iClosestStructureDist = 100000
@@ -7369,6 +7369,19 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                         if bAreInScenario1 then --Recheck as we might have changed to false if on checking adjacent zones an enemy outranges us
                             local bHaveSRExperimentalsInCombat = false
+                            local oUpgradingACU
+                            if M28Utilities.IsTableEmpty(toEnemyACUsNearZone) == false then
+                                local iClosestUpgradingACUDist = 10000
+                                for iACU, oACU in toEnemyACUsNearZone do
+                                    if not(oACU.Dead) and oACU:IsUnitState('Upgrading') then
+                                        local iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition())
+                                        if iCurDist < iClosestUpgradingACUDist then
+                                            iClosestUpgradingACUDist = iCurDist
+                                            oUpgradingACU = oACU
+                                        end
+                                    end
+                                end
+                            end
                             for iUnit, oUnit in tAvailableCombatUnits do
                                 if bDebugMessages == true then
                                     LOG(sFunctionRef..': Considering orders to give for scenario 1, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iEnemyBestDFRange='..(iEnemyBestDFRange or 'nil')..'; bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits or false)..'; Close to enemy unit (DF only) ='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], (oUnit[M28UnitInfo.refiDFRange] or 0) * 0.94, iTeam, false))..'; Was last shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Is unit underwtaer='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Can unit kite='..tostring(oUnit[M28UnitInfo.refbCanKite] or false)..'; Is table of enemy engineers empty='..tostring(M28Utilities.IsTableEmpty(tEnemyEngineers))..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Time between DF shots='..(oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')..'; IF range='..(oUnit[M28UnitInfo.refiIndirectRange] or 0)..'; Time since last dropped='..'Time since last dropped='..(GetGameTimeSeconds() - (oUnit[M28Air.refiTimeLastDropped] or 0)))
@@ -8302,6 +8315,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             elseif bNearestEnemyIsACU and oNearestEnemyToFriendlyBase:IsUnitState('Upgrading') and (M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyToFriendlyBase, false) or M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 2) then
                                                                 --Attack
                                                                 M28Orders.IssueTrackedAttack(oUnit, oNearestEnemyToFriendlyBase, false, 'InEnACUU'..iLandZone, false)
+                                                            elseif oUpgradingACU and oUpgradingACU[M28UnitInfo.refiDFRange] < oUnit[M28UnitInfo.refiCombatRange] and M28Utilities.GetDistanceBetweenPositions(oUpgradingACU:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiCombatRange] + 5 and (M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUpgradingACU, false) or M28Utilities.GetDistanceBetweenPositions(oUpgradingACU:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 2) then
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': We are almost in range of upgrading enemy acu so will attack it with IF even though it isnt nearest enemy') end
+                                                                M28Orders.IssueTrackedAttack(oUnit, oUpgradingACU, false, 'InNrACUU'..iLandZone, false)
                                                             elseif M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()) < oUnit[M28UnitInfo.refiIndirectRange] then
                                                                 M28Orders.IssueTrackedAttack(oUnit, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, 'INSAtc'..iLandZone, false)
                                                             else
