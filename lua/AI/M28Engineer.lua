@@ -8647,6 +8647,10 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
             tArtiMidpoint[3] = tArtiMidpoint[3] / table.getn(tTableRef[M28Map.subrefGEArtiLocations])
         end
 
+        if not(M28Team.tAirSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam][M28Team.refbActiveEnemyStratSnipeMonitor]) then
+            ForkThread(M28Air.MonitorForEnemySnipeOfGameEnderTemplate, ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]])
+        end
+
 
         if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting for P'..iPlateau..'Z'..iLandZone..'; iTableRef='..iTemplateRef..'; tTableRef[M28Map.subrefGEbDontNeedEngineers]='..tostring(tTableRef[M28Map.subrefGEbDontNeedEngineers] or false)..'; is tableo f engineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))..'; Time='..GetGameTimeSeconds()) end
 
@@ -9297,7 +9301,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                 break
             end
         end
-        
+
         --END OF LOOP (i.e. have exited from loop):
         if bDebugMessages == true then LOG(sFunctionRef..': Aborting loop at time='..GetGameTimeSeconds()..', is table of engineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))..'; tTableRef[M28Map.subrefGEbDontNeedEngineers]='..tostring(tTableRef[M28Map.subrefGEbDontNeedEngineers])..'; P'..iPlateau..'Z'..iLandZone..'T'..iTemplateRef..'; Time='..GetGameTimeSeconds()) end
         if tTableRef[M28Map.subrefGEbDontNeedEngineers] and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]) == false then
