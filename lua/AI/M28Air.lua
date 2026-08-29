@@ -975,6 +975,11 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                 table.insert(tInUseUnits, oUnit)
                             elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and (not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId)) or oUnit:GetFuelRatio() <= iLowFuelThreshold + 0.25 or not(M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget])) or M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 150 or oUnit[refiProjectileHealthOverridePercent] or M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold + 0.1 or (oUnit[refiProjectileHealthOverridePercent] and iLowHealthThreshold < oUnit[refiProjectileHealthOverridePercent] and M28UnitInfo.GetUnitHealthPercent(oUnit) <= oUnit[refiProjectileHealthOverridePercent] + 0.1)) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Unit is already on its way to refuel so will treat as being in use, unit health percent='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Unit fuel percent='..oUnit:GetFuelRatio()..'; Dist to refuel target='..M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition())) end
+                                --LOUD issue - units can refuel mid-air
+                                if oUnit:GetFuelRatio() >= 0.99 and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.99 and not(oUnit:IsUnitState('Attached')) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit appears to have refueled so will clear its orders so next cycle it can get new orders') end
+                                    M28Orders.IssueTrackedClearCommands(oUnit)
+                                end
                                 --Unit on its way to refuel
                                 table.insert(tInUseUnits, oUnit)
                                 --Also update unit orders in case something has happened so next cycle it will try again
