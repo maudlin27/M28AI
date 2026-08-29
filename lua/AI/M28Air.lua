@@ -4617,10 +4617,6 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toBomberSuicideTargets]) then
             AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam)
         end
-        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate] and M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
-            --Send asfs to intercept snipe of our GE template
-            AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam, true)
-        end
         if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
             function RecordEnemyAirAATargets(tEnemyAirTargets)
                 local toAirAA = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirAA, tEnemyAirTargets)
@@ -5125,7 +5121,6 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                             AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets, iTeam, iAirSubteam, tExistingThreatAssignedByUnitRef)
                         end
                     end
-
                     if bDebugMessages == true then LOG(sFunctionRef..': Do we have available AirAA after considering bomber targets? Is table empty='..tostring( M28Utilities.IsTableEmpty(tAvailableAirAA))) end
                     if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
                         local tStartLZOrWZData
@@ -13860,9 +13855,8 @@ function AddBomberToPotentialSuicideTargets(oBomber, iTeam)
     table.insert(M28Team.tTeamData[iTeam][M28Team.toBomberSuicideTargets], oBomber)
 end
 
-function AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam, bReferToGEStratSnipe)
+function AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam)
     --Checks if we have any asfs or swifties in tAvailableAirAA, and if so assigns them to target enemy strats
-    --if bReferToGEStratSnipe is true then will target strats around refoEnemyStratSnipingGETemplate, otherwise will target toBomberSuicideTargets
     local toASFs = EntityCategoryFilterDown(categories.TECH2 + categories.TECH3, tAvailableAirAA)
 
     if M28Utilities.IsTableEmpty(toASFs) == false then
@@ -13871,15 +13865,11 @@ function AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam, bReferToGE
         local iCurDist
         local iClosestDist = 10000
         local tRally = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirRallyPoint]
-        if bReferToGEStratSnipe then
-            oClosestStratToRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate]
-        else
-            for iStrat, oStrat in M28Team.tTeamData[iTeam][M28Team.toBomberSuicideTargets] do
-                iCurDist = M28Utilities.GetDistanceBetweenPositions(tRally, oStrat:GetPosition())
-                if iCurDist < iClosestDist then
-                    iClosestDist = iCurDist
-                    oClosestStratToRallyPoint = oStrat
-                end
+        for iStrat, oStrat in M28Team.tTeamData[iTeam][M28Team.toBomberSuicideTargets] do
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(tRally, oStrat:GetPosition())
+            if iCurDist < iClosestDist then
+                iClosestDist = iCurDist
+                oClosestStratToRallyPoint = oStrat
             end
         end
         --Get closest (available) asfs to the strat
@@ -15239,105 +15229,4 @@ function InRangeOfEnemyAirAA(oFrontAAGunship)
         end
     end
     return false
-end
-
-function MonitorForEnemySnipeOfGameEnderTemplate(oBrain)
-    local iAirSubteam = oBrain.M28AirSubteam
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'MonitorForEnemySnipeOfGameEnderTemplate'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, will call unless refbActiveEnemyStratSnipeMonitor already active, refbActiveEnemyStratSnipeMonitor='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbActiveEnemyStratSnipeMonitor] or false)) end
-    if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbActiveEnemyStratSnipeMonitor]) then
-        M28Team.tAirSubteamData[iAirSubteam][M28Team.refbActiveEnemyStratSnipeMonitor] = true
-        local iTeam = oBrain.M28Team
-        local ttGameEnderLocationsToMonitorForSnipe
-        local iLongCycleCurCount = 10
-        local iCurTemplateMassValue
-        while M28Utilities.IsTableEmpty( M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false do
-            M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate] = nil
-            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-            if iLongCycleCurCount >= 10 then --Every 10s do check of GE templates
-                iLongCycleCurCount = 0
-                ttGameEnderLocationsToMonitorForSnipe = nil
-                --record any GE templates with significant mass value as locations we want to protect
-                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]) == false and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 20000 then
-                    for iEntry, tTemplateTable in M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates] do
-                        if M28Utilities.IsTableEmpty(tTemplateTable[M28Map.subrefGEArtiUnits]) == false then
-                            iCurTemplateMassValue = 0
-                            for iUnit, oUnit in tTemplateTable[M28Map.subrefGEArtiUnits] do
-                                if not(oUnit.Dead) then iCurTemplateMassValue = iCurTemplateMassValue + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete() end
-                            end
-                            if iCurTemplateMassValue >= 68000 then
-                                if not(ttGameEnderLocationsToMonitorForSnipe) then ttGameEnderLocationsToMonitorForSnipe = {} end
-                                table.insert(ttGameEnderLocationsToMonitorForSnipe, {tTemplateTable[M28Map.subrefGEMidpoint][1], tTemplateTable[M28Map.subrefGEMidpoint][2], tTemplateTable[M28Map.subrefGEMidpoint][3]})
-                            end
-                        end
-                    end
-                end
-            end
-            iLongCycleCurCount = iLongCycleCurCount + 1
-            if bDebugMessages == true then LOG(sFunctionRef..': Main loop at time='..GetGameTimeSeconds()..'; is ttGameEnderLocationsToMonitorForSnipe nil='..tostring(ttGameEnderLocationsToMonitorForSnipe == nil)..'; refiEnemyAirToGroundThreat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) end
-            if ttGameEnderLocationsToMonitorForSnipe and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround]) == false then
-                local tEnemyT3Bombers = EntityCategoryFilterDown(M28UnitInfo.refCategoryBomber * categories.TECH3, M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround])
-                if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyT3Bombers empty='..tostring(M28Utilities.IsTableEmpty(tEnemyT3Bombers))) end
-                if M28Utilities.IsTableEmpty(tEnemyT3Bombers) == false then
-                    local oClosestEnemyBomberToAirSupportPoint
-                    local iClosestBomberDist = 400 --Ignore bombers further from our support point than this
-                    local iCurDist
-                    local tSupportPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirAsfSupportPoint]
-                    for iBomber, oBomber in tEnemyT3Bombers do
-                        if not(oBomber.Dead) and (oBomber[refiAssignedSuicideASF] or 0) < 2 then
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tSupportPoint)
-                            if iCurDist < iClosestBomberDist and M28UnitInfo.GetUnitSpeed(oBomber) >= 10 then
-                                --Check we either can see bomber, or it's not too far from when we last knew where it was
-                                if bDebugMessages == true then LOG(sFunctionRef..': Identifying closest enemy bomber, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; iCurDist='..iCurDist..'; DIst to last known position='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), (oBomber[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or {-100, 0, -100}))..'; Can see bomber='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oBomber, false))) end
-                                if M28UnitInfo.CanSeeUnit(aiBrain, oBomber, false) or M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), (oBomber[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or {-100, 0, -100})) <= 50 then
-                                    iClosestBomberDist = iCurDist
-                                    oClosestEnemyBomberToAirSupportPoint = oBomber
-                                end
-                            elseif iCurDist < iClosestBomberDist then LOG(sFunctionRef..': Ignoring bomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' as it is going too slow, speed='..M28UnitInfo.GetUnitSpeed(oBomber))
-                            end
-                        elseif bDebugMessages == true then LOG(sFunctionRef..': Ignoring oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' as it is either dead or we have suicided into it already, refiAssignedSuicideASF='..(oBomber[refiAssignedSuicideASF] or 'nil'))
-                        end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyBomberToAirSupportPoint='..(oClosestEnemyBomberToAirSupportPoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyBomberToAirSupportPoint) or 'nil')) end
-                    if oClosestEnemyBomberToAirSupportPoint then
-                        local iBomberFacingAngle = M28UnitInfo.GetUnitFacingAngle(oClosestEnemyBomberToAirSupportPoint)
-                        local iAngleToTemplate
-                        local bTargetBomber
-                        for _, tGEMidpoint in ttGameEnderLocationsToMonitorForSnipe do
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oClosestEnemyBomberToAirSupportPoint:GetPosition(), tGEMidpoint)
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDist to GETemplate='..iCurDist) end
-                            if iCurDist <= 250 then
-                                --Is bomberh eading towards here?
-                                iAngleToTemplate = M28Utilities.GetAngleFromAToB(oClosestEnemyBomberToAirSupportPoint:GetPosition(), tGEMidpoint)
-                                if bDebugMessages == true then LOG(sFunctionRef..': iBomberFacingAngle='..iBomberFacingAngle..'; iAngleToTemplate='..iAngleToTemplate) end
-                                if iCurDist <= 100 or M28Utilities.GetAngleDifference(iAngleToTemplate, iBomberFacingAngle) <= 10 then
-                                    --Bomber likely heading to snipe our GE template; dont want to suicide asfs if bomber not yet fairly close though if there's significant nearby enemy AA
-                                    bTargetBomber = false
-                                    if iCurDist <= 175 then bTargetBomber = true
-                                    else
-                                        local iBomberPlateau, iBomberZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oClosestEnemyBomberToAirSupportPoint:GetPosition())
-                                        if iBomberPlateau and iBomberZone then
-                                            bTargetBomber = not(IsThereAANearLandOrWaterZone(iTeam, iBomberPlateau, iBomberZone, iBomberPlateau == 0, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat], M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat], nil, nil, false, oClosestEnemyBomberToAirSupportPoint:GetPosition(), nil))
-                                        end
-                                    end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': bTargetBomber='..tostring(bTargetBomber)) end
-                                    if bTargetBomber then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Recorded enemy strat to suicide into to prevent GE template snipe') end
-                                        M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate] = oClosestEnemyBomberToAirSupportPoint
-                                        break
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitTicks(M28Land.iTicksPerLandCycle)
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        end
-    end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -324,8 +324,6 @@ tAirSubteamData = {}
     reftoActiveBomberTargets = 'M28BmbTr' --table of enemy units currently being targeted by bombers (gets reset each air cycle and repopulated based on unavailable bombers and attack orders given to bombers)
     refiLastAirAASupportPointAngleAdjust = 'M28SupAng' --will adjust the support point slightly to try and keep asfs moving in a similar direction
     refiAirAAInCombat = 'AInAirF' --Number of AirAA units in combat in the last cycle
-    refbActiveEnemyStratSnipeMonitor = 'BmS' --true if have active logic checking for enemy sniping a GE template
-    refoEnemyStratSnipingGETemplate = 'EnStS' --if we think enemy strat is about to snipe our GE template and we havent suicided asfs into it, then will record it here
 
 
 --Land subteam data varaibles (used for factory production logic)
