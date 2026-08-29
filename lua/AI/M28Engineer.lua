@@ -3194,9 +3194,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 iCategoryWanted = M28UnitInfo.refCategoryStructureAA * categories.EXPERIMENTAL
                 if bDebugMessages == true then LOG(sFunctionRef..': want T4 SAM') end
             end
-
             if not(iCategoryWanted) then
-
                 local iTeamNukes = 0
                 if bDebugMessages == true then LOG(sFunctionRef..': iTeamLandExperimentals='..iTeamLandExperimentals..'; bCanPathByLand='..tostring(bCanPathByLand)..'; bCanPathAmphibiously='..tostring(bCanPathAmphibiously)..'; bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats='..tostring(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats)..'; iEnemyClosestLandExperimentalOnSamePlateau='..iEnemyClosestLandExperimentalOnSamePlateau..'; Is table of enemy DF units empyt='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; bHaveAirControl='..tostring(bHaveAirControl)) end
                 if iTeamLandExperimentals <= 0 + (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) and ((bCanPathByLand and (bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental) < math.min(4, math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.5)))) or bCanPathAmphibiously and (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) > 0 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= 5 * (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental) <= 2 + (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) * 4) then
