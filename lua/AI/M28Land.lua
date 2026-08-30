@@ -1492,11 +1492,12 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                                         table.remove(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts], iCurRecorded)
                                                     else
                                                         AssignLandScoutToUnit(oCurRecorded)
+                                                        if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
                                                     end
                                                 end
                                             end
                                         end
-
+                                        if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
                                         if bDebugMessages == true then LOG(sFunctionRef..': Getting scout '..tAvailableScouts[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableScouts[1])..' to go from iLandZone '..iLandZone..'; to furhter away LZ='..tPathingDetails[M28Map.subrefLZNumber]..'; setting refbWantLandScout to false') end
                                         GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, tPathingDetails[M28Map.subrefLZNumber], M28Map.subrefTScoutsTravelingHere)
                                         tTeamTargetLZData[M28Map.refbWantLandScout] = false

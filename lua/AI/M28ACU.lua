@@ -7882,7 +7882,7 @@ function GetACUOrder(aiBrain, oACU)
                                                                                     local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                                                                                     if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                                                                                         oCurEnemy, iCurDist = M28Utilities.GetNearestUnit(tAdjLZTeamData[M28Map.subrefTEnemyUnits], oACU:GetPosition(), false, nil, true)
-                                                                                        if iCurDist < iClosestEnemy then
+                                                                                        if oCurEnemy and iCurDist < iClosestEnemy then
                                                                                             iClosestEnemy = iCurDist
                                                                                             oClosestEnemy = oCurEnemy
                                                                                         end

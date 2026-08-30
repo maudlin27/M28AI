@@ -556,11 +556,12 @@ function GetNearestUnit(tUnits, tCurPos, bUseActualTravelDistance, sPathingToUse
             if bUseActualTravelDistance then iCurDist = GetTravelDistanceBetweenPositions(oUnit:GetPosition(), tCurPos, sPathingToUse)
             else iCurDist = GetDistanceBetweenPositions(oUnit:GetPosition(), tCurPos)
             end
-            if bDebugMessages == true then LOG('GetNearestUnit: iUnit='..iUnit..'; iCurDist='..iCurDist..'; iMinDist='..iMinDist) end
+            if bDebugMessages == true then LOG('GetNearestUnit: iUnit='..iUnit..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..(iCurDist or 'nil')..'; iMinDist='..iMinDist) end
             if (iCurDist or iMinDist) < iMinDist then
                 iMinDist = iCurDist
                 iNearestUnit = iUnit
             end
+        elseif bDebugMessages == true then LOG(sFunctionRef..': Unit is dead so ignoring')
         end
     end
 
