@@ -3516,7 +3516,11 @@ function TargetUnitWithAirAA(oAirAA, oEnemyUnit, iOptionalClosestDist)
                     M28Orders.IssueTrackedAttack(oAirAA, oEnemyUnit, false, 'AAAA', false)
                     if bDebugMessages == true then LOG(sFunctionRef..': issued tracked attack') end
                 else
-                    M28Orders.IssueTrackedMove(oAirAA, oEnemyUnit:GetPosition(), 3, false, 'AAAM', false)
+                    if M28Utilities.bLoudModActive then --inties given move order didnt seem to fire properly in one replay so will just try attack move
+                        M28Orders.IssueTrackedAttackMove(oAirAA, oEnemyUnit:GetPosition(), 3, false, 'AAALA', false)
+                    else
+                        M28Orders.IssueTrackedMove(oAirAA, oEnemyUnit:GetPosition(), 3, false, 'AAAM', false)
+                    end
                     if oAirAA[M28Orders.reftiLastOrders][oAirAA[M28Orders.refiOrderCount]] then --if human player with M28 not enabled on the unit this will cause an error otherwise
                         oAirAA[M28Orders.reftiLastOrders][oAirAA[M28Orders.refiOrderCount]][M28Orders.subrefoOrderUnitTarget] = oEnemyUnit
                     end

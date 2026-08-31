@@ -861,12 +861,6 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     if bDebugMessages == true then LOG(sFunctionRef..': bGettingNavalFacInstead='..tostring(bGettingNavalFacInstead)) end
 
                     if not(bGettingNavalFacInstead) and (iPlateauOrZero or 0) > 0 and iLZOrWZ > 0 then
-                        --End early game status if we already have various units (e.g. prebuilt base or campaign)
-                        if aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 1 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] / aiBrain[M28Economy.refiBrainResourceMultiplier] >= 25 and aiBrain[M28Economy.refiGrossMassBaseIncome] / aiBrain[M28Economy.refiBrainResourceMultiplier] >= 2 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 4 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 4 >= math.min((tLZOrWZData[M28Map.subrefLZOrWZMexCount] or 0), 4) and (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0) then
-
-                            if bDebugMessages == true then LOG(sFunctionRef..': We seem to have a decent base already so flagging to end early build order, will still look for action noow though, setting refbDoingInitialBuildOrder to be false') end
-                            oACU[refbDoingInitialBuildOrder] = false
-                        end
                         --Do we want to build a mex, hydro or factory?
                         if bDebugMessages == true then LOG(sFunctionRef..': Current land factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
                         local iMinEnergyPerTickWanted = 14 * iResourceMod --i.e. 6 T1 PGens given ACU gives 2 E
@@ -908,11 +902,20 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         if bDebugMessages == true then LOG(sFunctionRef..': Deciding on min energy wanted, bGoSecondAir='..tostring(bGoSecondAir)..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
                         if bGoSecondAir then
                             aiBrain[M28Economy.refbGoingSecondAir] = true
-                            if bDebugMessages == true then LOG(sFunctionRef..': Going second air, net energy base income='..aiBrain[M28Economy.refiNetEnergyBaseIncome]..'; Energy stored='..aiBrain:GetEconomyStored('ENERGY')) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Going second air, net energy base income='..aiBrain[M28Economy.refiNetEnergyBaseIncome]..'; Energy stored='..aiBrain:GetEconomyStored('ENERGY')..'Stored%='..aiBrain:GetEconomyStoredRatio('ENERGY')) end
                             if aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 4.5 and aiBrain:GetEconomyStored('ENERGY') >= 1800 then
                                 iMinEnergyPerTickWanted = 20 * math.min(iResourceMod, aiBrain[M28Economy.refiBrainBuildRateMultiplier]) --Can get away with 4 pgens in some casese, even if engineers have managed to get some tree reclaim
                             else
                                 iMinEnergyPerTickWanted = 22 * math.min(iResourceMod, aiBrain[M28Economy.refiBrainBuildRateMultiplier]) --ACU gives 2E, want equiv of 10 PGens, assuming build rate is same as resource rate
+                            end
+                            if M28Utilities.bLoudModActive then
+                                iMinEnergyPerTickWanted = iMinEnergyPerTickWanted + 4
+                                if bDebugMessages == true then LOG(sFunctionRef..': Increased E to get as loud active and it needs more E to support mexes') end
+                                if aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 1 and aiBrain:GetEconomyStoredRatio('ENERGY') < 0.9 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAllAir) == 0 then
+                                    iMinEnergyPerTickWanted = iMinEnergyPerTickWanted + math.min(10, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex) * 2)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Further LOUD E increase for mexes and air') end
+
+                                end
                             end
                         end
                         local iFactoryCap = 4 --redundancy - only intend to use in very low mass scenarios that arent low mex maps
@@ -928,6 +931,14 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
                         local iCurLandFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)
                         if bDebugMessages == true then LOG(sFunctionRef..': iCurLandFactories='..iCurLandFactories..'; AIr factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)..'; iFactoryCap='..iFactoryCap..'; aiBrain[M28Economy.refiGrossEnergyBaseIncome]='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; iMinEnergyPerTickWanted='..iMinEnergyPerTickWanted) end
+
+                        --End early game status if we already have various units (e.g. prebuilt base or campaign)
+                        if aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 1 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] / aiBrain[M28Economy.refiBrainResourceMultiplier] >= 25 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= iMinEnergyPerTickWanted and aiBrain[M28Economy.refiGrossMassBaseIncome] / aiBrain[M28Economy.refiBrainResourceMultiplier] >= 2 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 4 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 4 >= math.min((tLZOrWZData[M28Map.subrefLZOrWZMexCount] or 0), 4) and (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0) then
+
+                            if bDebugMessages == true then LOG(sFunctionRef..': We seem to have a decent base already so flagging to end early build order, will still look for action noow though, setting refbDoingInitialBuildOrder to be false') end
+                            oACU[refbDoingInitialBuildOrder] = false
+                        end
+
                         if M28Map.bIsLowMexMap and GetGameTimeSeconds() <= 1800 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] == 0 then
                             GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData)
                         else
@@ -1085,6 +1096,9 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                         elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < iMexInLandZone * 0.2 * iResourceMod and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Want to build on every mex in land zone') end
                                             ACUActionBuildMex(aiBrain, oACU)
+                                        elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < iMinEnergyPerTickWanted then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': dont yet have minimum E wanted') end
+                                            ACUActionBuildPower(aiBrain, oACU)
                                         elseif iCurLandFactories < 2 and M28Map.iMapSize <= 512 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2) and aiBrain:GetEconomyStored('MASS') >= 40 and iPlateauOrZero > 0 and (aiBrain:GetEconomyStored('MASS') >= 200 or M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLZOrWZ)) and not(M28Overseer.bNoRushActive) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Dont have 2 land facs yet so will get another') end
                                             --ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZData, tLZTeamData, iFactoryCategoryOverride, iEngineerActionOverride)

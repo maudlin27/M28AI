@@ -2473,6 +2473,7 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderAirAAHoverAttackTowardsTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --Switched to use stop-micro instead
 
     local oTarget = oWeapon:GetCurrentTarget()
     if bDebugMessages == true then
