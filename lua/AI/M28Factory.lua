@@ -1281,7 +1281,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
-    
+
 
     local iEngisInZone
     function GetEngiCountInZone()
@@ -3366,6 +3366,24 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
             end
 
+            --Non-FAF specific - upgrade fewer factories at once if this isnt highest tech since no support factories
+            if not(M28Utilities.bFAFActive) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false and iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech] then
+                --Do we still have mexes of this tech level to upgrade?
+                if tLZTeamData[M28Map.subrefMexCountByTech][iFactoryTechLevel] > 0 then
+                    local iActiveUpgradingFacsOfThisOrHigherTechLevel = 0
+                    for iUnit, oUnit in tLZTeamData[M28Map.subreftoActiveUpgrades] do
+                        if M28UnitInfo.GetUnitTechLevel(oUnit) >= iFactoryTechLevel then
+                            iActiveUpgradingFacsOfThisOrHigherTechLevel = iActiveUpgradingFacsOfThisOrHigherTechLevel + 1
+                        end
+                    end
+                    iUnitCountToUpgrade = iUnitCountToUpgrade + 25 * iActiveUpgradingFacsOfThisOrHigherTechLevel
+                    if iActiveUpgradingFacsOfThisOrHigherTechLevel >= 2 and ((tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and iFactoryTechLevel == 1) or tLZTeamData[M28Map.subrefMexCountByTech][3] < iActiveUpgradingFacsOfThisOrHigherTechLevel) then
+                        iActiveUpgradingFacsOfThisOrHigherTechLevel = iActiveUpgradingFacsOfThisOrHigherTechLevel * 5 + (tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2]) * 10
+                        if bDebugMessages == true then LOG(sFunctionRef..': Increased iUnitCountToUpgrade for iActiveUpgradingFacsOfThisOrHigherTechLevel='..iActiveUpgradingFacsOfThisOrHigherTechLevel) end
+                    end
+                end
+            end
+
 
 
 
@@ -4056,7 +4074,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': bUpgradingLandFactory=' .. tostring(bUpgradingLandFactory) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Lowest mass % stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored])
                 end
-                if not (bUpgradingLandFactory) or (not (bHaveLowMass) and (aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 4000 or M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true) >= 25) and (iFactoryTechLevel == 1 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5)) then
+                if not (bUpgradingLandFactory) or
+                    --FAF has support factories so want to upgrade asap to highest tech; otherwise want to be more cautious or risk heavy mass stall
+                        ((M28Utilities.bFAFActive or (not(bHaveLowMass) and tLZTeamData[M28Map.subrefMexCountByTech][iFactoryTechLevel] == 0 and (iFactoryTechLevel == 1 or tLZTeamData[M28Map.subrefMexCountByTech][1] == 0))))
+                        and (not (bHaveLowMass) and (aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 4000 or M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true) >= 25) and (iFactoryTechLevel == 1 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': subrefLZCoreExpansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Island mex count='..(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] or 'nil')..'; tLZTeamData[M28Map.subrefLZSValue]='..tLZTeamData[M28Map.subrefLZSValue]..'; StallingMass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][iFactoryTechLevel + 1]='..(tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][iFactoryTechLevel + 1] or 'nil')..'; refbPrimaryFactoryForIslandOrPond='..tostring(oFactory[refbPrimaryFactoryForIslandOrPond] or false)..'; Row1 condition='..tostring((tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not (bHaveLowMass) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] >= 7))))..'; Row2 condition='..tostring((not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(bHaveLowPower) and (tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][iFactoryTechLevel + 1] > 0 or (tLZTeamData[M28Map.subrefLZSValue] >= 15000 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))) and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, math.max(1, tLZData[M28Map.subrefLZOrWZMexCount])) and (tLZData[M28Map.subrefLZOrWZMexCount] >= 2 or tLZTeamData[M28Map.subrefLZSValue] >= 15000 or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] >= 3) and aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0))) end
                     if (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not (bHaveLowMass) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] >= 7
                             or (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(bHaveLowPower) and oFactory[refbPrimaryFactoryForIslandOrPond] and (tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][iFactoryTechLevel + 1] > 0 or (tLZTeamData[M28Map.subrefLZSValue] >= 15000 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))) and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, math.max(1, tLZData[M28Map.subrefLZOrWZMexCount])) and (tLZData[M28Map.subrefLZOrWZMexCount] >= 2 or tLZTeamData[M28Map.subrefLZSValue] >= 15000 or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] >= 3) and aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0)))) then
@@ -7377,7 +7398,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         local iEngineersUnderConstruction = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tWZTeamData, M28UnitInfo.refCategoryEngineer)
         local iFactoriesInZone = M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tWZTeamData, M28UnitInfo.refCategoryFactory)
         if bDebugMessages == true then LOG(sFunctionRef..': Higher priority naval engi builder, iEngineersUnderConstruction='..iEngineersUnderConstruction..'; iFactoriesInZone='..iFactoriesInZone..'; Factory engi LC='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer)..'; Total build count='..oFactory[refiTotalBuildCount]) end
-        if (iFactoriesInZone >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0) and iEngineersUnderConstruction < iFactoriesInZone * 0.5 and (iFactoriesInZone > 1 or M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer) < oFactory[refiTotalBuildCount] * 0.5) then
+        if iFactoriesInZone >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 and (not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or (not(bHaveLowMass) and not(bHaveLowPower)) or (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][iPond] or 0) >= 16)) and iEngineersUnderConstruction < iFactoriesInZone * 0.5 and (iFactoriesInZone > 1 or M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer) < oFactory[refiTotalBuildCount] * 0.5) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
     end
@@ -7563,9 +7584,10 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     --Medium priority engineer if no immediate threats in this zone, are in a water start position or high mass, and want more engineers due to having mass but not needing power, and we arent building many engis and last unit wasnt an engineer
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Engi fi underwtaer start: tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]=' .. tostring(tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) .. '; tWZTeamData[M28Map.subrefTbWantBP]=' .. tostring(tWZTeamData[M28Map.subrefTbWantBP]) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; aiBrain[M28Economy.refiGrossMassBaseIncome]=' .. aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored])
+        LOG(sFunctionRef .. ': Engi fi underwtaer start: tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]=' .. tostring(tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) .. '; tWZTeamData[M28Map.subrefTbWantBP]=' .. tostring(tWZTeamData[M28Map.subrefTbWantBP]) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; aiBrain[M28Economy.refiGrossMassBaseIncome]=' .. aiBrain[M28Economy.refiGrossMassBaseIncome]..'; subrefiTeamAverageMassPercentStored Mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored])
     end
-    if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)  then
+    if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2 and (not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or (not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3) or (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][iPond] or 0) >= 16))  then
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking that last unit built wasnt an engineer so we dont build too many at once, oFactory[refsLastBlueprintBuilt]='..(oFactory[refsLastBlueprintBuilt] or 'nil')) end
         if (not(oFactory[refsLastBlueprintBuilt]) or not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oFactory[refsLastBlueprintBuilt])))
                 and M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tWZTeamData, M28UnitInfo.refCategoryEngineer) < math.min(3, M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tWZTeamData, M28UnitInfo.refCategoryNavalFactory)) then
             if tWZTeamData[M28Map.subrefTbWantBP] and (not (bHaveLowMass) or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= iFactoryTechLevel * 6)) then
@@ -7805,7 +7827,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Considering engis due to having high mass, bHaveLowMass=' .. tostring(bHaveLowMass) .. '; tWZTeamData[M28Map.subrefTbWantBP]=' .. tostring(tWZTeamData[M28Map.subrefTbWantBP]))
     end
-    if not (bHaveLowMass) and tWZTeamData[M28Map.subrefTbWantBP] then
+    if not (bHaveLowMass) and tWZTeamData[M28Map.subrefTbWantBP] and (not(bHaveLowPower) or iFactoryTechLevel > aiBrain[M28Economy.refiOurHighestLandFactoryTech]) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.25 or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 0) >= 40) then
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
             return sBPIDToBuild
         end
