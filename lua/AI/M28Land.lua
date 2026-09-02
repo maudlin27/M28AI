@@ -3739,10 +3739,10 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
         end
     end
 
-    --If have any SACUs without RAS upgrade that could get it, then get RAS upgrade, provided no enemies in the zone (LOUD - only doe this if close to unit cap or defending against t3 arti since that will stop us building mass fabs, due to how bad ras is)
+    --If have any SACUs without RAS upgrade that could get it, then get RAS upgrade, provided no enemies in the zone (LOUD - only doe this if close to unit cap or defending against t3 arti since that will stop us building mass fabs, due to how bad ras is - ras in loud costs 3675 mass and yields 3, so payback time of 20m)
     if M28Utilities.IsTableEmpty(tSACUs) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': Considering getting RAS if no enemies in LZ and not LOUD, tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; Enemy air to ground='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Unit cap level='..(M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 'nil')..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; Team mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
-        if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and (not(M28Utilities.bLoudModActive) or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
+        if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and (not(M28Utilities.bLoudModActive) or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 3 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
             local tSACUsToUpgrade = {}
             local tSACUsUpgrading = {}
             local bWantBuildPower = false
@@ -3854,8 +3854,25 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                         if iCategoryWanted == M28Engineer.refActionManageGameEnderTemplate then
                             --Need to assign unit to GETemplate
                             bProceed = false
+                            local sUpgradeWanted
                             for iSACU, oSACU in tSACUs do
-                                M28Engineer.AssignEngineerToGameEnderTemplate(oSACU, tLZData, tLZTeamData, iPlateau, iLandZone)
+                                --First get RAS upgrade if we dont ahve it already
+                                sUpgradeWanted = nil
+                                if oSACU[M28ACU.refiUpgradeCount] == 0 and not(oSACU:IsUnitState('Upgrading')) and not(oSACU[M28UnitInfo.refbSpecialMicroActive]) then
+                                    if oSACU[M28ACU.reftPreferredUpgrades] == nil then
+                                        sUpgradeWanted = M28ACU.GetUpgradeForSACU(oSACU, false, false)
+                                    else sUpgradeWanted = oSACU[M28ACU.reftPreferredUpgrades][1]
+                                    end
+                                    if sUpgradeWanted and oSACU[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] == sUpgradeWanted then sUpgradeWanted = nil end --assume we are unable to get the upgrade
+                                    if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted='..(sUpgradeWanted or 'nil')..'; oSACU[M28Orders.reftiLastOrders[1][M28Orders.subrefsOrderBlueprint]='..(oSACU[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] or 'nil')) end
+                                end
+                                if sUpgradeWanted then
+                                    --Get upgrade wanted
+                                    M28Orders.IssueTrackedEnhancement(oSACU, oSACU[M28ACU.reftPreferredUpgrades][1], false, 'SACURasGEUpgr')
+
+                                else
+                                    M28Engineer.AssignEngineerToGameEnderTemplate(oSACU, tLZData, tLZTeamData, iPlateau, iLandZone)
+                                end
                             end
                         else
                             BuildCategoryWithSACUs(iCategoryWanted, iFactionWanted, toSACUByFaction, M28Engineer.refActionBuildExperimental)
@@ -10838,8 +10855,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering relevance of longer ranged logic to attack nearest enemy instead of treating, unit combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; Is oNearestEnemyToFriendlyBase nil='..tostring(oNearestEnemyToFriendlyBase == nil)..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Time between DF shots='..( oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')..'; Time between IF shots='..(oUnit[M28UnitInfo.refiTimeBetweenIFShots] or 'nil')) end
-                    if oUnit[M28UnitInfo.refiCombatRange] > iLongRangeAlliedThreshold and bContinue and (not(oUnit[M28UnitInfo.refiLastWeaponEvent]) or ((oUnit[M28UnitInfo.refiDFRange] or 0) > iLongRangeAlliedThreshold and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] >= oUnit[M28UnitInfo.refiTimeBetweenDFShots] * 0.7) or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > iLongRangeAlliedThreshold and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] >= oUnit[M28UnitInfo.refiTimeBetweenIFShots] * 0.7)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering relevance of longer ranged logic to attack nearest enemy instead of treating, oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; .Dead='..tostring(oUnit.Dead or false)..'; unit combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; Is oNearestEnemyToFriendlyBase nil='..tostring(oNearestEnemyToFriendlyBase == nil)..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Time between DF shots='..( oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')..'; Time between IF shots='..(oUnit[M28UnitInfo.refiTimeBetweenIFShots] or 'nil')) end
+                    if oUnit[M28UnitInfo.refiCombatRange] > iLongRangeAlliedThreshold and bContinue and (not(oUnit[M28UnitInfo.refiLastWeaponEvent]) or ((oUnit[M28UnitInfo.refiDFRange] or 0) > iLongRangeAlliedThreshold and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= (oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 1) * 0.7) or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > iLongRangeAlliedThreshold and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= (oUnit[M28UnitInfo.refiTimeBetweenIFShots] or 1) * 0.7)) then
                         --Determine nearest enemy to friendly base if havent already
                         if not(oNearestEnemyToFriendlyBase) then
                             local iClosestDistToFriendlyBase = 1000

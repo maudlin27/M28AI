@@ -2300,6 +2300,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                             if bDebugMessages == true then LOG(sFunctionRef..': Dealing with a shield '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..', if part of special shield defence then will assign to GE template') end
                             if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence then
                                 M28Building.AssignShieldToGameEnder(oConstruction, oEngineer)
+                                if bDebugMessages == true then LOG(sFunctionRef..':Calling AssignShieldToGameEnder for oShield='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)) end
                             else
                                 --Consider adding normal shields to the gameender defence if they are built very near to a game ender location
                                 if oConstruction:GetAIBrain().M28AI and oEngineer:GetAIBrain().M28AI then

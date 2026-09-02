@@ -4665,7 +4665,6 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
             AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam, true)
             --Do again so we send 4 asfs if strat is close to support point (which we will have changed to be the GE arti unit closest to it or
             if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate]:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirAsfSupportPoint]) <= 175 then
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Will send extra cycle of asfs to suicide into the sniping strat') end
                 AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam, true)
             end
