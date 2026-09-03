@@ -3484,6 +3484,9 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 if bWantMoreMexes then
                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= (tLZOrWZData[M28Map.subrefLZOrWZMexCount] or 0) and GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] >= 40 + 20 * iLifetimeCount then
                         bWantMoreMexes = false
+                    elseif iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech] and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and aiBrain[M28Economy.refiGrossMassBaseIncome] > 1.3 * GetEnemyHighestIndividualBrainMass(iTeam) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have several t3 mexes in this zone and are ahead on enemy on eco') end
+                        bWantMoreMexes = false
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) and ((tLZOrWZData[M28Map.subrefLZOrWZMexCount] or 0) == 0 or (tLZOrWZTeamData[M28Map.subrefWZbCoreBase] and (oFactory[M28Factory.refiTotalBuildCount] >= 20 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 8 * iFactoryTechLevel))) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Naval factory, is core base='..tostring(tLZOrWZTeamData[M28Map.subrefWZbCoreBase])..'; Brain mass income gross='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iFactoryTechLevel='..iFactoryTechLevel..'; subrefbDangerousEnemiesInAdjacentWZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or false)..'; Team fgrigate+sub build count='..GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryFrigate + M28UnitInfo.refCategorySubmarine)) end
                         if tLZOrWZTeamData[M28Map.subrefWZbCoreBase] and
@@ -4527,6 +4530,15 @@ function GetEnemyMobileCombatThreatAndRangeInCurrentAndAdjacentZones(tLZData, tL
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iEnemyThreat, iEnemyBestRange
+end
+
+function GetEnemyHighestIndividualBrainMass(iTeam)
+    --used as basic check if are ahead on eco
+    local iHighestMass = 0
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+        iHighestMass = math.max(iHighestMass, oBrain:GetEconomyIncome('MASS'))
+    end
+    return iHighestMass
 end
 
 function GetEnemyTeamActualMassIncome(iTeam)

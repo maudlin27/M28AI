@@ -1144,114 +1144,143 @@ end
 
 function ConsiderFactoryEnhancement(oFactory, tLZOrWZTeamData)
     local sFunctionRef = 'ConsiderFactoryEnhancement'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Returns the enhancementID if we want to get an enhancement
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Are factory enhnacement preferences nil='..tostring(oFactory[reftsFactoryEnhancementPreferences] == nil)..'; Factory build count='..oFactory[refiTotalBuildCount]..'; Enemy air to ground in zone='..(tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Enemies in LZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; Enemies in adj WZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or false)..'; Factory tech level='..M28UnitInfo.GetUnitTechLevel(oFactory)..'; is blueprint.enhnacmeents nil='..tostring(oFactory:GetBlueprint().Enhancements == nil)..'; Upgrade count='..(oFactory[M28ACU.refiUpgradeCount] or 'nil')..'; Time='..GetGameTimeSeconds()) end
-    if oFactory[reftsFactoryEnhancementPreferences] == nil then
-        --Decide on if we want enhancements for the factory, and if so what order to get them in
-        oFactory[reftsFactoryEnhancementPreferences] = false --default value
-        if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or oFactory[refbPrimaryFactoryForIslandOrPond] then
-            local oBP = oFactory:GetBlueprint()
-            if oBP.Enhancements and M28UnitInfo.GetUnitTechLevel(oFactory) >= 3 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Is oBP.Enhancements.ImprovedMateriels nil='..tostring(oBP.Enhancements.ImprovedMateriels == nil)) end
-                if oBP.Enhancements.ImprovedMateriels and oBP.Enhancements.AdvancedMateriels then
-                    oFactory[reftsFactoryEnhancementPreferences] = {[1]='ImprovedMateriels', [2] = 'AdvancedMateriels'}
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Are factory enhnacement preferences nil='..tostring(oFactory[reftsFactoryEnhancementPreferences] == nil)..'; Factory build count='..(oFactory[refiTotalBuildCount] or 'nil')..'; Enemy air to ground in zone='..(tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Enemies in LZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; Enemies in adj WZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or false)..'; Factory tech level='..M28UnitInfo.GetUnitTechLevel(oFactory)..'; is blueprint.enhnacmeents nil='..tostring(oFactory:GetBlueprint().Enhancements == nil)..'; Upgrade count='..(oFactory[M28ACU.refiUpgradeCount] or 'nil')..'; is this a tech3+ factory='..tostring(EntityCategoryContains(categories.TECH3, oFactory.UnitId))..'; Time='..GetGameTimeSeconds()) end
+    if EntityCategoryContains(categories.TECH3, oFactory.UnitId) then
+        if oFactory[reftsFactoryEnhancementPreferences] == nil then
+            --Decide on if we want enhancements for the factory, and if so what order to get them in
+            oFactory[reftsFactoryEnhancementPreferences] = false --default value
+            if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or oFactory[refbPrimaryFactoryForIslandOrPond] then
+                local oBP = oFactory:GetBlueprint()
+                if oBP.Enhancements and M28UnitInfo.GetUnitTechLevel(oFactory) >= 3 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is oBP.Enhancements.ImprovedMateriels nil='..tostring(oBP.Enhancements.ImprovedMateriels == nil)) end
+                    if oBP.Enhancements.ImprovedMateriels and oBP.Enhancements.AdvancedMateriels then
+                        oFactory[reftsFactoryEnhancementPreferences] = {[1]='ImprovedMateriels', [2] = 'AdvancedMateriels'}
+                    end
+                    if oBP.Enhancements.ImprovedProduction and oBP.Enhancements.AdvancedProduction then
+                        if oFactory[reftsFactoryEnhancementPreferences] == false then oFactory[reftsFactoryEnhancementPreferences] = {} end
+                        table.insert(oFactory[reftsFactoryEnhancementPreferences], 'ImprovedProduction')
+                        table.insert(oFactory[reftsFactoryEnhancementPreferences], 'AdvancedProduction')
+                    end
+                    if oFactory[reftsFactoryEnhancementPreferences] == false then M28Utilities.ErrorHandler('Have a factory '..oFactory.UnitId..' but dont recognise the enhnacement options so wont get any', true) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished setting enhancement preferences, oFactory[reftsFactoryEnhancementPreferences]='..repru(oFactory[reftsFactoryEnhancementPreferences])) end
                 end
-                if oBP.Enhancements.ImprovedProduction and oBP.Enhancements.AdvancedProduction then
-                    if oFactory[reftsFactoryEnhancementPreferences] == false then oFactory[reftsFactoryEnhancementPreferences] = {} end
-                    table.insert(oFactory[reftsFactoryEnhancementPreferences], 'ImprovedProduction')
-                    table.insert(oFactory[reftsFactoryEnhancementPreferences], 'AdvancedProduction')
-                end
-                if oFactory[reftsFactoryEnhancementPreferences] == false then M28Utilities.ErrorHandler('Have a factory '..oFactory.UnitId..' but dont recognise the enhnacement options so wont get any', true) end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished setting enhancement preferences, oFactory[reftsFactoryEnhancementPreferences]='..repru(oFactory[reftsFactoryEnhancementPreferences])) end
             end
         end
-    end
-    --Dont get enhancements if enemies in this zone
-    if (oFactory[M28ACU.refiUpgradeCount] or 0) < 4 and  oFactory[reftsFactoryEnhancementPreferences] and M28Utilities.IsTableEmpty(oFactory[reftsFactoryEnhancementPreferences]) == false and (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
-        --We want to get enhancements for this factory, decide if we have built enough units to justify them at this stage
-        local iBuildCountWanted = 10 + 5 * ((oFactory[M28ACU.refiUpgradeCount] or 0) + 1)
-        local iTeam = oFactory:GetAIBrain().M28Team
-        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and (oFactory[M28ACU.refiUpgradeCount] or 0) >= 1 then iBuildCountWanted = iBuildCountWanted + 3 end
-        if tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] <= 2 then
-            iBuildCountWanted = iBuildCountWanted + 3 * (2 - tLZOrWZTeamData[M28Map.subrefMexCountByTech][3])
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': Fac build count='..oFactory[refiTotalBuildCount]..'; iBuildCountWanted='..iBuildCountWanted) end
-        if oFactory[refiTotalBuildCount] >= iBuildCountWanted then
-            --Check we have no other factories in this zone already doing an enhancement
-            local tFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories - categories.TECH1 - categories.TECH2, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-            local bHaveExistingUpgrade = false
-            if M28Utilities.IsTableEmpty(tFactoriesInZone) == false then
-                for iExistingFactory, oExistingFactory in tFactoriesInZone do
-                    if not(oExistingFactory == oFactory) and M28UnitInfo.IsUnitValid(oExistingFactory) and oExistingFactory:GetFractionComplete() == 1 and (oExistingFactory:IsUnitState('Upgrading') or oExistingFactory:IsUnitState('BeingUpgraded')) then
-                        bHaveExistingUpgrade = true
-                        break
-                    end
-                end
+        --Dont get enhancements if enemies in this zone
+        if (oFactory[M28ACU.refiUpgradeCount] or 0) < 4 and  oFactory[reftsFactoryEnhancementPreferences] and M28Utilities.IsTableEmpty(oFactory[reftsFactoryEnhancementPreferences]) == false and (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
+            --We want to get enhancements for this factory, decide if we have built enough units to justify them at this stage
+            local iBuildCountWanted = 10 + 5 * ((oFactory[M28ACU.refiUpgradeCount] or 0) + 1)
+            local iTeam = oFactory:GetAIBrain().M28Team
+            if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and (oFactory[M28ACU.refiUpgradeCount] or 0) >= 1 then iBuildCountWanted = iBuildCountWanted + 3 end
+            if tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] <= 2 then
+                iBuildCountWanted = iBuildCountWanted + 3 * (2 - tLZOrWZTeamData[M28Map.subrefMexCountByTech][3])
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': bHaveExistingUpgrade in zone='..tostring(bHaveExistingUpgrade)) end
-            if not(bHaveExistingUpgrade) then
-                --Want to get the upgrade - decide which upgrade to get
-                local tsEnhancementsThatDontHave = {}
-                local tsEnhancementsThatDoHave = {}
-                local sEnhancementWanted
-                local tEnhancements = oFactory:GetBlueprint().Enhancements
-                for iEnhancementWanted = table.getn(oFactory[reftsFactoryEnhancementPreferences]), 1, -1 do
-                    sEnhancementWanted = oFactory[reftsFactoryEnhancementPreferences][iEnhancementWanted]
-                    if oFactory:HasEnhancement(sEnhancementWanted) then
-                        table.insert(tsEnhancementsThatDoHave, sEnhancementWanted)
-                        --Remove from oFactory[reftsFactoryEnhancementPreferences] so in future we dont try and get this (redundancy)
-                        table.remove(oFactory[reftsFactoryEnhancementPreferences], iEnhancementWanted)
-                    elseif not(tEnhancements[sEnhancementWanted].Prerequisite) or oFactory:HasEnhancement(tEnhancements[sEnhancementWanted].Prerequisite) then
-                        table.insert(tsEnhancementsThatDontHave, sEnhancementWanted)
-                    elseif bDebugMessages == true then LOG(sFunctionRef..': We want enhancement '..sEnhancementWanted..' but lack the prerequisite '..tEnhancements[sEnhancementWanted].Prerequisite)
+            if tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 then
+                iBuildCountWanted = iBuildCountWanted * 2
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Fac build count='..(oFactory[refiTotalBuildCount] or 'nil')..'; iBuildCountWanted='..iBuildCountWanted) end
+            if (oFactory[refiTotalBuildCount] or 0) >= iBuildCountWanted then
+                --Check we have no other factories in this zone already doing an enhancement
+                local tFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories - categories.TECH1 - categories.TECH2, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                local bHaveExistingUpgradeOrWantToBuildMore = false
+                local bHaveOtherFactoryOfSameTechLevelInZone = false
+                if M28Utilities.IsTableEmpty(tFactoriesInZone) == false then
+                    for iExistingFactory, oExistingFactory in tFactoriesInZone do
+                        if not(oExistingFactory == oFactory) and M28UnitInfo.IsUnitValid(oExistingFactory) and oExistingFactory:GetFractionComplete() == 1 and (oExistingFactory:IsUnitState('Upgrading') or oExistingFactory:IsUnitState('BeingUpgraded')) then
+                            bHaveExistingUpgradeOrWantToBuildMore = true
+                            break
+                        elseif EntityCategoryContains(categories.TECH3, oExistingFactory.UnitId) then
+                            bHaveOtherFactoryOfSameTechLevelInZone = true
+                        end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': tsEnhancementsThatDontHave='..repru(tsEnhancementsThatDontHave)..'; tsEnhancementsThatDoHave='..repru(tsEnhancementsThatDoHave)) end
-                if M28Utilities.IsTableEmpty(tsEnhancementsThatDontHave) then
-                    --No more enhancements to get
-                    oFactory[reftsFactoryEnhancementPreferences] = false
-                else
-                    local sEnhancementToGet
-                    if M28Utilities.IsTableEmpty(tsEnhancementsThatDoHave) then
-                        sEnhancementToGet = oFactory[reftsFactoryEnhancementPreferences][1]
+                if not(bHaveOtherFactoryOfSameTechLevelInZone) then
+                    iBuildCountWanted = iBuildCountWanted + math.max(5, iBuildCountWanted * 0.5)
+                    if oFactory[refiTotalBuildCount] < iBuildCountWanted then
+                        bHaveExistingUpgradeOrWantToBuildMore = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to build more units from factory first as we lack another factory of the same type in this zone') end
+                    end
+                end
+                if not(bHaveExistingUpgradeOrWantToBuildMore) then
+                    --Check lifetime count for all factories for this player if it is land or air
+                    local iLifetimeCount
+                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
+                        iLifetimeCount = M28Conditions.GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryMobileDFLand * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then
+                        iLifetimeCount = M28Conditions.GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryAllAir * categories.TECH3)
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iLifetimeCount (nil if naval)='..(iLifetimeCount or 'nil')..'; iBuildCountWanted*40%='..iBuildCountWanted*1.4) end
+                    if iLifetimeCount and iLifetimeCount < iBuildCountWanted * 1.4 then
+                        bHaveExistingUpgradeOrWantToBuildMore = true
+                    end
+                end
+
+                if bDebugMessages == true then LOG(sFunctionRef..': bHaveExistingUpgradeOrWantToBuildMore in zone='..tostring(bHaveExistingUpgradeOrWantToBuildMore)) end
+                if not(bHaveExistingUpgradeOrWantToBuildMore) then
+                    --Want to get the upgrade - decide which upgrade to get
+                    local tsEnhancementsThatDontHave = {}
+                    local tsEnhancementsThatDoHave = {}
+                    local sEnhancementWanted
+                    local tEnhancements = oFactory:GetBlueprint().Enhancements
+                    for iEnhancementWanted = table.getn(oFactory[reftsFactoryEnhancementPreferences]), 1, -1 do
+                        sEnhancementWanted = oFactory[reftsFactoryEnhancementPreferences][iEnhancementWanted]
+                        if oFactory:HasEnhancement(sEnhancementWanted) then
+                            table.insert(tsEnhancementsThatDoHave, sEnhancementWanted)
+                            --Remove from oFactory[reftsFactoryEnhancementPreferences] so in future we dont try and get this (redundancy)
+                            table.remove(oFactory[reftsFactoryEnhancementPreferences], iEnhancementWanted)
+                        elseif not(tEnhancements[sEnhancementWanted].Prerequisite) or oFactory:HasEnhancement(tEnhancements[sEnhancementWanted].Prerequisite) then
+                            table.insert(tsEnhancementsThatDontHave, sEnhancementWanted)
+                        elseif bDebugMessages == true then LOG(sFunctionRef..': We want enhancement '..sEnhancementWanted..' but lack the prerequisite '..tEnhancements[sEnhancementWanted].Prerequisite)
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': tsEnhancementsThatDontHave='..repru(tsEnhancementsThatDontHave)..'; tsEnhancementsThatDoHave='..repru(tsEnhancementsThatDoHave)) end
+                    if M28Utilities.IsTableEmpty(tsEnhancementsThatDontHave) then
+                        --No more enhancements to get
+                        oFactory[reftsFactoryEnhancementPreferences] = false
                     else
-                        --Ignore enhancements that we dont have if they are prereqs for ones we do have
-                        local sCurEnhancementThatWant, bObsolete
-                        local oBP = oFactory:GetBlueprint()
-                        if bDebugMessages == true then LOG(sFunctionRef..': Size of tsEnhancementsThatDontHave='..table.getn(tsEnhancementsThatDontHave)) end
-                        for iCurEnhancementThatWant = table.getn(tsEnhancementsThatDontHave), 1, -1 do
-                            bObsolete = false
-                            sCurEnhancementThatWant = tsEnhancementsThatDontHave[iCurEnhancementThatWant]
-                            --Go through enhancements we have, and see if this is a prereq; note that this logic only works if there are 2 levels to an upgrade - something more complicated owuld ben eeded if there are 3+ levels
-                            for iCurEnhancementThatHave, sCurEnhancementThatHave in tsEnhancementsThatDoHave do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurEnhancementThatWant='..iCurEnhancementThatWant..'; We already have enhancement='..sCurEnhancementThatHave..'; Prerequisite for this='..(oBP.Enhancements[sCurEnhancementThatHave].Prerequisite or 'nil')..'; sCurEnhancementThatWant before considering prereq='..(sCurEnhancementThatWant or 'nil')..'; Does the prereq for the enhancement we have equal the prereq for the enhancement we want='..tostring(oBP.Enhancements[sCurEnhancementThatHave].Prerequisite == sCurEnhancementThatWant)) end
-                                if oBP.Enhancements[sCurEnhancementThatHave].Prerequisite == sCurEnhancementThatWant then
-                                    bObsolete = true
-                                    break
+                        local sEnhancementToGet
+                        if M28Utilities.IsTableEmpty(tsEnhancementsThatDoHave) then
+                            sEnhancementToGet = oFactory[reftsFactoryEnhancementPreferences][1]
+                        else
+                            --Ignore enhancements that we dont have if they are prereqs for ones we do have
+                            local sCurEnhancementThatWant, bObsolete
+                            local oBP = oFactory:GetBlueprint()
+                            if bDebugMessages == true then LOG(sFunctionRef..': Size of tsEnhancementsThatDontHave='..table.getn(tsEnhancementsThatDontHave)) end
+                            for iCurEnhancementThatWant = table.getn(tsEnhancementsThatDontHave), 1, -1 do
+                                bObsolete = false
+                                sCurEnhancementThatWant = tsEnhancementsThatDontHave[iCurEnhancementThatWant]
+                                --Go through enhancements we have, and see if this is a prereq; note that this logic only works if there are 2 levels to an upgrade - something more complicated owuld ben eeded if there are 3+ levels
+                                for iCurEnhancementThatHave, sCurEnhancementThatHave in tsEnhancementsThatDoHave do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurEnhancementThatWant='..iCurEnhancementThatWant..'; We already have enhancement='..sCurEnhancementThatHave..'; Prerequisite for this='..(oBP.Enhancements[sCurEnhancementThatHave].Prerequisite or 'nil')..'; sCurEnhancementThatWant before considering prereq='..(sCurEnhancementThatWant or 'nil')..'; Does the prereq for the enhancement we have equal the prereq for the enhancement we want='..tostring(oBP.Enhancements[sCurEnhancementThatHave].Prerequisite == sCurEnhancementThatWant)) end
+                                    if oBP.Enhancements[sCurEnhancementThatHave].Prerequisite == sCurEnhancementThatWant then
+                                        bObsolete = true
+                                        break
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': bObsolete='..tostring(bObsolete or false)) end
+                                if bObsolete then
+                                    table.remove(tsEnhancementsThatDontHave, iCurEnhancementThatWant)
                                 end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': bObsolete='..tostring(bObsolete or false)) end
-                            if bObsolete then
-                                table.remove(tsEnhancementsThatDontHave, iCurEnhancementThatWant)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Finished excluding where we have the prereq, tsEnhancementsThatDontHave='..repru(tsEnhancementsThatDontHave)) end
+                            if M28Utilities.IsTableEmpty(tsEnhancementsThatDontHave) then
+                                --No more enhancements to get
+                                oFactory[reftsFactoryEnhancementPreferences] = false
+                            else
+                                --Get the last one (which will have been the first that we recorded)
+                                for _, sEnhancement in tsEnhancementsThatDontHave do
+                                    sEnhancementToGet = sEnhancement
+                                end
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Finished excluding where we have the prereq, tsEnhancementsThatDontHave='..repru(tsEnhancementsThatDontHave)) end
-                        if M28Utilities.IsTableEmpty(tsEnhancementsThatDontHave) then
-                            --No more enhancements to get
-                            oFactory[reftsFactoryEnhancementPreferences] = false
-                        else
-                            --Get the last one (which will have been the first that we recorded)
-                            for _, sEnhancement in tsEnhancementsThatDontHave do
-                                sEnhancementToGet = sEnhancement
-                            end
-                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering what enhancements to get, sEnhancementToGet='..(sEnhancementToGet or 'nil')) end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return sEnhancementToGet
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering what enhancements to get, sEnhancementToGet='..(sEnhancementToGet or 'nil')) end
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return sEnhancementToGet
                 end
             end
         end
@@ -1281,7 +1310,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
-
+    if iFactoryTechLevel == 2 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 3 then bDebugMessages = true end
 
     local iEngisInZone
     function GetEngiCountInZone()
@@ -4075,9 +4104,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     LOG(sFunctionRef .. ': bUpgradingLandFactory=' .. tostring(bUpgradingLandFactory) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Lowest mass % stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored])
                 end
                 if not (bUpgradingLandFactory) or
-                    --FAF has support factories so want to upgrade asap to highest tech; otherwise want to be more cautious or risk heavy mass stall
+                        --FAF has support factories so want to upgrade asap to highest tech; otherwise want to be more cautious or risk heavy mass stall
                         ((M28Utilities.bFAFActive or (not(bHaveLowMass) and tLZTeamData[M28Map.subrefMexCountByTech][iFactoryTechLevel] == 0 and (iFactoryTechLevel == 1 or tLZTeamData[M28Map.subrefMexCountByTech][1] == 0))))
-                        and (not (bHaveLowMass) and (aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 4000 or M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true) >= 25) and (iFactoryTechLevel == 1 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5)) then
+                                and (not (bHaveLowMass) and (aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 4000 or M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true) >= 25) and (iFactoryTechLevel == 1 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': subrefLZCoreExpansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Island mex count='..(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] or 'nil')..'; tLZTeamData[M28Map.subrefLZSValue]='..tLZTeamData[M28Map.subrefLZSValue]..'; StallingMass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][iFactoryTechLevel + 1]='..(tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][iFactoryTechLevel + 1] or 'nil')..'; refbPrimaryFactoryForIslandOrPond='..tostring(oFactory[refbPrimaryFactoryForIslandOrPond] or false)..'; Row1 condition='..tostring((tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not (bHaveLowMass) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] >= 7))))..'; Row2 condition='..tostring((not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(bHaveLowPower) and (tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][iFactoryTechLevel + 1] > 0 or (tLZTeamData[M28Map.subrefLZSValue] >= 15000 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))) and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, math.max(1, tLZData[M28Map.subrefLZOrWZMexCount])) and (tLZData[M28Map.subrefLZOrWZMexCount] >= 2 or tLZTeamData[M28Map.subrefLZSValue] >= 15000 or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] >= 3) and aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0))) end
                     if (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not (bHaveLowMass) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] >= 7
                             or (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(bHaveLowPower) and oFactory[refbPrimaryFactoryForIslandOrPond] and (tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][iFactoryTechLevel + 1] > 0 or (tLZTeamData[M28Map.subrefLZSValue] >= 15000 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))) and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, math.max(1, tLZData[M28Map.subrefLZOrWZMexCount])) and (tLZData[M28Map.subrefLZOrWZMexCount] >= 2 or tLZTeamData[M28Map.subrefLZSValue] >= 15000 or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] >= 3) and aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0)))) then
@@ -4090,11 +4119,16 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                                 iAdjustFactor = 0
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iAdjustFactor='..iAdjustFactor..'; Mass% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iAdjustFactor='..iAdjustFactor..'; Mass% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; subrefMexCountByTech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Number of T3 land facs in this zone='..M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryLandFactory * categories.TECH3)..'; GetEnemyHighestIndividualBrainMass='..M28Conditions.GetEnemyHighestIndividualBrainMass(iTeam)) end
                         if not (bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > 0.3 and M28Conditions.GetLifetimeBuildCount(aiBrain, categories.LAND * categories.MOBILE * M28UnitInfo.ConvertTechLevelToCategory(aiBrain[M28Economy.refiOurHighestLandFactoryTech])) >= 3 * iAdjustFactor then
                             if ConsiderUpgrading() then
                                 return sBPIDToBuild
                             end
+                            --If are ahead of enemy on eco then also consider getting to T3 if not stalling mass and have more t3 mexes than we have factories
+                        elseif not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and aiBrain[M28Economy.refiGrossMassBaseIncome] > 10 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 * M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryLandFactory * categories.TECH3) or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 16 and aiBrain[M28Economy.refiGrossMassBaseIncome] > 1.3 * M28Conditions.GetEnemyHighestIndividualBrainMass(iTeam))) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': We have enogh gross mass and t3 mexes to justify another t3 land') end
+                            if ConsiderUpgrading() then return sBPIDToBuild end
+
                         elseif  M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.02 * iAdjustFactor and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.15 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 or iAdjustFactor <= 0.1) and M28Conditions.GetLifetimeBuildCount(aiBrain, categories.LAND * categories.MOBILE * M28UnitInfo.ConvertTechLevelToCategory(aiBrain[M28Economy.refiOurHighestLandFactoryTech])) >= 6 * iAdjustFactor then
                             --Still consider upgrading if we have a T2 land factory but no t2 support factory in the LZ and have built some T2 units already
                             local tLandFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
