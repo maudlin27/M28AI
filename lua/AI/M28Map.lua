@@ -385,7 +385,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefbActiveShieldSACUCycling = 25 --true if we have shield SACU cycling monitor active
                 subrefiHighestShieldACUHealthPercent = 26 --Highest % shield health of shield SACUs
                 subrefiMaxArtiSkirtSize = 27 --Max skirt size x/z (paragon 10, novax 9, t3 arti 8; most templates support 10, but some only support 9)
-                subrefbActiveEnemyStratSnipeMonitor = 28
+                subrefbGETemplateNeedsSACUToBuild = 28 --true if we need an SACU so we can build experimental level units
 
 
 
