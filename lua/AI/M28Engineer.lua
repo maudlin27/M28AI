@@ -634,8 +634,9 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
             local iBaseSegmentX, iBaseSegmentZ = M28Map.GetPathingSegmentFromPosition(tLocation)
             local iAffectedDistanceRadius = iBuildingRadius + iMaxBuildingSize * 0.5
             if bDebugMessages == true then
-                LOG(sFunctionRef..': Want to see if existing build locations are still valid, iAffectedDistanceRadius='..iAffectedDistanceRadius..'; iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Buildable locations before update for size 8=='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][8] or 'nil')..'; bCheckLastBlacklistEntry='..tostring(bCheckLastBlacklistEntry or false))
+                LOG(sFunctionRef..': Want to see if existing build locations are still valid, iAffectedDistanceRadius='..iAffectedDistanceRadius..'; iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Buildable locations before update for size 8=='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][8] or 'nil')..'; bCheckLastBlacklistEntry='..tostring(bCheckLastBlacklistEntry or false)..'; bOnlyCheckBlacklistLocations='..tostring(bOnlyCheckBlacklistLocations or false))
             end
+            --CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iAffectedDistanceRadius, bCheckBlacklistIfNoGameEnder, bOnlyCheckBlacklistLocation)
             CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iAffectedDistanceRadius, bCheckLastBlacklistEntry, bOnlyCheckBlacklistLocations)
 
             --Search for more building locations for every building where we havent considered the full amount if we havent considered any this cycle
@@ -803,10 +804,8 @@ function CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone
                                 end
                             end
                         end
-                        if CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder, false, bOnlyCheckBlacklistLocation) then
-                            --No change needed, location is still valid
-                            iLastValidSize = iSize
-                        else
+
+                        if (bOnlyCheckBlacklistLocation and tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition][iSegmentX][iSegmentZ]) or not(CanBuildAtLocation(aiBrain, sBlueprint, GetPositionFromPathingSegments(iSegmentX, iSegmentZ),     iPlateauOrZero,             iLandOrWaterZone,           nil,                false,                              false,                  false,                          bCheckBlacklistIfNoGameEnder, false, bOnlyCheckBlacklistLocation)) then
                             --Cant build anymore, remove this and any subsequent locations
                             for iRemoveSize, sBlueprint in sBlueprintTable do
                                 if iRemoveSize > iLastValidSize then
@@ -820,6 +819,9 @@ function CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone
                             tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] = iLastValidSize
                             if bDebugMessages == true then LOG(sFunctionRef..': Finished removing buildable entries, tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ]='..(tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] or 'nil')..'; tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][8][iSegmentX][iSegmentZ]='..tostring(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][8][iSegmentX][iSegmentZ] or false)..'; iLastValidSize='..(iLastValidSize or 'nil')) end
                             break
+                        else
+                            --No change needed, location is still valid
+                            iLastValidSize = iSize
                         end
                     end
                 end
@@ -6049,13 +6051,15 @@ function RecordBlacklistLocation(tLocation, iRadius, iResetTimeInSeconds, oOptio
                         table.insert(oOptionalUnitToTrack[reftUnitBlacklistSegmentXZ], {iX, iZ})
                         if bDebugMessages == true then LOG(sFunctionRef..': Added blacklist location for oOptionalUnitToTrack='..oOptionalUnitToTrack.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalUnitToTrack)..'; X'..iX..'Z'..iZ) end
                     end
-                    if bUpdateBuildableLocations then
-                        CheckIfBuildableLocationsNearPositionStillValid((aiBrainOverrideForBuildableLocations or oOptionalUnitToTrack:GetAIBrain()), tLocation, true, (iOverrideRadiusForBuildableLocations or iRadius), true)
-                    end
                 else
                     --Already reocrded as a blacklist so wont rerecord/add a new reset to it
                 end
             end
+        end
+        if bUpdateBuildableLocations then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will call CheckIfBuildableLocationsNearPositionStillValid, aiBrainOverrideForBuildableLocations.Nickname='..(aiBrainOverrideForBuildableLocations.Nickname or 'nil')..'; tLocation='..repru(tLocation)..'; iOverrideRadiusForBuildableLocations='..(iOverrideRadiusForBuildableLocations or 'nil')..'; iRadius='..(iRadius or 'nil')) end
+            CheckIfBuildableLocationsNearPositionStillValid((aiBrainOverrideForBuildableLocations or oOptionalUnitToTrack:GetAIBrain()), tLocation, true, (iOverrideRadiusForBuildableLocations or iRadius), true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished calling CheckIfBuildableLocationsNearPositionStillValid') end
         end
         if bDebugMessages == true then
             LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Added location to the blacklist, tLocation='..repru(tLocation)..'; iRadius='..(iRadius or 0)..'; iResetTimeInSeconds='..(iResetTimeInSeconds or 'nil')..'; repru of blacklist locations='..repru(tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition])..'; will draw all blacklisted locations for this LZ')
