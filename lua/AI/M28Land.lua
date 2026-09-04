@@ -1492,11 +1492,12 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                                         table.remove(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts], iCurRecorded)
                                                     else
                                                         AssignLandScoutToUnit(oCurRecorded)
+                                                        if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
                                                     end
                                                 end
                                             end
                                         end
-
+                                        if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
                                         if bDebugMessages == true then LOG(sFunctionRef..': Getting scout '..tAvailableScouts[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableScouts[1])..' to go from iLandZone '..iLandZone..'; to furhter away LZ='..tPathingDetails[M28Map.subrefLZNumber]..'; setting refbWantLandScout to false') end
                                         GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, tPathingDetails[M28Map.subrefLZNumber], M28Map.subrefTScoutsTravelingHere)
                                         tTeamTargetLZData[M28Map.refbWantLandScout] = false
@@ -3738,10 +3739,10 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
         end
     end
 
-    --If have any SACUs without RAS upgrade that could get it, then get RAS upgrade, provided no enemies in the zone (LOUD - only doe this if close to unit cap or defending against t3 arti since that will stop us building mass fabs, due to how bad ras is)
+    --If have any SACUs without RAS upgrade that could get it, then get RAS upgrade, provided no enemies in the zone (LOUD - only doe this if close to unit cap or defending against t3 arti since that will stop us building mass fabs, due to how bad ras is - ras in loud costs 3675 mass and yields 3, so payback time of 20m)
     if M28Utilities.IsTableEmpty(tSACUs) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': Considering getting RAS if no enemies in LZ and not LOUD, tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; Enemy air to ground='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Unit cap level='..(M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 'nil')..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; Team mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
-        if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and (not(M28Utilities.bLoudModActive) or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
+        if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and (not(M28Utilities.bLoudModActive) or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 3 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
             local tSACUsToUpgrade = {}
             local tSACUsUpgrading = {}
             local bWantBuildPower = false
@@ -3853,8 +3854,25 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                         if iCategoryWanted == M28Engineer.refActionManageGameEnderTemplate then
                             --Need to assign unit to GETemplate
                             bProceed = false
+                            local sUpgradeWanted
                             for iSACU, oSACU in tSACUs do
-                                M28Engineer.AssignEngineerToGameEnderTemplate(oSACU, tLZData, tLZTeamData, iPlateau, iLandZone)
+                                --First get RAS upgrade if we dont ahve it already
+                                sUpgradeWanted = nil
+                                if oSACU[M28ACU.refiUpgradeCount] == 0 and not(oSACU:IsUnitState('Upgrading')) and not(oSACU[M28UnitInfo.refbSpecialMicroActive]) then
+                                    if oSACU[M28ACU.reftPreferredUpgrades] == nil then
+                                        sUpgradeWanted = M28ACU.GetUpgradeForSACU(oSACU, false, false)
+                                    else sUpgradeWanted = oSACU[M28ACU.reftPreferredUpgrades][1]
+                                    end
+                                    if sUpgradeWanted and oSACU[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] == sUpgradeWanted then sUpgradeWanted = nil end --assume we are unable to get the upgrade
+                                    if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted='..(sUpgradeWanted or 'nil')..'; oSACU[M28Orders.reftiLastOrders[1][M28Orders.subrefsOrderBlueprint]='..(oSACU[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] or 'nil')) end
+                                end
+                                if sUpgradeWanted then
+                                    --Get upgrade wanted
+                                    M28Orders.IssueTrackedEnhancement(oSACU, oSACU[M28ACU.reftPreferredUpgrades][1], false, 'SACURasGEUpgr')
+
+                                else
+                                    M28Engineer.AssignEngineerToGameEnderTemplate(oSACU, tLZData, tLZTeamData, iPlateau, iLandZone)
+                                end
                             end
                         else
                             BuildCategoryWithSACUs(iCategoryWanted, iFactionWanted, toSACUByFaction, M28Engineer.refActionBuildExperimental)
@@ -3963,193 +3981,112 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     end
     if bDebugMessages == true then LOG(sFunctionRef..': FInished going through if want to help active GE template, bProceed='..tostring(bProceed)) end
     if bProceed then
-        --Defending against arti - if have a gameender then first consider if have part-complete shield that want to construct
-        local oShieldToAssist
-        local oPartCompleteGameEnderToAssist
-        if bDebugMessages == true then LOG(sFunctionRef..': Is reftoUnitsForSpecialShieldProtection empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]))..'; refbDefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or false)) end
-        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false and M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
-            local tGameEndersForShielding = EntityCategoryFilterDown(M28UnitInfo.refCategoryGameEnder, tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection])
-            if bDebugMessages == true then LOG(sFunctionRef..': Is tGameEndersForShielding empty='..tostring(M28Utilities.IsTableEmpty(tGameEndersForShielding))) end
-            if M28Utilities.IsTableEmpty(tGameEndersForShielding) == false then
-                local oGameEnderToCover
-                local iHighestCompletionGameEnder = 0.3
-                for iGameEnder, oGameEnder in tGameEndersForShielding do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oGameEnder='..oGameEnder.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGameEnder)..'; is reftoSpecialAssignedShields empty='..tostring(M28Utilities.IsTableEmpty(oGameEnder[M28Building.reftoSpecialAssignedShields]))) end
-                    if not(oGameEnderToCover) and M28Utilities.IsTableEmpty(oGameEnder[M28Building.reftoSpecialAssignedShields]) == false then
-                        oGameEnderToCover = oGameEnder
-                    end
-                    if not(oGameEnder.Dead) and oGameEnder:GetFractionComplete() < 1 and oGameEnder:GetFractionComplete() > iHighestCompletionGameEnder then
-                        iHighestCompletionGameEnder = oGameEnder:GetFractionComplete()
-                        oPartCompleteGameEnderToAssist = oGameEnder
+        --LOUD/QUIET - if have active GE template ensure it has an SACU assigned so it can build experimental level units
+
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
+            for iTemplate, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
+                if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) and tSubtable[M28Map.subrefbGETemplateNeedsSACUToBuild] then
+                    for iSACU, oSACU in tSACUs do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering SACU assignment to GE template that is requesting SACU, oSACU='..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..'; oSACU[M28Building.reftArtiTemplateRefs]='..repru(oSACU[M28Building.reftArtiTemplateRefs])..'; oSACU[M28UnitInfo.refbSpecialMicroActive]='..tostring(oSACU[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                        if not(oSACU[M28UnitInfo.refbSpecialMicroActive]) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will assign SACU to GETEmplate so it can build experimental level units') end
+                            M28Engineer.RecordEngineerAsPartofGameEnderTemplate(oSACU, iPlateau, iLandZone, iTemplate, tLZTeamData, true)
+                            tSubtable[M28Map.subrefbGETemplateNeedsSACUToBuild] = false
+                            table.remove(tSACUs, iSACU)
+                            if M28Utilities.IsTableEmpty(tSACUs) then bProceed = false end
+                            break
+                        end
                     end
                 end
+            end
+        end
+        if bProceed then
 
-                if oGameEnderToCover then
-                    --How much shielding do we have
-                    local iNearestCompleteShield = 0
-                    local oNearestCompleteShield
-                    local iActiveShields = 0
-                    local iCurShield, iMaxShield
-                    for iShield, oShield in oGameEnderToCover[M28Building.reftoSpecialAssignedShields] do
-                        if oShield:GetFractionComplete() < 1 and oShield:GetFractionComplete() > iNearestCompleteShield then
-                            iNearestCompleteShield = oShield:GetFractionComplete()
-                            oNearestCompleteShield = oShield
+            --Defending against arti - if have a gameender then first consider if have part-complete shield that want to construct
+            local oShieldToAssist
+            local oPartCompleteGameEnderToAssist
+            if bDebugMessages == true then LOG(sFunctionRef..': Is reftoUnitsForSpecialShieldProtection empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]))..'; refbDefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or false)) end
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false and M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
+                local tGameEndersForShielding = EntityCategoryFilterDown(M28UnitInfo.refCategoryGameEnder, tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection])
+                if bDebugMessages == true then LOG(sFunctionRef..': Is tGameEndersForShielding empty='..tostring(M28Utilities.IsTableEmpty(tGameEndersForShielding))) end
+                if M28Utilities.IsTableEmpty(tGameEndersForShielding) == false then
+                    local oGameEnderToCover
+                    local iHighestCompletionGameEnder = 0.3
+                    for iGameEnder, oGameEnder in tGameEndersForShielding do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oGameEnder='..oGameEnder.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGameEnder)..'; is reftoSpecialAssignedShields empty='..tostring(M28Utilities.IsTableEmpty(oGameEnder[M28Building.reftoSpecialAssignedShields]))) end
+                        if not(oGameEnderToCover) and M28Utilities.IsTableEmpty(oGameEnder[M28Building.reftoSpecialAssignedShields]) == false then
+                            oGameEnderToCover = oGameEnder
+                        end
+                        if not(oGameEnder.Dead) and oGameEnder:GetFractionComplete() < 1 and oGameEnder:GetFractionComplete() > iHighestCompletionGameEnder then
+                            iHighestCompletionGameEnder = oGameEnder:GetFractionComplete()
+                            oPartCompleteGameEnderToAssist = oGameEnder
+                        end
+                    end
+
+                    if oGameEnderToCover then
+                        --How much shielding do we have
+                        local iNearestCompleteShield = 0
+                        local oNearestCompleteShield
+                        local iActiveShields = 0
+                        local iCurShield, iMaxShield
+                        for iShield, oShield in oGameEnderToCover[M28Building.reftoSpecialAssignedShields] do
+                            if oShield:GetFractionComplete() < 1 and oShield:GetFractionComplete() > iNearestCompleteShield then
+                                iNearestCompleteShield = oShield:GetFractionComplete()
+                                oNearestCompleteShield = oShield
+                            else
+                                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
+                                if iCurShield > 0 then iActiveShields = iActiveShields + 1 end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iActiveShields='..iActiveShields..'; iNearestCompleteShield='..iNearestCompleteShield) end
+                        if iActiveShields > 1 or (iActiveShields == 1 and iNearestCompleteShield >= 0.75) then
+                            --Do nothing
                         else
-                            iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
-                            if iCurShield > 0 then iActiveShields = iActiveShields + 1 end
+                            oShieldToAssist = oNearestCompleteShield
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iActiveShields='..iActiveShields..'; iNearestCompleteShield='..iNearestCompleteShield) end
-                    if iActiveShields > 1 or (iActiveShields == 1 and iNearestCompleteShield >= 0.75) then
-                        --Do nothing
-                    else
-                        oShieldToAssist = oNearestCompleteShield
-                    end
                 end
+
             end
 
-        end
-
-        --Defending against arti - if have T3 arti or gameender then want to assist the shield with RAS SACUs (in addition to any engineers that are assisting it)
-        local oPriorityUnitToRepairInsteadOfAssistingShield
-        if not(oShieldToAssist) then
-            local tPriorityUnitsToShield
-            if bDebugMessages == true then LOG(sFunctionRef..': Dealing with zone '..iLandZone..'; at time '..GetGameTimeSeconds()..'; DefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
-            if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] >= 2) then
-                local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-                if aiBrain.GetUnitsAroundPoint then
-                    tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGameEnder, tLZData[M28Map.subrefMidpoint], 250, 'Ally')
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is tPriorityUnitsToShield empty='..tostring(M28Utilities.IsTableEmpty(tPriorityUnitsToShield))) end
-                    if M28Utilities.IsTableEmpty(tPriorityUnitsToShield) then
-                        tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT3Arti, tLZData[M28Map.subrefMidpoint], 150, 'Ally')
-                    end
-                end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority units to shield empty='..tostring(M28Utilities.IsTableEmpty(tPriorityUnitsToShield))) end
-            if M28Utilities.IsTableEmpty(tPriorityUnitsToShield) == false then
-                --Get closest of these that has a shield that is damaged
-                local iCurDist
-                local iClosestDist = 100000
-                local iCurShield, iMaxShield
-                local bAssistEvenIfNotDamaged = true
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 then bAssistEvenIfNotDamaged = false end
-                for iUnit, oUnit in tPriorityUnitsToShield do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering priority unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction compelte='..oUnit:GetFractionComplete()..'; Does it have a shield providing coverage='..tostring(M28UnitInfo.IsUnitValid(oUnit[M28Building.refoPriorityShieldProvidingCoverage]))) end
-                    if not(oUnit.Dead) and oUnit:GetFractionComplete() >= 0.35 then
-                        if M28UnitInfo.IsUnitValid(oUnit[M28Building.refoPriorityShieldProvidingCoverage]) then
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetPosition())
-                            if bDebugMessages == true then LOG(sFunctionRef..': Shield='..oUnit[M28Building.refoPriorityShieldProvidingCoverage].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28Building.refoPriorityShieldProvidingCoverage])..'; iCurDist='..iCurDist..'; iCloestDist='..iClosestDist) end
-                            if iCurDist < iClosestDist then
-                                --Is the shield still active?
-                                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit[M28Building.refoPriorityShieldProvidingCoverage], true)
-                                if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield) end
-                                if (iCurShield > 0 and (bAssistEvenIfNotDamaged or iCurShield < iMaxShield or GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastDamaged] or - 100) <= 25)) or (oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() < 1 and (not(oUnit[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction]) or oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() <= 0.75)) then
-                                    iClosestDist = iCurDist
-                                    oShieldToAssist = oUnit[M28Building.refoPriorityShieldProvidingCoverage]
-                                    if iCurShield == iMaxShield and oUnit:GetFractionComplete() < 1 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastDamaged] or - 100) >= 20 then
-                                        oPriorityUnitToRepairInsteadOfAssistingShield = oUnit
-                                    end
-                                end
-                            end
+            --Defending against arti - if have T3 arti or gameender then want to assist the shield with RAS SACUs (in addition to any engineers that are assisting it)
+            local oPriorityUnitToRepairInsteadOfAssistingShield
+            if not(oShieldToAssist) then
+                local tPriorityUnitsToShield
+                if bDebugMessages == true then LOG(sFunctionRef..': Dealing with zone '..iLandZone..'; at time '..GetGameTimeSeconds()..'; DefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
+                if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] >= 2) then
+                    local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+                    if aiBrain.GetUnitsAroundPoint then
+                        tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGameEnder, tLZData[M28Map.subrefMidpoint], 250, 'Ally')
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is tPriorityUnitsToShield empty='..tostring(M28Utilities.IsTableEmpty(tPriorityUnitsToShield))) end
+                        if M28Utilities.IsTableEmpty(tPriorityUnitsToShield) then
+                            tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT3Arti, tLZData[M28Map.subrefMidpoint], 150, 'Ally')
                         end
                     end
                 end
-            end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': oShieldToAssist='..(oShieldToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oShieldToAssist) or 'nil')) end
-        if oPriorityUnitToRepairInsteadOfAssistingShield then
-            for iUnit, oUnit in tSACUs do
-                M28Orders.IssueTrackedRepair(oUnit, oPriorityUnitToRepairInsteadOfAssistingShield, false, 'RASRRep', false)
-            end
-        elseif oShieldToAssist then
-            if bDebugMessages == true then LOG(sFunctionRef..': Have priority shield to assist') end
-            if oShieldToAssist:GetFractionComplete() == 1 then
-                for iUnit, oUnit in tSACUs do
-                    M28Orders.IssueTrackedGuard(oUnit, oShieldToAssist, false, 'RASAGS', false)
-                end
-            else
-                for iUnit, oUnit in tSACUs do
-                    M28Orders.IssueTrackedRepair(oUnit, oShieldToAssist, false, 'RASRS', false)
-                end
-            end
-        else
-            local tUnitsToAssist = {}
-            --If overflowing mass then search for under construction experimentals in the zone
-            local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
-            if not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.65 then
-                --If have under construction experimental in this zone then assist it
-                local tExpInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryExperimentalLevel, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                if M28Utilities.IsTableEmpty(tExpInZone) == false then
-                    for iExp, oExp in tExpInZone do
-                        if oExp:GetFractionComplete() < 1 then
-                            table.insert(tUnitsToAssist, oExp)
-                        end
-                    end
-                end
-            end
-            if oPartCompleteGameEnderToAssist and not(bHaveLowPower) and M28Utilities.IsTableEmpty(tUnitsToAssist) then
-                table.insert(tUnitsToAssist, oPartCompleteGameEnderToAssist)
-            end
-
-            --If we have a bunch of SACUs and have a game-ender to assist then focus on this instead of more SACUs
-            local oGateway
-            local bNotAssistingGateway = true
-            local bHaveRASGateway = false
-            if oPartCompleteGameEnderToAssist and M28Utilities.IsTableEmpty(tUnitsToAssist) == false and (oPartCompleteGameEnderToAssist:GetFractionComplete() >= 0.45 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 200 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80 and table.getn(tSACUs) >= 4 + M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] * 2)) then
-                --Dont consider assisting gateway
-                if bDebugMessages == true then LOG(sFunctionRef..': Will prioririse assisting gameender instead of getting more SACUs') end
-            else
-
-                --If have mass stored then find the nearest quantum gatway and assist it for now, otherwise do nothing (if enemies in this LZ then will have been sent to the combat unit management already)
-                --(dont do this in LOUD unless near unit cap since wont be getting RAS SACUs)
-                if not(M28Utilities.bLoudModActive) or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 1 then
-                    local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of quantum gateways empty='..tostring(M28Utilities.IsTableEmpty( tQuantumGateways))) end
-                    if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
-                        for iUnit, oUnit in tQuantumGateways do
-                            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; refiTimeSinceLastFailedToGetOrder='..GetGameTimeSeconds() - (oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder] or 0)..'; work progress='..oUnit:GetWorkProgress()) end
-                            if oUnit:GetWorkProgress() > 0 or oUnit:GetFractionComplete() < 1 or not(oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder]) or GetGameTimeSeconds() - oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder] >= 20 then
-                                oGateway = oUnit
-                                if not(EntityCategoryContains(categories.SERAPHIM, oUnit.UnitId)) then
-                                    bHaveRASGateway = true
-                                    break
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': oGateway='..(oGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGateway))..'; bHaveRASGateway='..tostring(bHaveRASGateway)) end
-            if oGateway then
-                if not(bHaveRASGateway) then
-                    --Do we have a T3+ 'other' factory type on the team, for a non-sera faction?
-                    local iLandSubteam = oGateway:GetAIBrain().M28LandSubteam
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of other faction types empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeOther]))..'; Reprs of this='..reprs(M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeOther])) end
-                    if M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeOther]) == false then
-                        local bHaveNonSeraFactory = false
-                        for iFaction, tSubtable in M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeOther] do
-                            if not(iFaction == M28UnitInfo.refFactionSeraphim) and (tSubtable[3] or 0) > 0 then
-                                bHaveNonSeraFactory = true
-                                break
-                            end
-                        end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Finished searching other factory types, bHaveNonSeraFactory='..tostring(bHaveNonSeraFactory or false)) end
-                        if bHaveNonSeraFactory then
-                            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-                            if aiBrain.GetUnitsAroundPoint then
-                                local tNearbyFriendlyGateway = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryQuantumGateway - categories.SERAPHIM, tLZData[M28Map.subrefMidpoint], 250, 'Ally')
-                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby non sera quantum gateways empty='..tostring(M28Utilities.IsTableEmpty(tNearbyFriendlyGateway))) end
-                                if M28Utilities.IsTableEmpty(tNearbyFriendlyGateway) == false then
-                                    for iUnit, oUnit in tNearbyFriendlyGateway do
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering quantum gateway oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Terrain label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 'nil')..'; iPlateau='..(iPlateau or 'nil')) end
-                                        if oUnit:GetAIBrain().M28AI and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) == iPlateau then
-                                            --Check factory is building something
-                                            if oUnit:GetWorkProgress() > 0 or not(oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder]) or GetGameTimeSeconds() - oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder] >= 20 then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Have a non sera gateway to assist instead, oGateway='..oGateway.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGateway)) end
-                                                oGateway = oUnit
-                                                break
-                                            elseif bDebugMessages == true then LOG(sFunctionRef..': Gateway appears idle so will keep searching')
-                                            end
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority units to shield empty='..tostring(M28Utilities.IsTableEmpty(tPriorityUnitsToShield))) end
+                if M28Utilities.IsTableEmpty(tPriorityUnitsToShield) == false then
+                    --Get closest of these that has a shield that is damaged
+                    local iCurDist
+                    local iClosestDist = 100000
+                    local iCurShield, iMaxShield
+                    local bAssistEvenIfNotDamaged = true
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 then bAssistEvenIfNotDamaged = false end
+                    for iUnit, oUnit in tPriorityUnitsToShield do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering priority unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction compelte='..oUnit:GetFractionComplete()..'; Does it have a shield providing coverage='..tostring(M28UnitInfo.IsUnitValid(oUnit[M28Building.refoPriorityShieldProvidingCoverage]))) end
+                        if not(oUnit.Dead) and oUnit:GetFractionComplete() >= 0.35 then
+                            if M28UnitInfo.IsUnitValid(oUnit[M28Building.refoPriorityShieldProvidingCoverage]) then
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetPosition())
+                                if bDebugMessages == true then LOG(sFunctionRef..': Shield='..oUnit[M28Building.refoPriorityShieldProvidingCoverage].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28Building.refoPriorityShieldProvidingCoverage])..'; iCurDist='..iCurDist..'; iCloestDist='..iClosestDist) end
+                                if iCurDist < iClosestDist then
+                                    --Is the shield still active?
+                                    iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit[M28Building.refoPriorityShieldProvidingCoverage], true)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield) end
+                                    if (iCurShield > 0 and (bAssistEvenIfNotDamaged or iCurShield < iMaxShield or GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastDamaged] or - 100) <= 25)) or (oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() < 1 and (not(oUnit[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction]) or oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() <= 0.75)) then
+                                        iClosestDist = iCurDist
+                                        oShieldToAssist = oUnit[M28Building.refoPriorityShieldProvidingCoverage]
+                                        if iCurShield == iMaxShield and oUnit:GetFractionComplete() < 1 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastDamaged] or - 100) >= 20 then
+                                            oPriorityUnitToRepairInsteadOfAssistingShield = oUnit
                                         end
                                     end
                                 end
@@ -4157,89 +4094,192 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                         end
                     end
                 end
-                if (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.05) and not(M28Conditions.HaveLowPower(iTeam)) and ((M28Map.bIsCampaignMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or (not(M28Map.bIsCampaignMap) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < math.min(100, 40 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]))) then
-                    if (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 100) and oGateway:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryRASSACU) < 50 then
-                        bNotAssistingGateway = false
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will get every SACU to assist the gateway') end
-                        table.insert(tUnitsToAssist, oGateway)
-                        --[[for iUnit, oUnit in tSACUs do
-                            M28Orders.IssueTrackedGuard(oUnit, oGateway, false, 'RASQG', false)
-                        end--]]
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': oShieldToAssist='..(oShieldToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oShieldToAssist) or 'nil')) end
+            if oPriorityUnitToRepairInsteadOfAssistingShield then
+                for iUnit, oUnit in tSACUs do
+                    M28Orders.IssueTrackedRepair(oUnit, oPriorityUnitToRepairInsteadOfAssistingShield, false, 'RASRRep', false)
+                end
+            elseif oShieldToAssist then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have priority shield to assist') end
+                if oShieldToAssist:GetFractionComplete() == 1 then
+                    for iUnit, oUnit in tSACUs do
+                        M28Orders.IssueTrackedGuard(oUnit, oShieldToAssist, false, 'RASAGS', false)
+                    end
+                else
+                    for iUnit, oUnit in tSACUs do
+                        M28Orders.IssueTrackedRepair(oUnit, oShieldToAssist, false, 'RASRS', false)
                     end
                 end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': oGateway='..(oGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGateway) or 'nil')..'; bNotAssistingGateway='..tostring(bNotAssistingGateway)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
-            if bNotAssistingGateway then
-                --If low power and have under construction pgen then assist this
-                if bDebugMessages == true then LOG(sFunctionRef..': Does team have low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; Is table of engineers building experimentals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Time since close to unit cap='..(GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or 0))) end
-                if bHaveLowPower then
-                    local tPowerInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryPower * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                    if M28Utilities.IsTableEmpty(tPowerInZone) == false then
-                        for iPgen, oPgen in tPowerInZone do
-                            if oPgen:GetFractionComplete() < 1 then
-                                table.insert(tUnitsToAssist, oPgen)
+            else
+                local tUnitsToAssist = {}
+                --If overflowing mass then search for under construction experimentals in the zone
+                local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
+                if not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.65 then
+                    --If have under construction experimental in this zone then assist it
+                    local tExpInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryExperimentalLevel, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tExpInZone) == false then
+                        for iExp, oExp in tExpInZone do
+                            if oExp:GetFractionComplete() < 1 then
+                                table.insert(tUnitsToAssist, oExp)
                             end
                         end
                     end
                 end
-                --If building an experimental and dont have low mass then assist it
-                if M28Utilities.IsTableEmpty(tUnitsToAssist) and (not(M28Conditions.TeamHasLowMass(iTeam)) or (GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or 0) <= 60)) and not(bHaveLowPower) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
+                if oPartCompleteGameEnderToAssist and not(bHaveLowPower) and M28Utilities.IsTableEmpty(tUnitsToAssist) then
+                    table.insert(tUnitsToAssist, oPartCompleteGameEnderToAssist)
+                end
 
-                    local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-                    if aiBrain.GetUnitsAroundPoint then
-                        local tExperimentalLevelUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryExperimentalLevel, tLZData[M28Map.subrefMidpoint], 100, 'Ally')
-                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of experimental level units empty='..tostring(M28Utilities.IsTableEmpty( tExperimentalLevelUnits))) end
-                        if M28Utilities.IsTableEmpty( tExperimentalLevelUnits) == false then
-                            for iUnit, oUnit in tExperimentalLevelUnits do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby experimental '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()) end
-                                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
-                                    table.insert(tUnitsToAssist, oUnit)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of units to assist') end
+                --If we have a bunch of SACUs and have a game-ender to assist then focus on this instead of more SACUs
+                local oGateway
+                local bNotAssistingGateway = true
+                local bHaveRASGateway = false
+                if oPartCompleteGameEnderToAssist and M28Utilities.IsTableEmpty(tUnitsToAssist) == false and (oPartCompleteGameEnderToAssist:GetFractionComplete() >= 0.45 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 200 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80 and table.getn(tSACUs) >= 4 + M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] * 2)) then
+                    --Dont consider assisting gateway
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will prioririse assisting gameender instead of getting more SACUs') end
+                else
+
+                    --If have mass stored then find the nearest quantum gatway and assist it for now, otherwise do nothing (if enemies in this LZ then will have been sent to the combat unit management already)
+                    --(dont do this in LOUD unless near unit cap since wont be getting RAS SACUs)
+                    if not(M28Utilities.bLoudModActive) or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 1 then
+                        local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of quantum gateways empty='..tostring(M28Utilities.IsTableEmpty( tQuantumGateways))) end
+                        if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
+                            for iUnit, oUnit in tQuantumGateways do
+                                if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; refiTimeSinceLastFailedToGetOrder='..GetGameTimeSeconds() - (oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder] or 0)..'; work progress='..oUnit:GetWorkProgress()) end
+                                if oUnit:GetWorkProgress() > 0 or oUnit:GetFractionComplete() < 1 or not(oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder]) or GetGameTimeSeconds() - oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder] >= 20 then
+                                    oGateway = oUnit
+                                    if not(EntityCategoryContains(categories.SERAPHIM, oUnit.UnitId)) then
+                                        bHaveRASGateway = true
+                                        break
+                                    end
                                 end
                             end
                         end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Do we have any units to assist? is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
-                if M28Utilities.IsTableEmpty(tUnitsToAssist) then
-                    --If have upgrading unit then assist this
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]))) end
-                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then tUnitsToAssist = tLZTeamData[M28Map.subreftoActiveUpgrades]
-                    else
-                        --Assist shield if need to defend from arti
-                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority shields to assist empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
-                        if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] >= 2) then
-                            tUnitsToAssist = tLZTeamData[M28Map.reftPriorityShieldsToAssist]
-                        else
-                            --otherwise assist an air factory if we have one
-                            tUnitsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                            if bDebugMessages == true then LOG(sFunctionRef..': Setting unit to assist to be an air factory, is tUnitsToAssist empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': oGateway='..(oGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGateway))..'; bHaveRASGateway='..tostring(bHaveRASGateway)) end
+                if oGateway then
+                    if not(bHaveRASGateway) then
+                        --Do we have a T3+ 'other' factory type on the team, for a non-sera faction?
+                        local iLandSubteam = oGateway:GetAIBrain().M28LandSubteam
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of other faction types empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeOther]))..'; Reprs of this='..reprs(M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeOther])) end
+                        if M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeOther]) == false then
+                            local bHaveNonSeraFactory = false
+                            for iFaction, tSubtable in M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeOther] do
+                                if not(iFaction == M28UnitInfo.refFactionSeraphim) and (tSubtable[3] or 0) > 0 then
+                                    bHaveNonSeraFactory = true
+                                    break
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Finished searching other factory types, bHaveNonSeraFactory='..tostring(bHaveNonSeraFactory or false)) end
+                            if bHaveNonSeraFactory then
+                                local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+                                if aiBrain.GetUnitsAroundPoint then
+                                    local tNearbyFriendlyGateway = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryQuantumGateway - categories.SERAPHIM, tLZData[M28Map.subrefMidpoint], 250, 'Ally')
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby non sera quantum gateways empty='..tostring(M28Utilities.IsTableEmpty(tNearbyFriendlyGateway))) end
+                                    if M28Utilities.IsTableEmpty(tNearbyFriendlyGateway) == false then
+                                        for iUnit, oUnit in tNearbyFriendlyGateway do
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering quantum gateway oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Terrain label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 'nil')..'; iPlateau='..(iPlateau or 'nil')) end
+                                            if oUnit:GetAIBrain().M28AI and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) == iPlateau then
+                                                --Check factory is building something
+                                                if oUnit:GetWorkProgress() > 0 or not(oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder]) or GetGameTimeSeconds() - oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder] >= 20 then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Have a non sera gateway to assist instead, oGateway='..oGateway.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGateway)) end
+                                                    oGateway = oUnit
+                                                    break
+                                                elseif bDebugMessages == true then LOG(sFunctionRef..': Gateway appears idle so will keep searching')
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.05) and not(M28Conditions.HaveLowPower(iTeam)) and ((M28Map.bIsCampaignMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or (not(M28Map.bIsCampaignMap) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < math.min(100, 40 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]))) then
+                        if (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 100) and oGateway:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryRASSACU) < 50 then
+                            bNotAssistingGateway = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will get every SACU to assist the gateway') end
+                            table.insert(tUnitsToAssist, oGateway)
+                            --[[for iUnit, oUnit in tSACUs do
+                                M28Orders.IssueTrackedGuard(oUnit, oGateway, false, 'RASQG', false)
+                            end--]]
                         end
                     end
                 end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished saerching for potential units to assist, is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
-            if M28Utilities.IsTableEmpty(tUnitsToAssist) == false then
-                local tStartPoint
-                if oGateway then tStartPoint = oGateway:GetPosition()
-                elseif M28UnitInfo.IsUnitValid(tSACUs[1]) then tStartPoint = tSACUs[1]:GetPosition()
-                else tStartPoint = tLZData[M28Map.subrefMidpoint] --redundancy
-                end
-                local oClosestUnitToAssist = M28Utilities.GetNearestUnit(tUnitsToAssist, tStartPoint)
-                if bDebugMessages == true then LOG(sFunctionRef..': oClosestUnitToAssist='..(oClosestUnitToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitToAssist) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oClosestUnitToAssist))) end
-                if not(M28UnitInfo.IsUnitValid(oClosestUnitToAssist)) then M28Utilities.ErrorHandler('No unit to assist for RAS', true)
-                else
-                    for iUnit, oUnit in tSACUs do
-                        M28Orders.IssueTrackedGuard(oUnit, oClosestUnitToAssist, false, 'RASAs', false)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Telling RAS '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to assist unit') end
+                if bDebugMessages == true then LOG(sFunctionRef..': oGateway='..(oGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGateway) or 'nil')..'; bNotAssistingGateway='..tostring(bNotAssistingGateway)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
+                if bNotAssistingGateway then
+                    --If low power and have under construction pgen then assist this
+                    if bDebugMessages == true then LOG(sFunctionRef..': Does team have low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; Is table of engineers building experimentals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Time since close to unit cap='..(GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or 0))) end
+                    if bHaveLowPower then
+                        local tPowerInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryPower * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tPowerInZone) == false then
+                            for iPgen, oPgen in tPowerInZone do
+                                if oPgen:GetFractionComplete() < 1 then
+                                    table.insert(tUnitsToAssist, oPgen)
+                                end
+                            end
+                        end
+                    end
+                    --If building an experimental and dont have low mass then assist it
+                    if M28Utilities.IsTableEmpty(tUnitsToAssist) and (not(M28Conditions.TeamHasLowMass(iTeam)) or (GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or 0) <= 60)) and not(bHaveLowPower) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
+
+                        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+                        if aiBrain.GetUnitsAroundPoint then
+                            local tExperimentalLevelUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryExperimentalLevel, tLZData[M28Map.subrefMidpoint], 100, 'Ally')
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of experimental level units empty='..tostring(M28Utilities.IsTableEmpty( tExperimentalLevelUnits))) end
+                            if M28Utilities.IsTableEmpty( tExperimentalLevelUnits) == false then
+                                for iUnit, oUnit in tExperimentalLevelUnits do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby experimental '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()) end
+                                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
+                                        table.insert(tUnitsToAssist, oUnit)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of units to assist') end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Do we have any units to assist? is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
+                    if M28Utilities.IsTableEmpty(tUnitsToAssist) then
+                        --If have upgrading unit then assist this
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]))) end
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then tUnitsToAssist = tLZTeamData[M28Map.subreftoActiveUpgrades]
+                        else
+                            --Assist shield if need to defend from arti
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority shields to assist empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
+                            if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] >= 2) then
+                                tUnitsToAssist = tLZTeamData[M28Map.reftPriorityShieldsToAssist]
+                            else
+                                --otherwise assist an air factory if we have one
+                                tUnitsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                if bDebugMessages == true then LOG(sFunctionRef..': Setting unit to assist to be an air factory, is tUnitsToAssist empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
+                            end
+                        end
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished saerching for potential units to assist, is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
+                if M28Utilities.IsTableEmpty(tUnitsToAssist) == false then
+                    local tStartPoint
+                    if oGateway then tStartPoint = oGateway:GetPosition()
+                    elseif M28UnitInfo.IsUnitValid(tSACUs[1]) then tStartPoint = tSACUs[1]:GetPosition()
+                    else tStartPoint = tLZData[M28Map.subrefMidpoint] --redundancy
+                    end
+                    local oClosestUnitToAssist = M28Utilities.GetNearestUnit(tUnitsToAssist, tStartPoint)
+                    if bDebugMessages == true then LOG(sFunctionRef..': oClosestUnitToAssist='..(oClosestUnitToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitToAssist) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oClosestUnitToAssist))) end
+                    if not(M28UnitInfo.IsUnitValid(oClosestUnitToAssist)) then M28Utilities.ErrorHandler('No unit to assist for RAS', true)
+                    else
+                        for iUnit, oUnit in tSACUs do
+                            M28Orders.IssueTrackedGuard(oUnit, oClosestUnitToAssist, false, 'RASAs', false)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Telling RAS '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to assist unit') end
+                        end
+                    end
 
-            else
-                --Othewrise clear orders if nothing to assist
-                for iUnit, oUnit in tSACUs do
-                    if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and not(oUnit:IsUnitState('Moving')) and (oUnit:IsUnitState('Repairing') or oUnit:IsUnitState('Building') or oUnit:IsUnitState('Guarding')) then
-                        M28Orders.IssueTrackedClearCommands(oUnit)
+                else
+                    --Othewrise clear orders if nothing to assist
+                    for iUnit, oUnit in tSACUs do
+                        if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and not(oUnit:IsUnitState('Moving')) and (oUnit:IsUnitState('Repairing') or oUnit:IsUnitState('Building') or oUnit:IsUnitState('Guarding')) then
+                            M28Orders.IssueTrackedClearCommands(oUnit)
+                        end
                     end
                 end
             end
@@ -10837,8 +10877,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering relevance of longer ranged logic to attack nearest enemy instead of treating, unit combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; Is oNearestEnemyToFriendlyBase nil='..tostring(oNearestEnemyToFriendlyBase == nil)..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Time between DF shots='..( oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')..'; Time between IF shots='..(oUnit[M28UnitInfo.refiTimeBetweenIFShots] or 'nil')) end
-                    if oUnit[M28UnitInfo.refiCombatRange] > iLongRangeAlliedThreshold and bContinue and (not(oUnit[M28UnitInfo.refiLastWeaponEvent]) or ((oUnit[M28UnitInfo.refiDFRange] or 0) > iLongRangeAlliedThreshold and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] >= oUnit[M28UnitInfo.refiTimeBetweenDFShots] * 0.7) or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > iLongRangeAlliedThreshold and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] >= oUnit[M28UnitInfo.refiTimeBetweenIFShots] * 0.7)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering relevance of longer ranged logic to attack nearest enemy instead of treating, oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; .Dead='..tostring(oUnit.Dead or false)..'; unit combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; Is oNearestEnemyToFriendlyBase nil='..tostring(oNearestEnemyToFriendlyBase == nil)..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Time between DF shots='..( oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')..'; Time between IF shots='..(oUnit[M28UnitInfo.refiTimeBetweenIFShots] or 'nil')) end
+                    if oUnit[M28UnitInfo.refiCombatRange] > iLongRangeAlliedThreshold and bContinue and (not(oUnit[M28UnitInfo.refiLastWeaponEvent]) or ((oUnit[M28UnitInfo.refiDFRange] or 0) > iLongRangeAlliedThreshold and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= (oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 1) * 0.7) or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > iLongRangeAlliedThreshold and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= (oUnit[M28UnitInfo.refiTimeBetweenIFShots] or 1) * 0.7)) then
                         --Determine nearest enemy to friendly base if havent already
                         if not(oNearestEnemyToFriendlyBase) then
                             local iClosestDistToFriendlyBase = 1000

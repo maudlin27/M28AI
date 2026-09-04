@@ -1744,10 +1744,12 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                 end
                             elseif EntityCategoryContains(categories.EXPERIMENTAL + refCategoryFrigate, sCurUnitBP) then
                                 iMassMod = 0.1 --Cybran frigate and land experimentals misclassified as anti-air
+                            elseif EntityCategoryContains(refCategoryCarrier, sCurUnitBP) then
+                                iMassMod = 1.5 --T3 carriers dont have much more dps than cruisers but better range and much better health makes them much deadlier mass for mass
                             else
                                 iMassMod = 1 --Cruisers and T3 aircraft carriers have antiair as well as overlay antiair
                             end
-                            --QUIET+FAF - ACUs cant (unupgraded) shoot air units; LOUD they used to, in sandbox they didnt but have left in to be prudent
+                                --QUIET+FAF - ACUs cant (unupgraded) shoot air units; LOUD they used to, in sandbox they didnt but have left in to be prudent
                         elseif EntityCategoryContains(categories.OVERLAYANTIAIR, sCurUnitBP) == true and (M28Utilities.bLoudModActive or not(EntityCategoryContains(categories.COMMAND, sCurUnitBP)))  then
                             iMassMod = 0.04
                             if sCurUnitBP == 'ues0401' then iMassMod = 1 --atlantis misclassifiefd as not anti-air

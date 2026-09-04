@@ -2446,9 +2446,10 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iOptionalDistanceMod)
+function GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iOptionalDistanceMod, bReduceThreatOfMultipleACUs)
     --Will return the combat threat of any approaching enemy ACUs and the position of the nearest ACU (usfficiently in range); also updates the time of hte appraoching threat
         --For safe zones will consider if there is a friendly zone between us and the approaching ACU
+        --bReduceThreatOfMultipleACUs - e.g. for sniperbot logic are mainly concerned with a single powerful ACU vs several weak ACUs
     local sFunctionRef = 'GetThreatOfApproachingEnemyACUsAndNearestACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2556,6 +2557,14 @@ function GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPla
         end
         iTotalACUThreat = M28UnitInfo.GetCombatThreatRating(tACUsInRange, true)
         if bDebugMessages == true then LOG(sFunctionRef..': iTotalACUThreat='..iTotalACUThreat) end
+        if bReduceThreatOfMultipleACUs and iTotalACUThreat > 1000 and table.getn(tACUsInRange) > 1 then
+            local iHighestIndividualThreat = 0
+            for iACU, oACU in tACUsInRange do
+                iHighestIndividualThreat = math.max(iHighestIndividualThreat, M28UnitInfo.GetCombatThreatRating({oACU}, true))
+            end
+            iTotalACUThreat = iHighestIndividualThreat + (iTotalACUThreat - iHighestIndividualThreat) * 0.5
+            if bDebugMessages == true then LOG(sFunctionRef..': iTotalACUThreat after reducing for having multiple ACUs='..iTotalACUThreat) end
+        end
         if iTotalACUThreat > 0 and tLZTeamData[M28Map.subrefLZbCoreBase] then
             if not(M28Team.tTeamData[iTeam][M28Team.reftCoreLZsTimeOfApproachingACUByPlateauAndZone]) then M28Team.tTeamData[iTeam][M28Team.reftCoreLZsTimeOfApproachingACUByPlateauAndZone] = {} end
             if not(M28Team.tTeamData[iTeam][M28Team.reftCoreLZsTimeOfApproachingACUByPlateauAndZone][iPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftCoreLZsTimeOfApproachingACUByPlateauAndZone][iPlateau] = {} end
@@ -3484,6 +3493,9 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 if bWantMoreMexes then
                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= (tLZOrWZData[M28Map.subrefLZOrWZMexCount] or 0) and GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] >= 40 + 20 * iLifetimeCount then
                         bWantMoreMexes = false
+                    elseif iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech] and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and aiBrain[M28Economy.refiGrossMassBaseIncome] > 1.3 * GetEnemyHighestIndividualBrainMass(iTeam) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have several t3 mexes in this zone and are ahead on enemy on eco') end
+                        bWantMoreMexes = false
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) and ((tLZOrWZData[M28Map.subrefLZOrWZMexCount] or 0) == 0 or (tLZOrWZTeamData[M28Map.subrefWZbCoreBase] and (oFactory[M28Factory.refiTotalBuildCount] >= 20 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 8 * iFactoryTechLevel))) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Naval factory, is core base='..tostring(tLZOrWZTeamData[M28Map.subrefWZbCoreBase])..'; Brain mass income gross='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iFactoryTechLevel='..iFactoryTechLevel..'; subrefbDangerousEnemiesInAdjacentWZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or false)..'; Team fgrigate+sub build count='..GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryFrigate + M28UnitInfo.refCategorySubmarine)) end
                         if tLZOrWZTeamData[M28Map.subrefWZbCoreBase] and
@@ -3878,8 +3890,8 @@ function PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, iPlateau, iLandZone, 
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) then
                     local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
                     local iLandSubteam = aiBrain.M28LandSubteam
-                    if bDebugMessages == true then LOG(sFunctionRef..': Number of T3 aeon and sera factories on team='..((M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) + (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0)..'; Is table of aeon and sera factories in this zone empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.AEON + M28UnitInfo.refCategoryLandFactory * categories.SERAPHIM, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))))) end
-                    if bHaveAeonOrSeraFactoryInZoneOverride or ((M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) + (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.AEON + M28UnitInfo.refCategoryLandFactory * categories.SERAPHIM, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Number of T3 aeon and sera factories on team='..((M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) + (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0)..'; Is table of aeon and sera factories in this zone empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.AEON + M28UnitInfo.refCategoryLandFactory * categories.SERAPHIM, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))))..'; aiBrain.M28Easy='..tostring(aiBrain.M28Easy or false)) end
+                    if not(aiBrain.M28Easy) and (bHaveAeonOrSeraFactoryInZoneOverride or ((M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) + (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.AEON + M28UnitInfo.refCategoryLandFactory * categories.SERAPHIM, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false)) then
                         local bEnemyHasLandExpOnSameIsland = false
                         for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
                             if M28UnitInfo.IsUnitValid(oUnit) and NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == (tLZData[M28Map.subrefLZIslandRef] or 0) then
@@ -3911,7 +3923,7 @@ function PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, iPlateau, iLandZone, 
         end
         --Does enemy have a dangerous ACU instead that is nearby, and we likely have the eco to get T3 land?
         if not(bDangerousExperimentalOrACUThreat) and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4) and not(bEnemyHasLongRangeThreat) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) then
-            local iACUThreat, oACU = GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, 100)
+            local iACUThreat, oACU = GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, 100, true)
             if bDebugMessages == true then LOG(sFunctionRef..': Deciding if have approaching ACU threat with a +100 dist mod, iACUThreat='..iACUThreat..'; Build tech='..(oACU[import('/mods/M28AI/lua/AI/M28ACU.lua').refiBuildTech] or 'nil')..'; Closest brain land fac tech='..ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiOurHighestLandFactoryTech]) end
             if iACUThreat >= 2500 then
                 if (not(EntityCategoryContains(categories.UEF, oACU.UnitId)) or oACU[import('/mods/M28AI/lua/AI/M28ACU.lua').refiBuildTech] or 0) < 3 or ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiOurHighestLandFactoryTech] < 3 then
@@ -4527,6 +4539,15 @@ function GetEnemyMobileCombatThreatAndRangeInCurrentAndAdjacentZones(tLZData, tL
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iEnemyThreat, iEnemyBestRange
+end
+
+function GetEnemyHighestIndividualBrainMass(iTeam)
+    --used as basic check if are ahead on eco
+    local iHighestMass = 0
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+        iHighestMass = math.max(iHighestMass, oBrain:GetEconomyIncome('MASS'))
+    end
+    return iHighestMass
 end
 
 function GetEnemyTeamActualMassIncome(iTeam)

@@ -622,6 +622,10 @@ function TMDJustBuilt(oTMD)
                         if bDebugMessages == true then LOG(sFunctionRef..': Is table of TMD friendly units in range of TML empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyUnitsInRangeOfTML))) end
                         if M28Utilities.IsTableEmpty(tFriendlyUnitsInRangeOfTML) == false then
                             for iUnit, oUnit in tFriendlyUnitsInRangeOfTML do
+                                if not(oUnit.UnitId) and not(M28Utilities.bFAFActive) and oUnit then --LOUD compatibility
+                                    if not(oUnit.EntityId) then oUnit.EntityId = oUnit:GetEntityId() end
+                                    oUnit.UnitId = oUnit:GetBlueprint().BlueprintId
+                                end
                                 sCurUnitRef = GetUnitRef(oUnit)
 
                                 tbUnitRefsConsideredByTML[sCurUnitRef] = true
@@ -634,6 +638,10 @@ function TMDJustBuilt(oTMD)
                         if bCheckForUnitsInZone and M28Utilities.IsTableEmpty(tTMDZoneTeamData[M28Map.reftUnitsWantingTMD]) == false then
                             for iUnit, oUnit in tTMDZoneTeamData[M28Map.reftUnitsWantingTMD] do
                                 if M28UnitInfo.IsUnitValid(oUnit) then
+                                    if not(oUnit.UnitId) and not(M28Utilities.bFAFActive) and oUnit then --LOUD compatibility
+                                        if not(oUnit.EntityId) then oUnit.EntityId = oUnit:GetEntityId() end
+                                        oUnit.UnitId = oUnit:GetBlueprint().BlueprintId
+                                    end
                                     sCurUnitRef = GetUnitRef(oUnit)
                                     if not(tbUnitRefsConsideredByTML[sCurUnitRef]) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Have unit in zone wanting TMD coverage that we havent considered with getunitsaroundpoint, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
@@ -653,6 +661,10 @@ function TMDJustBuilt(oTMD)
         for iMobileTML, oMobileTML in M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyMobileTML] do
             if M28Conditions.IsTableOfUnitsStillValid(oMobileTML[reftUnitsInRangeOfThisTML]) then
                 for iRecorded, oRecorded in oMobileTML[reftUnitsInRangeOfThisTML] do
+                    if not(oRecorded.UnitId) and not(M28Utilities.bFAFActive) and oRecorded then --LOUD compatibility
+                        if not(oRecorded.EntityId) then oRecorded.EntityId = oRecorded:GetEntityId() end
+                        oRecorded.UnitId = oRecorded:GetBlueprint().BlueprintId
+                    end
                     sCurUnitRef = GetUnitRef(oRecorded)
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering oMobileTML '..oMobileTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMobileTML)..'; oRecorded='..oRecorded.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRecorded)..'; is tbUnitRefsConsideredAllTML nil for this unit='..tostring(tbUnitRefsConsideredAllTML[sCurUnitRef] == nil)) end
                     if not(tbUnitRefsConsideredAllTML[sCurUnitRef]) then
@@ -4371,7 +4383,7 @@ function AssignShieldToGameEnder(oConstruction, oEngineer, oOptionalBackupGameEn
 
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at game time '..GetGameTimeSeconds()..'; oConstruction='..(oConstruction.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oConstruction) or 'nil')..'; oEngineer='..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..'; oConstruction iPlateau='..(iPlateau or 'nil')..'; Zone='..(iLandZone or 'nil')..'; oConstruction position='..repru(oConstruction:GetPosition())) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at game time '..GetGameTimeSeconds()..'; oConstruction='..(oConstruction.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oConstruction) or 'nil')..'; oEngineer='..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..'; oConstruction iPlateau='..(iPlateau or 'nil')..'; Zone='..(iLandZone or 'nil')..'; oConstruction position='..repru(oConstruction:GetPosition())..'; oOptionalBackupGameEnderToAssignTo='..(oOptionalBackupGameEnderToAssignTo.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalBackupGameEnderToAssignTo) or 'nil')) end
     if (iLandZone or 0) > 0 then
         local oGameEnder
         local aiBrain = oEngineer:GetAIBrain()
@@ -4380,11 +4392,14 @@ function AssignShieldToGameEnder(oConstruction, oEngineer, oOptionalBackupGameEn
         if not(oEngineer[M28Engineer.refoUnitActivelyShielding]) then
             oGameEnder = oOptionalBackupGameEnderToAssignTo
             if not(oGameEnder) then
-                M28Utilities.ErrorHandler('Dont have a unit recorded that the engineer is actively shielding, will just get the first gameender in the zone')
+                M28Utilities.ErrorHandler('Dont have a unit recorded that the engineer is actively shielding, will just get the first gameender in the zone if it is close')
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
+                    local iShieldRadius = (oConstruction:GetBlueprint().Defense.ShieldSize or 30) * 0.5
                     for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
-                        oGameEnder = oUnit
-                        break
+                        if not(oUnit.Dead) and M28Utilities.GetDistanceBetweenPositions(oConstruction:GetPosition(), oUnit:GetPosition()) <= iShieldRadius then
+                            oGameEnder = oUnit
+                            break
+                        end
                     end
                 end
             end
