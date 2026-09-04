@@ -2168,7 +2168,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileLandStealth) then return sBPIDToBuild end
     end
 
-    --Want to prioritise sniperbots to deal with enemy land experimental (when enemy lacks fatboy/megalith) or ACU; exception in QUIET though as land experimentals can be faster
+    --Want to prioritise sniperbots to deal with enemy land experimental (when enemy lacks fatboy/megalith) or ACU; exception in QUIET though as land experimentals can be faster, and if using M28Easy since we dont kite with sniperbots
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if (M28Utilities.bLoudModActive or EntityCategoryContains(categories.AEON + categories.SERAPHIM, oFactory.UnitId)) and (iFactoryTechLevel == 3 or tLZTeamData[M28Map.subrefLZbCoreBase]) then
         if M28Conditions.PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, iPlateau, iLandZone, true) and (not(bHaveLowMass) or not(aiBrain[M28Overseer.refbPrioritiseAir]) and not(aiBrain[M28Overseer.refbPrioritiseNavy])) then
