@@ -1087,7 +1087,7 @@ function SetupPlayableAreaAndSegmentSizes(rCampaignPlayableAreaOverride)
     local iHighestSize = math.max(rMapPlayableArea[3] - rMapPlayableArea[1], rMapPlayableArea[4] - rMapPlayableArea[2])
     local iTableSizeCap = 125000 --e.g. 1x1 resolution on a 10km, 3x3 resolution on a 20km (athough changed to 2x2 resolution on 10km per the below)
     if not(bMapLandSetupComplete) then --e.g. if this is a campaign we may want to change playable area size
-        --iTableSizeCap = SegmentCount^2; SegmentCount = iTotalSize / SegmentSize; (TotalSize/SegmentSize)^2 = iTableSizeCap; SemgentSize = TotalSize/Sqrt(iTableSizeCap)
+        --iTableSizeCap = math.pow(SegmentCount,2); SegmentCount = iTotalSize / SegmentSize; math.pow((TotalSize/SegmentSize),2) = iTableSizeCap; SemgentSize = TotalSize/Sqrt(iTableSizeCap)
         iLandZoneSegmentSize = math.ceil(iHighestSize / math.sqrt(iTableSizeCap))
         if iMapSize > 256 then iLandZoneSegmentSize = math.max(iLandZoneSegmentSize, 2) end --otherwise get too many building locations
         import('/mods/M28AI/lua/AI/M28Engineer.lua').iLandZoneSegmentSize = iLandZoneSegmentSize
@@ -1524,7 +1524,7 @@ function RecordPlateauReclaimSegmentsMidpointAndRadius(iPlateau, sPathing, tSegm
     tAllPlateaus[iPlateau][subrefPlateauMidpoint][2] = GetTerrainHeight(tAllPlateaus[iPlateau][subrefPlateauMidpoint][1], tAllPlateaus[iPlateau][subrefPlateauMidpoint][3])
     --CIrcle radius will be the square/rectangle diagonal, so (square radius^2*2)^0.5 for a square, or (x^2+z^2)^0.5
 
-    tAllPlateaus[iPlateau][subrefPlateauMaxRadius] = (iXRadius^2+iZRadius^2)^0.5
+    tAllPlateaus[iPlateau][subrefPlateauMaxRadius] = math.pow((math.pow(iXRadius,2)+math.pow(iZRadius,2)),0.5)
 end
 
 ---@param iPlateau number

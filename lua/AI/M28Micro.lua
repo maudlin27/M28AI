@@ -128,7 +128,7 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
                     if bDebugMessages == true then LOG(sFunctionRef..': iLoopCount='..iLoopCount..'; iTempAngleDirectionToMove='..iTempAngleDirectionToMove..'; iInitialAngleAdj='..iInitialAngleAdj..'; iAngleAdjFactor='..iAngleAdjFactor..'; iCurFacingDirection='..iCurFacingDirection..'; iFacingAngleWanted='..iFacingAngleWanted) end
 
 
-                    iTempDistanceAwayToMove = iTempDistanceAwayToMove + iDistanceIncreasePerCycle * iDistanceIncreasePerCycle * (iDistanceIncreaseCompoundFactor ^ iLoopCount - 1)
+                    iTempDistanceAwayToMove = iTempDistanceAwayToMove + iDistanceIncreasePerCycle * iDistanceIncreasePerCycle * (math.pow(iDistanceIncreaseCompoundFactor, iLoopCount - 1))
                     tTempLocationToMove = M28Utilities.MoveInDirection(oUnit:GetPosition(), iTempAngleDirectionToMove, iTempDistanceAwayToMove, true, false, true)
                     M28Orders.IssueTrackedMove(oUnit, tTempLocationToMove, 0.25, true, 'TempMA', true)
                     if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order to tTempLocationToMove='..repru(tTempLocationToMove)..'; iTempAngleDirectionToMove='..iTempAngleDirectionToMove) end

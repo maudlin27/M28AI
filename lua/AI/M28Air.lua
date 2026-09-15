@@ -9164,7 +9164,6 @@ function ManageGunships(iTeam, iAirSubteam)
                 --Return available gunships to rally point
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished considering gunships targets for all land and water zones, will send any remaining gunships to refuel or go to rally (or support point if we have air control). M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) end
                 if M28Utilities.IsTableEmpty(tAvailableGunships) == false then --redundancy
-                    local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirRallyPoint]
                     --DOnt wnat to move to support point, as support point is based in part on front gunship, so end up with a circular logic
                     if M28Utilities.IsTableEmpty(tGunshipsNearFront) == false then
                         for iUnit, oUnit in tGunshipsNearFront do
@@ -9359,6 +9358,17 @@ function ManageGunships(iTeam, iAirSubteam)
             local oUnit =  toGunshipsToRetreatOrRefuel[iCurEntry]
             iCurPlateauOrZero, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
             if bDebugMessages == true then LOG(sFunctionRef..': Checking if oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' is closest gunship to rally for this zone, iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurZone='..(iCurZone or 'nil')) end
+            if not(iCurPlateauOrZero) or not(iCurZone) then
+                if oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] then
+                    iCurPlateauOrZero = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+                    iCurZone = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                    if bDebugMessages == true then LOG(sFunctionRef..'; Changed cur plateau adn zero to last recorded='..repru(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam])) end
+                elseif oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] then
+                    iCurPlateauOrZero = 0
+                    iCurZone = oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]
+                    if bDebugMessages == true then LOG(sFunctionRef..'; Changed cur plateau adn zero to last WZ recorded='..oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]) end
+                end
+            end
             if iCurPlateauOrZero and iCurZone then
                 iUnitDistToRally = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)
                 if bDebugMessages == true then LOG(sFunctionRef..': iUnitDistToRally='..iUnitDistToRally..'; tGunshipZoneDetailsByPlateauAndZone[iCurPlateauOrZero][iCurZone][subrefClosestDistToRally]='..(tGunshipZoneDetailsByPlateauAndZone[iCurPlateauOrZero][iCurZone][subrefClosestDistToRally] or 'nil')..'; iRallyLandOrWaterZone='..iRallyLandOrWaterZone..'; iRallyPlateauOrZero='..iRallyPlateauOrZero) end
@@ -9689,7 +9699,7 @@ function UpdateScoutingShortlist(iTeam)
             for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
                 if tLZData[M28Map.subrefLZOrWZMexCount] > 0 or tLZData[M28Map.subrefLZTotalSegmentCount] >= iMinSegmentsWantedForMexFreeZones then
                     local tLZOrWZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                    iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts] ^ 3
+                    iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + math.pow(tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts], 2)
                     if tLZOrWZTeamData[M28Map.refiRadarCoverage] >= 40 then iIntervalWanted = iIntervalWanted * iRadarFactor end
                     iAmountOverIntervalWanted = GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) - iIntervalWanted
                     iLongestOverdueScoutingTarget = math.max(iLongestOverdueScoutingTarget, iAmountOverIntervalWanted)
@@ -9715,7 +9725,7 @@ function UpdateScoutingShortlist(iTeam)
         for iPond, tPondSubtable in M28Map.tPondDetails do
             for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
                 local tLZOrWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts] ^ 3
+                iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + math.pow(tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts], 2)
                 if tLZOrWZTeamData[M28Map.refiRadarCoverage] >= 50 then iIntervalWanted = iIntervalWanted * iRadarFactor end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering iWaterZone='..iWaterZone..'; tLZOrWZTeamData[M28Map.refiTimeLastHadVisual]='..(tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 'nil')..'; Time since last had visula='..GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0)..'; iIntervalWanted='..iIntervalWanted) end
                 if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) > iIntervalWanted then

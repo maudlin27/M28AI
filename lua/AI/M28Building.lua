@@ -2302,7 +2302,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
 
                                                             if oUnit[refiTMLShotsFired] - (oUnit[refiTMLShotsHit] or 0) > iExpectedShots then
                                                                 --Reduce by 50% for each time are over
-                                                                iCurTargetValue = iCurTargetValue * 0.5^(oUnit[refiTMLShotsFired] - iExpectedShots - math.min(4, (oUnit[refiTMLShotsHit] or 0)))
+                                                                iCurTargetValue = iCurTargetValue * math.pow(0.5, (oUnit[refiTMLShotsFired] - iExpectedShots - math.min(4, (oUnit[refiTMLShotsHit] or 0))))
                                                                 if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit[refiTMLShotsFired] - iExpectedShots - (oUnit[refiTMLShotsHit] or 0) >= 3 then
                                                                     iCurTargetValue = 0
                                                                 end
