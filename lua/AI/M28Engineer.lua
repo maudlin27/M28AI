@@ -3688,7 +3688,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     elseif bCanBuildNovax and aiBrain[M28Overseer.refbPrioritiseAir] then
                                         iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre + (M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                                         --Cant path with land - prioritise novax more
-                                    elseif iCurFatboyCount == 0 and iEnemyLandExperimentalCount > 0 then
+                                    elseif iCurFatboyCount == 0 and iEnemyLandExperimentalCount > 0 and iLandExpCount < iEnemyLandExperimentalCount and bCanPathAmphibiously and (M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] > 16000 or (not(aiBrain[M28Overseer.refbPrioritiseHighTech]) and not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir])) then
                                         iCategoryWanted = iUEFLandExpCategory
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will get fatboy3') end
                                         --Enemy has significant threat in our land zone and we can path amphibiously and we already have significant t3 arti or equivalent
