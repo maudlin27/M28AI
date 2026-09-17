@@ -2563,6 +2563,7 @@ function OnConstructed(oEngineer, oJustBuilt)
 
                 --M28 specific
                 if oJustBuilt:GetAIBrain().M28AI then
+
                     if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just built '..oJustBuilt.UnitId) end
                     local iTeam = oBrainJustBuilt.M28Team
                     --experimental level construction count, and paragon and yolona specific logic
@@ -2596,16 +2597,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                         end
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oJustBuilt.UnitId) then M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] = (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) + 1 end
-                        if bDebugMessages == true then LOG(sFunctionRef..': is oJustBuilt[M28Building.reftArtiTemplateRefs] nil='..tostring(oJustBuilt[M28Building.reftArtiTemplateRefs] == nil)) end
                         if oJustBuilt[M28Building.reftArtiTemplateRefs] then
                             --Reassess the game-ender to build
                             local tTableRef = M28Map.tAllPlateaus[oJustBuilt[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oJustBuilt[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][iTeam][M28Map.reftActiveGameEnderTemplates][oJustBuilt[M28Building.reftArtiTemplateRefs][3]]
                             if tTableRef then tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] = true end
                             if bDebugMessages == true then LOG(sFunctionRef..': Flagging that we want to refresh the Arti to build for GE template, P'..oJustBuilt[M28Building.reftArtiTemplateRefs][1]..'Z'..oJustBuilt[M28Building.reftArtiTemplateRefs][2]..'T'..oJustBuilt[M28Building.reftArtiTemplateRefs][3]..'; tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild]='..tostring(tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] or false)..'; Is tTableRef nil='..tostring(tTableRef == nil)..'; Time='..GetGameTimeSeconds()) end
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti, oJustBuilt.UnitId) then
-                            if not(M28Team.tAirSubteamData[oJustBuilt:GetAIBrain().M28AirSubteam][M28Team.refbActiveEnemyStratSnipeMonitor]) then
-                                ForkThread(M28Air.MonitorForEnemySnipeOfGameEnderTemplate, oJustBuilt:GetAIBrain())
-                            end
                         end
                         --QAI chat
                         if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oJustBuilt.UnitId) and oBrainJustBuilt[M28Chat.refiAssignedPersonality] == M28Chat.refiQAI and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] < 8000 and M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) == 1 then
@@ -2674,7 +2670,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 end
                             end
                         end
-                        --PD tracking
+                    --PD tracking
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, oJustBuilt.UnitId) then
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oEngineer:GetAIBrain().M28Team)
                         tLZTeamData[M28Map.refiTimeLastCompletedPD] = GetGameTimeSeconds()
@@ -3845,7 +3841,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                 if not(oUnit[M28Building.reftArtiTemplateRefs]) then
                                     local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
                                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
-
+                                        local bLikelyInTemplatePosition = false
                                         local bArti = EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre, oUnit.UnitId)
                                         for iTemplate, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
                                             if bArti then
