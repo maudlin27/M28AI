@@ -243,8 +243,8 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
 
                         --Non-M28 specific killer logic:
 
-                        if EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3, oKillerUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryT2Power, oKillerUnit.UnitId) then
-                            ForkThread(ConsiderRecordingStratBomberToSuicideInto, oKillerUnit, true)
+                        if EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3, oKillerUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryT2Power, oUnitKilled.UnitId) then
+                            ForkThread(M28Air.ConsiderRecordingStratBomberToSuicideInto, oKillerUnit, true)
                         end
 
                         --Non-M28 specific unit (i.e. applies to both non-M28 killers and non-M28 killed units)
@@ -3055,7 +3055,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     end
 
                     if EntityCategoryContains(M28UnitInfo.refCategorySatellite, oJustBuilt.UnitId) then
-                        if bDebugMessages == true then LOG(sFunctionRef..'Novax created, reprs='..reprs(oUnit)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..'Novax created, reprs='..reprs(oJustBuilt)) end
                         ForkThread(M28Air.DetachSatellite,oJustBuilt, 1)
                     end
 
@@ -3119,7 +3119,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                             oEngineer[M28Factory.refiTotalBuildCount] = (oEngineer[M28Factory.refiTotalBuildCount] or 0) + 1
                             oEngineer:GetAIBrain()[M28Factory.refiHighestFactoryBuildCount] = math.max((oEngineer:GetAIBrain()[M28Factory.refiHighestFactoryBuildCount] or 0), (oEngineer[M28Factory.refiTotalBuildCount] or 0))
                             --If T3 support factory just built a T1 unit, then consider gifting it to a teammate
-                            if EntityCategoryContains(M28UnitInfo.categories.SUPPORTFACTORY * categories.TECH3, oEngineer.UnitId) and EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId) then
+                            if EntityCategoryContains(categories.SUPPORTFACTORY * categories.TECH3, oEngineer.UnitId) and EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId) then
                                 --Do we lack HQs for this brain and are dealing with an air or naval fac (since land fac should rebuild anyway)
                                 if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oEngineer.UnitId) then
                                     if oEngineer:GetAIBrain()[M28Economy.refiOurHighestAirFactoryTech] == 0 then
@@ -4783,11 +4783,10 @@ function DelayedUnpauseOfTransferredUnits(toCapturedUnits, iArmyIndex)
                     end
                     local tMissileLaunchers = EntityCategoryFilterDown(categories.SILO, tCompletedUnits)
                     if M28Utilities.IsTableEmpty(tMissileLaunchers) == false then
-                        local iCurMissiles
                         for iLauncher, oLauncher in tMissileLaunchers do
                             --LOG('Forked consideration of launching missile Delay6')
                             if oLauncher:GetAIBrain().M28AI then --redundancy
-                                M28Conditions.DelayedConsiderLaunchingMissile(oLauncher, 1, bCheckHaveMissile)
+                                M28Conditions.DelayedConsiderLaunchingMissile(oLauncher, 1, true)
                             end
                         end
                     end

@@ -5524,7 +5524,7 @@ function MonitorLeavingT1SpamMode(iTeam)
 
         local iMexesWantedToExitPre10m = table.getn(M28Map.tMassPoints) * 0.75
         local iMexesWantedToExitPost10mOrEnemyT2 = table.getn(M28Map.tMassPoints) * 0.65
-        if bDebugMessages == true then LOG(sFunctionRef..': We are focusing on t1 spam at the moment, about to start main loop, iMexesWantedToExit='..iMexesWantedToExit) end
+        if bDebugMessages == true then M28Profiler.DebugLog(tDebugContext, sFunctionRef..': We are focusing on t1 spam at the moment, about to start main loop, iMexesWantedToExitPre10m='..iMexesWantedToExitPre10m..'; iMexesWantedToExitPost10mOrEnemyT2='..iMexesWantedToExitPost10mOrEnemyT2) end
         while tTeamData[iTeam][refbFocusOnT1Spam] do --(allows us turning this off elsewhere, e.g. when we build enough T2 power that we can start reclaiming t1 power)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(1)

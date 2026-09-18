@@ -6394,7 +6394,7 @@ function GetTargetsWithoutTMDCoverageBasedOnZoneMidpoint(tTMLLZTeamData, tTarget
                                     if iBlockingTMD >= iTMDRequiredToBlock then
                                         break
                                     else
-                                        if EntityCategoryContains(M28UnitInfo.refCategoryAeon, oTMD.UnitId) then
+                                        if EntityCategoryContains(categories.AEON, oTMD.UnitId) then
                                             if M28Utilities.bFAFActive then
                                                 iBlockingTMD = iBlockingTMD + 2
                                             else

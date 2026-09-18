@@ -1499,8 +1499,8 @@ local function RecordAllPlateaus()
 end
 
 function RecordPlateauReclaimSegmentsMidpointAndRadius(iPlateau, sPathing, tSegmentPositionMin, tSegmentPositionMax)
-    iReclaimSegmentStartX, iReclaimSegmentStartZ = GetReclaimSegmentsFromLocation(tSegmentPositionMin)
-    iReclaimSegmentEndX, iReclaimSegmentEndZ = GetReclaimSegmentsFromLocation(tSegmentPositionMax)
+    local iReclaimSegmentStartX, iReclaimSegmentStartZ = GetReclaimSegmentsFromLocation(tSegmentPositionMin)
+    local iReclaimSegmentEndX, iReclaimSegmentEndZ = GetReclaimSegmentsFromLocation(tSegmentPositionMax)
 
     --Record all reclaim segments that are part of the plateau
     tAllPlateaus[iPlateau][subrefPlateauReclaimSegments] = {}
@@ -8021,7 +8021,6 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
 
                             --Now work out the path based on iClosestPrevAdjacentZone
                             local tiLZPath = {}
-                            tiPathFromStartToNextAdjZone[iClosestNextAdjacencyZone] = {}
                             local iAdjacentRef = tLZData[subrefLZPathingToOtherLZEntryRef][iAdjacentLandZone]
                             if bDebugMessages == true then LOG(sFunctionRef..': iStartLandZone='..iStartLandZone..'; iAdjacentLandZone='..iAdjacentLandZone..'; iClosestNextAdjacencyZone='..iClosestNextAdjacencyZone..'; Refs for start LZ to other LZs='..repru(tLZData[subrefLZPathingToOtherLZEntryRef])..'; iCurAdjacencyLevel='..iCurAdjacencyLevel..'; iAdjacentRef='..iAdjacentRef..'; tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath]='..repru(tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath])) end
                             for iEntry, iPathingLandZone in tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath] do
