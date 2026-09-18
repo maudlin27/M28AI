@@ -4396,7 +4396,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 if bDebugMessages == true then LOG(sFunctionRef..': Switching GE category to novax') end
                 tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryNovaxCentre
             else
-                --Calculate number of enemy bases within range of t3 arti vs out of range
+                --Calculate number of enemy bases within range of t3 arti vs out of range (duplicating code from above - very minor future optimisation would be to define earlier above, set to nil, and then calculate here only if havent already calculated above)
                 local iFurthestEnemyBaseDist = 0
                 local iEnemyBasesWithinArtiThreshold = 0
                 local iEnemyBasesOutsideArtiThreshold = 0
