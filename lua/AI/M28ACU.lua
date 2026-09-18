@@ -962,6 +962,9 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             elseif iCurLandFactories == 0 then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build a land factory') end
                                 ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
+                            --SCTA has issue where can't e.g. build even 2 mexes without stalling E early on, so build alternate mex and pgen until got 4 pgens
+                            elseif aiBrain.M28SCTA and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) < math.min(4, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex)) then
+                                ACUActionBuildPower(aiBrain, oACU)
                                 --Build more factories if we have 100% E, positive net energy, have a decent amount of mass stored, and we have at least 1 pgen or hydro
                             elseif iCurLandFactories < 10 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and aiBrain:GetEconomyStored('MASS') >= 250 and aiBrain[M28Economy.refiNetMassBaseIncome] > 0 and aiBrain[M28Economy.refiNetEnergyBaseIncome] > 0 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) < math.max(3, math.min(8, aiBrain[M28Economy.refiGrossMassBaseIncome] * 0.5)) and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2) then
                                 if  M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData, aiBrain) or (bGoSecondAir and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0) then
