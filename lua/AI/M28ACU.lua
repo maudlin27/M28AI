@@ -111,8 +111,8 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
         if bDebugMessages == true then LOG(sFunctionRef..': tLastOrder='..reprs(tLastOrder)..'; bAlreadyHaveOrder='..tostring(bAlreadyHaveOrder)) end
         if not(bAlreadyHaveOrder) then
             local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, oACU:GetAIBrain().M28Team)
-            --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerActionForDebug, iCategoryToBuild, iMaxAreaToSearch,                                   iCatToBuildBy,              tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData)
-            local sBlueprint, tBuildLocation =                       M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,        nil,                            iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iOptionalAdjacencyCategory, tOptionalSearchLocation,            false,                      nil,         iOptionalCategoryBuiltUnitCanBuild,    nil,                        tLZData, tLZTeamData)
+            --                                                                  GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerActionForDebug, iCategoryToBuild, iMaxAreaToSearch,                                   iCatToBuildBy,              tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData)
+            local sBlueprint, tBuildLocation =                       M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,        nil,                            iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iOptionalAdjacencyCategory, tOptionalSearchLocation,            false,                      nil,         iOptionalCategoryBuiltUnitCanBuild,    (iCategoryToBuild == M28UnitInfo.refCategoryPower and oACU[refiUpgradeCount] == 0),                        tLZData, tLZTeamData)
             if not(tBuildLocation) then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,          nil,                        iCategoryToBuild,    iMaxAreaToSearchForBuildLocation,                  nil,                         tOptionalSearchLocation,        false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil,                           tLZData, tLZTeamData) end
             if bDebugMessages == true then
                 local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
@@ -963,7 +963,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build a land factory') end
                                 ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
                             --SCTA has issue where can't e.g. build even 2 mexes without stalling E early on, so build alternate mex and pgen until got 4 pgens
-                            elseif aiBrain.M28SCTA and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) < math.min(4, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex)) then
+                            elseif aiBrain.M28SCTA and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) <= math.max(1, math.min(3, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex))) then
                                 ACUActionBuildPower(aiBrain, oACU)
                                 --Build more factories if we have 100% E, positive net energy, have a decent amount of mass stored, and we have at least 1 pgen or hydro
                             elseif iCurLandFactories < 10 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and aiBrain:GetEconomyStored('MASS') >= 250 and aiBrain[M28Economy.refiNetMassBaseIncome] > 0 and aiBrain[M28Economy.refiNetEnergyBaseIncome] > 0 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) < math.max(3, math.min(8, aiBrain[M28Economy.refiGrossMassBaseIncome] * 0.5)) and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2) then
@@ -1088,7 +1088,9 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                             --e.g. if went 3 mex hydro then want to get 4th mex before factory
                                             if bDebugMessages == true then LOG(sFunctionRef..': Want up to 4 mexes') end
                                             ACUActionBuildMex(aiBrain, oACU)
-                                        elseif iCurLandFactories < 2 and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 3 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0) and M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0 then
+                                        elseif iCurLandFactories < 2 and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 3 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0) and M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0
+                                        and (not(aiBrain.M28SCTA) or aiBrain:GetEconomyStored('MASS') >= 350)
+                                        then
                                             if bGoSecondAir then
                                                 ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to go second air') end
@@ -1102,7 +1104,9 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                         elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < iMinEnergyPerTickWanted then
                                             if bDebugMessages == true then LOG(sFunctionRef..': dont yet have minimum E wanted') end
                                             ACUActionBuildPower(aiBrain, oACU)
-                                        elseif iCurLandFactories < 2 and M28Map.iMapSize <= 512 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2) and aiBrain:GetEconomyStored('MASS') >= 40 and iPlateauOrZero > 0 and (aiBrain:GetEconomyStored('MASS') >= 200 or M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLZOrWZ)) and not(M28Overseer.bNoRushActive) then
+                                        elseif iCurLandFactories < 2 and M28Map.iMapSize <= 512 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2) and aiBrain:GetEconomyStored('MASS') >= 40 and iPlateauOrZero > 0 and (aiBrain:GetEconomyStored('MASS') >= 200 or M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLZOrWZ)) and not(M28Overseer.bNoRushActive)
+                                        and (not(aiBrain.M28SCTA) or aiBrain:GetEconomyStored('MASS') >= 350)
+                                        then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Dont have 2 land facs yet so will get another') end
                                             --ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZData, tLZTeamData, iFactoryCategoryOverride, iEngineerActionOverride)
                                             ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData,     M28UnitInfo.refCategoryLandFactory, M28Engineer.refActionBuildLandFactory)
@@ -1239,10 +1243,13 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 if iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < iFactoryCap then
                                     local bWantAirFactory = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData, aiBrain)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Checking if want more factories, iCurLandFactories='..iCurLandFactories..'; Want more factories='..tostring(M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ))..'; Cur air factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)..'; bWantAirFactory='..tostring(bWantAirFactory)) end
-                                    if bGoSecondAir and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0 then
+                                    if bGoSecondAir and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0
+                                    and (not(aiBrain.M28SCTA) or aiBrain:GetEconomyStored('MASS') >= 350) then
                                         ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to go second air') end
-                                    elseif iCurLandFactories < 2 and M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ) and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 3 then
+                                    elseif iCurLandFactories < 2 and M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ) and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 3
+                                    and (not(aiBrain.M28SCTA) or aiBrain:GetEconomyStored('MASS') >= 350)
+                                    then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Want to g et a second land factory or air factory') end
                                         if bWantAirFactory then
                                             if not(bGoSecondAir) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 20 * aiBrain[M28Economy.refiBrainResourceMultiplier] then
@@ -1254,7 +1261,9 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                         else
                                             ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData,     M28UnitInfo.refCategoryLandFactory, M28Engineer.refActionBuildLandFactory)
                                         end
-                                    elseif iCurLandFactories < 2 and M28Map.iMapSize <= 512 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2) and aiBrain:GetEconomyStored('MASS') >= 40 and iPlateauOrZero > 0 and (aiBrain:GetEconomyStored('MASS') >= 200 or M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLZOrWZ)) and not(M28Overseer.bNoRushActive) and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 2 then
+                                    elseif iCurLandFactories < 2 and M28Map.iMapSize <= 512 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2) and aiBrain:GetEconomyStored('MASS') >= 40 and iPlateauOrZero > 0 and (aiBrain:GetEconomyStored('MASS') >= 200 or M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLZOrWZ)) and not(M28Overseer.bNoRushActive) and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 2
+                                    and (not(aiBrain.M28SCTA) or aiBrain:GetEconomyStored('MASS') >= 350)
+                                    then
                                         --ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZData, tLZTeamData, iFactoryCategoryOverride, iEngineerActionOverride)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Dont have 2 land facs yet so will get another') end
                                         if bWantAirFactory then
@@ -1277,7 +1286,9 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                             ACUActionBuildMex(aiBrain, oACU)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will try building another mex') end
                                             --Third factory if overflowing mass or have quite a bit stored
-                                        elseif iCurLandFactories < 3 and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and (M28Map.iMapSize <= 512 and (M28Map.iMapSize <= 256 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1)) and aiBrain:GetEconomyStored('MASS') >= 250 or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.9 and aiBrain:GetEconomyStored('MASS') >= 100) and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 4 and M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLZOrWZ) then
+                                        elseif iCurLandFactories < 3 and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and (M28Map.iMapSize <= 512 and (M28Map.iMapSize <= 256 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1)) and aiBrain:GetEconomyStored('MASS') >= 250 or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.9 and aiBrain:GetEconomyStored('MASS') >= 100) and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 4 and M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLZOrWZ)
+                                        and (not(aiBrain.M28SCTA) or aiBrain:GetEconomyStored('MASS') >= 350)
+                                        then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will get another factory') end
                                             if bWantAirFactory then
                                                 ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData,     M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)

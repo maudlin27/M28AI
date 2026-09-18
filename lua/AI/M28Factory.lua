@@ -444,6 +444,16 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         sBPIDToBuild = 'bal0206'
                     end
                 end
+            elseif aiBrain.M28SCTA then
+                if sBPIDToBuild == 'corsolar' and oFactory:CanBuild('corwin') then
+                    aiBrain[reftBlueprintPriorityOverride]['corwin'] = 1
+                    aiBrain[reftBlueprintPriorityOverride]['corsolar'] = 0
+                    sBPIDToBuild = 'corwin'
+                elseif sBPIDToBuild == 'armsolar' and oFactory:CanBuild('armwin') then
+                    aiBrain[reftBlueprintPriorityOverride]['armwin'] = 1
+                    aiBrain[reftBlueprintPriorityOverride]['armsolar'] = 0
+                    sBPIDToBuild = 'armwin'
+                end
             else
 
                 --Normal (non-QUIET) overrides
