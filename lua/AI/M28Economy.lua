@@ -54,7 +54,7 @@ refbSpecialUpgradeMonitor = 'M28ESpecUM' --true if special upgrade monitor (used
 refbTriedIgnoringCanBuildForUpgrade = 'M28ETrNlU' --true if CanBuild returns false but the unit is meant to be able to upgrade - will do a 1-off attempt at upgrading
 
 --global variables
-tiMinEnergyPerTech = {[1]=16,[2]=55,[3]=150,[3]=150}
+tiMinEnergyPerTech = {[1]=16,[2]=55,[3]=150,[4]=150}
 bT3MexCanBeUpgraded = false
 iSpecialHQCategory = 'M28EconomyFactoryHQ' --Used as a way of choosing to pause HQ
 iSpecialSurplusUpgradeCategory = 'M28EconomySurplusUpgrade' --used as a way of choosing to pause excess upgrades
@@ -1925,7 +1925,7 @@ function ManageMassStalls(iTeam)
                                 if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then --Only consider unit if it has been constructed
                                     if not(bPauseNotUnpause) then
                                         bApplyActionToUnit = true
-                                        if (oUnit.GetTacticalSiloAmmoCount or oUnit.GetTacticalSiloAmmoCount) and M28UnitInfo.GetMissileCount(oUnit) >= 2 then
+                                        if (oUnit.GetTacticalSiloAmmoCount or oUnit.GetNukeSiloAmmoCount) and M28UnitInfo.GetMissileCount(oUnit) >= 2 then
                                             --Dont unpause TML, SML and SMD that have 2+ missiles loaded already
                                             bApplyActionToUnit = false
                                         end
@@ -2587,7 +2587,7 @@ function ManageEnergyStalls(iTeam)
                                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then  --Only consider unit if it has been constructed
                                         if not(bPauseNotUnpause) then
                                             bApplyActionToUnit = true
-                                            if (oUnit.GetTacticalSiloAmmoCount or oUnit.GetTacticalSiloAmmoCount) then
+                                            if (oUnit.GetTacticalSiloAmmoCount or oUnit.GetNukeSiloAmmoCount) then
                                                 if M28UnitInfo.GetMissileCount(oUnit) >= 2 then
                                                     --Dont unpause TML, SML and SMD that have 2+ missiles loaded already
                                                     bApplyActionToUnit = false
@@ -3770,7 +3770,7 @@ function ConsiderPowerPgenUpgrade(oUnit, iOverrideSecondsToWait)
             tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
         else
             tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
-            tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+            tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
         end
 
         if (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] < math.min(2, tLZOrWZData[M28Map.subrefLZOrWZMexCount]))) or (M28Team.tTeamData[iTeam][M28Team.refbPrioritiseProduction] and not(M28Conditions.HaveLowPower(iTeam)) and M28Conditions.HaveLowMass(iTeam)) or not(M28Conditions.SafeToUpgradeUnit(oUnit)) then

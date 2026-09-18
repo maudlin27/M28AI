@@ -8625,7 +8625,7 @@ function ManageSACUsInWaterZone(tSACUs, tWZData, tWZTeamData, iPond, iWaterZone,
                     --Just build a naval fac (more as a redundancy)
                     if bDebugMessages == true then LOG(sFunctionRef..': Redundancy, will build factory') end
                     for iSACU, oSACU in tSACUs do
-                        M28ACU.ACUActionBuildFactory(oSACU:GetAIBrain(), oSACU, iPlateau, iWaterZone, tWZData, tWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refCategoryNavalFactory)
+                        M28ACU.ACUActionBuildFactory(oSACU:GetAIBrain(), oSACU, iPlateau, iWaterZone, tWZData, tWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refActionBuildNavalFactory)
                     end
                 end
             else

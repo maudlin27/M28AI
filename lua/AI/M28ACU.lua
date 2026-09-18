@@ -3546,7 +3546,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
             for iExp, oExp in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
                 if not(oExp.Dead) then
-                    if not(iCurPlateau) or NavUtils.GetLabel(refPathingTypeHover, oExp:GetPosition()) == iPlateauOrZero then
+                    if not(iCurPlateau) or NavUtils.GetLabel(M28Map.refPathingTypeHover, oExp:GetPosition()) == iPlateauOrZero then
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oExp:GetPosition(), oACU:GetPosition())
                         if iCurDist < iClosestLandExperimental then
                             iClosestLandExperimental = iCurDist
@@ -6419,7 +6419,7 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                 M28Orders.IssueTrackedMove(oACU, oClosestFixedShield:GetPosition(), 5, false, 'ACUTelSh', false)
             else
                 if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) then
-                    if bDebugMessages == true then LGO(sFunctionRef..': Will return ACU to core base unless want shield instead') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will return ACU to core base unless want shield instead') end
                     if not(ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero, iLandOrWaterZone)) then
                         ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
                         if bDebugMessages == true then LOG(sFunctionRef..': Going to core base') end

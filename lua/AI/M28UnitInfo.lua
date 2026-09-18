@@ -1931,7 +1931,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return 0
     end
-    M28Profiler.ErrorHandler('Code shouldve returend before now, will return 0')
+    M28Utilities.ErrorHandler('Code shouldve returend before now, will return 0')
     return 0
 end
 

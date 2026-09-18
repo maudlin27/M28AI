@@ -2109,18 +2109,40 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         if iCurRallyValue >= 0 then
             --Protect our GE tempalte if worried about a snipe
             local oOverideUnitToProtect
-            if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate]) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]) == false then
-                --Protect closest GE template to this
+            if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate]) then
                 local iCurDist
                 local iClosestDistToStrat = 400 --dont bother if is further away than this
-                for iEntry, tTemplateTable in M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates] do
-                    if M28Utilities.IsTableEmpty(tTemplateTable[M28Map.subrefGEArtiUnits]) == false then
-                        for iUnit, oUnit in tTemplateTable[M28Map.subrefGEArtiUnits] do
-                            if not(oUnit.Dead) then
-                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate]:GetPosition())
-                                if iCurDist < iClosestDistToStrat then
-                                    iClosestDistToStrat = iCurDist
-                                    oOverideUnitToProtect = oUnit
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]) == false then
+                    --Protect closest GE template to this
+
+                    for iEntry, tTemplateTable in M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates] do
+                        if M28Utilities.IsTableEmpty(tTemplateTable[M28Map.subrefGEArtiUnits]) == false then
+                            for iUnit, oUnit in tTemplateTable[M28Map.subrefGEArtiUnits] do
+                                if not(oUnit.Dead) then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate]:GetPosition())
+                                    if iCurDist < iClosestDistToStrat then
+                                        iClosestDistToStrat = iCurDist
+                                        oOverideUnitToProtect = oUnit
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                --Check t3 arti not in GE tempalte if we lack any GE template unit
+                if not(oOverideUnitToProtect) then
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        local tFriendlyUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder, false, true)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is tFriendlyUnits empty for oBrain='..oBrain.Nickname..'='..tostring(M28Utilities.IsTableEmpty(tFriendlyUnits))) end
+                        if M28Utilities.IsTableEmpty(tFriendlyUnits) == false then
+                            for iUnit, oUnit in tFriendlyUnits do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have t3 arti, checking if part of GE template, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[M28Building.reftArtiTemplateRefs]='..repru(oUnit[M28Building.reftArtiTemplateRefs])) end
+                                if not(oUnit[M28Building.reftArtiTemplateRefs]) then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate]:GetPosition())
+                                    if iCurDist < iClosestDistToStrat then
+                                        iClosestDistToStrat = iCurDist
+                                        oOverideUnitToProtect = oUnit
+                                    end
                                 end
                             end
                         end
@@ -4660,8 +4682,10 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toBomberSuicideTargets]) then
             AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam)
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to suicide asfs into strat trying to snipe our GE template, refoEnemyStratSnipingGETemplate='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate]) or 'nil')) end
         if M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate] and M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
             --Send asfs to intercept snipe of our GE template
+            if bDebugMessages == true then LOG(sFunctionRef..': Will send ASFs to intercept the strat') end
             AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam, true)
             --Do again so we send 4 asfs if strat is close to support point (which we will have changed to be the GE arti unit closest to it or
             if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate]:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirAsfSupportPoint]) <= 175 then
@@ -4785,10 +4809,10 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Will avoid enemy airaa unless adjacent to core zone with large groundAA threat, bAdjacentToCoreZone='..tostring(bAdjacentToCoreZone)..'; Airtoground threat='..tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; SValue='..tUnitLZOrWZTeamData[M28Map.subrefLZSValue]..'; Mex by tech='..repru(tUnitLZOrWZTeamData[M28Map.subrefMexCountByTech])) end
                         if (not(bAdjacentToCoreZone) and (tUnitLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tUnitLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) <= 5500) --if have equiv of 7 t3 maa (just under 4 sams) then still engage
-                        --Dont ignore all enemy airaa if large enemy airaa threat unless high value zone
-                        or not(((tUnitLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tUnitLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= 2 or tUnitLZOrWZTeamData[M28Map.subrefLZSValue] >= 6000) and ((tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > (tUnitLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0))))
-                         then
-                                bAvoidAAThreat = true
+                                --Dont ignore all enemy airaa if large enemy airaa threat unless high value zone
+                                or not(((tUnitLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tUnitLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= 2 or tUnitLZOrWZTeamData[M28Map.subrefLZSValue] >= 6000) and ((tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > (tUnitLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0))))
+                        then
+                            bAvoidAAThreat = true
                         end
 
                     end
@@ -9164,7 +9188,6 @@ function ManageGunships(iTeam, iAirSubteam)
                 --Return available gunships to rally point
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished considering gunships targets for all land and water zones, will send any remaining gunships to refuel or go to rally (or support point if we have air control). M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) end
                 if M28Utilities.IsTableEmpty(tAvailableGunships) == false then --redundancy
-                    local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirRallyPoint]
                     --DOnt wnat to move to support point, as support point is based in part on front gunship, so end up with a circular logic
                     if M28Utilities.IsTableEmpty(tGunshipsNearFront) == false then
                         for iUnit, oUnit in tGunshipsNearFront do
@@ -9359,6 +9382,17 @@ function ManageGunships(iTeam, iAirSubteam)
             local oUnit =  toGunshipsToRetreatOrRefuel[iCurEntry]
             iCurPlateauOrZero, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
             if bDebugMessages == true then LOG(sFunctionRef..': Checking if oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' is closest gunship to rally for this zone, iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurZone='..(iCurZone or 'nil')) end
+            if not(iCurPlateauOrZero) or not(iCurZone) then
+                if oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] then
+                    iCurPlateauOrZero = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+                    iCurZone = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                    if bDebugMessages == true then LOG(sFunctionRef..'; Changed cur plateau adn zero to last recorded='..repru(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam])) end
+                elseif oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] then
+                    iCurPlateauOrZero = 0
+                    iCurZone = oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]
+                    if bDebugMessages == true then LOG(sFunctionRef..'; Changed cur plateau adn zero to last WZ recorded='..oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]) end
+                end
+            end
             if iCurPlateauOrZero and iCurZone then
                 iUnitDistToRally = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)
                 if bDebugMessages == true then LOG(sFunctionRef..': iUnitDistToRally='..iUnitDistToRally..'; tGunshipZoneDetailsByPlateauAndZone[iCurPlateauOrZero][iCurZone][subrefClosestDistToRally]='..(tGunshipZoneDetailsByPlateauAndZone[iCurPlateauOrZero][iCurZone][subrefClosestDistToRally] or 'nil')..'; iRallyLandOrWaterZone='..iRallyLandOrWaterZone..'; iRallyPlateauOrZero='..iRallyPlateauOrZero) end
@@ -9689,7 +9723,7 @@ function UpdateScoutingShortlist(iTeam)
             for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
                 if tLZData[M28Map.subrefLZOrWZMexCount] > 0 or tLZData[M28Map.subrefLZTotalSegmentCount] >= iMinSegmentsWantedForMexFreeZones then
                     local tLZOrWZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                    iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts] ^ 3
+                    iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + math.pow(tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts], 2)
                     if tLZOrWZTeamData[M28Map.refiRadarCoverage] >= 40 then iIntervalWanted = iIntervalWanted * iRadarFactor end
                     iAmountOverIntervalWanted = GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) - iIntervalWanted
                     iLongestOverdueScoutingTarget = math.max(iLongestOverdueScoutingTarget, iAmountOverIntervalWanted)
@@ -9715,7 +9749,7 @@ function UpdateScoutingShortlist(iTeam)
         for iPond, tPondSubtable in M28Map.tPondDetails do
             for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
                 local tLZOrWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts] ^ 3
+                iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + math.pow(tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts], 2)
                 if tLZOrWZTeamData[M28Map.refiRadarCoverage] >= 50 then iIntervalWanted = iIntervalWanted * iRadarFactor end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering iWaterZone='..iWaterZone..'; tLZOrWZTeamData[M28Map.refiTimeLastHadVisual]='..(tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 'nil')..'; Time since last had visula='..GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0)..'; iIntervalWanted='..iIntervalWanted) end
                 if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) > iIntervalWanted then
@@ -12444,14 +12478,18 @@ function GetNovaxTarget(aiBrain, oNovax)
                             iCurValue = iCurValue * 2
                         end
                     end
-                    --v317 - assume will take 1s as basic patch for revent novax nerf
-                    iTimeToKillTarget = math.max(1, (oUnit:GetHealth() + iCurShield + math.min(iMaxShield - iCurShield, iTimeToTarget * iCurDPSMod)) / math.max(0.001, iDPS - iCurDPSMod))
+                    --v317 - assume will take 1s as basic patch for revent novax nerf (v323 increased from 1s to 3s)
+                    iTimeToKillTarget = math.max(2.5, (oUnit:GetHealth() + iCurShield + math.min(iMaxShield - iCurShield, iTimeToTarget * iCurDPSMod)) / math.max(0.001, iDPS - iCurDPSMod))
                     if iMaxShield == 0 and not (EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then
                         --If target is already in firing range then prioritise low health units; if its outside firing range then instead prioritise higher health units (that are worth a detour to kill)
                         if iTimeToTarget > 0 then
                             iCurValue = iCurValue * math.max(M28UnitInfo.GetUnitHealthPercent(oUnit), 0.25)
                         elseif oUnit:GetMaxHealth() >= 600 then
                             iCurValue = iCurValue * (1 + 0.2 * (1-M28UnitInfo.GetUnitHealthPercent(oUnit)))
+                        end
+                        --v323 - further change so if target max health is low and it doesnt have a shield, then lower value so we prioritise higher total health units (while still prioritising those almost dead), with exception of volatile units like energy storage and mass fabs
+                        if oUnit:GetMaxHealth() <= 1200 and not(oUnitBP.Defense.Shield) and not(EntityCategoryContains(categories.VOLATILE, oUnit.UnitId)) then
+                            iCurValue = iCurValue * 0.5
                         end
                     end
 
@@ -13918,8 +13956,13 @@ end
 function AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam, bReferToGEStratSnipe)
     --Checks if we have any asfs or swifties in tAvailableAirAA, and if so assigns them to target enemy strats
     --if bReferToGEStratSnipe is true then will target strats around refoEnemyStratSnipingGETemplate, otherwise will target toBomberSuicideTargets
-    local toASFs = EntityCategoryFilterDown(categories.TECH2 + categories.TECH3, tAvailableAirAA)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AssignASFsToEnemyStrats'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+    local toASFs = EntityCategoryFilterDown(categories.TECH2 + categories.TECH3, tAvailableAirAA)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, is toASFs empty='..tostring(M28Utilities.IsTableEmpty(toASFs))) end
     if M28Utilities.IsTableEmpty(toASFs) == false then
         --For simplicity will just consider the closest enemy strat (since we will be running this logic every second if we have more available asfs)
         local oClosestStratToRallyPoint
@@ -13956,21 +13999,27 @@ function AssignASFsToEnemyStrats(tAvailableAirAA, iTeam, iAirSubteam, bReferToGE
             end
         end
 
-
+        if bDebugMessages == true then LOG(sFunctionRef..': oClosestStratToRallyPoint='..(oClosestStratToRallyPoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestStratToRallyPoint) or 'nil')..'; refiAssignedSuicideASF='..(oClosestStratToRallyPoint[refiAssignedSuicideASF] or 'nil')..'; oClosest2='..(oClosest2.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosest2) or 'nil')..'; oClosest1='..(oClosest1.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosest1) or 'nil')) end
+        local iRemovedCount
         if oClosestStratToRallyPoint[refiAssignedSuicideASF] < 1 and oClosest2 then
             --Assign both asfs
+            if bDebugMessages == true then LOG(sFunctionRef..': Will assign the closest 2 asfs to the strat') end
             ForkThread(SuicideASFIntoStrat, oClosestStratToRallyPoint, oClosest1, nil, bReferToGEStratSnipe)
             ForkThread(SuicideASFIntoStrat, oClosestStratToRallyPoint, oClosest2, nil, bReferToGEStratSnipe)
-            for iUnit, oUnit in tAvailableAirAA do
-                if oUnit == oClosest1 or oUnit == oClosest2 then
-                    table.remove(tAvailableAirAA, iUnit)
+            for iCurUnit = table.getn(tAvailableAirAA), 1, -1 do
+                if tAvailableAirAA[iCurUnit] == oClosest1 or tAvailableAirAA[iCurUnit] == oClosest2 then
+                    iRemovedCount = (iRemovedCount or 0) + 1
+                    table.remove(tAvailableAirAA, iCurUnit)
+                    if iRemovedCount >= 2 then break end
                 end
             end
         else
+            if bDebugMessages == true then LOG(sFunctionRef..': will just assign the closest asf to suicide into the strat') end
             ForkThread(SuicideASFIntoStrat, oClosestStratToRallyPoint, oClosest1, nil, bReferToGEStratSnipe)
             for iUnit, oUnit in tAvailableAirAA do
                 if oUnit == oClosest1 then
                     table.remove(tAvailableAirAA, iUnit)
+                    break
                 end
             end
         end
@@ -14003,13 +14052,25 @@ function SuicideASFIntoStrat(oStrat, oASF, bNoLimitOnASFToAssign, bTargetingSnip
             end
         end
         --Move into range
-        while M28Utilities.GetDistanceBetweenPositions(oStrat:GetPosition(), oASF:GetPosition()) > 30 do
-            if bDebugMessages == true then LOG(sFunctionRef..': Will try and move asf '..oASF.UnitId..M28UnitInfo.GetUnitLifetimeCount(oASF)..' into position as are far away from the strat '..oStrat.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStrat)) end
-            M28Orders.IssueTrackedMove(oASF, oStrat:GetPosition(), 10, false, 'SuicM', true)
+        local iCurDistToStrat = M28Utilities.GetDistanceBetweenPositions(oStrat:GetPosition(), oASF:GetPosition())
+        while iCurDistToStrat > 30 do
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToStrat='..iCurDistToStrat..'; Strat speed='..M28UnitInfo.GetUnitSpeed(oStrat)..'; strat='..oStrat.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStrat)..'; Time='..GetGameTimeSeconds()) end
+            if iCurDistToStrat <= 125 or M28UnitInfo.GetUnitSpeed(oStrat) <= 5 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try and move asf '..oASF.UnitId..M28UnitInfo.GetUnitLifetimeCount(oASF)..' into position as are far away from the strat '..oStrat.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStrat)) end
+                M28Orders.IssueTrackedMove(oASF, oStrat:GetPosition(), 10, false, 'SuicM', true)
+            else
+                local tStratEstimatedTarget = M28Utilities.MoveInDirection(oStrat:GetPosition(), M28UnitInfo.GetUnitFacingAngle(oStrat), math.min(250, iCurDistToStrat), true, false, M28Map.bIsCampaignMap)
+                if M28Utilities.IsTableEmpty(tStratEstimatedTarget) == false then
+                    M28Orders.IssueTrackedMove(oASF, tStratEstimatedTarget, 5, false, 'SuicI', true)
+                else
+                    M28Orders.IssueTrackedMove(oASF, oStrat:GetPosition(), 10, false, 'SuicM2', true)
+                end
+            end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(1)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             if not(M28UnitInfo.IsUnitValid(oStrat)) or not(M28UnitInfo.IsUnitValid(oASF)) then break end
+            iCurDistToStrat = M28Utilities.GetDistanceBetweenPositions(oStrat:GetPosition(), oASF:GetPosition())
         end
         --Issue attack, and dont stop until either asf or strat is dead
         while M28UnitInfo.IsUnitValid(oStrat) and M28UnitInfo.IsUnitValid(oASF) do
@@ -15312,19 +15373,38 @@ function MonitorForEnemySnipeOfGameEnderTemplate(oBrain)
             M28Team.tAirSubteamData[iAirSubteam][M28Team.refoEnemyStratSnipingGETemplate] = nil
             local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
             if iLongCycleCurCount >= 10 then --Every 10s do check of GE templates
-                iLongCycleCurCount = 0
                 ttGameEnderLocationsToMonitorForSnipe = nil
                 --record any GE templates with significant mass value as locations we want to protect
-                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]) == false and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 20000 then
-                    for iEntry, tTemplateTable in M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates] do
-                        if M28Utilities.IsTableEmpty(tTemplateTable[M28Map.subrefGEArtiUnits]) == false then
-                            iCurTemplateMassValue = 0
-                            for iUnit, oUnit in tTemplateTable[M28Map.subrefGEArtiUnits] do
-                                if not(oUnit.Dead) then iCurTemplateMassValue = iCurTemplateMassValue + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete() end
+                if bDebugMessages == true then LOG(sFunctionRef..': Doing long cycle update, checking if enemy air to ground threat enough to look for snipe attempts, refiEnemyAirToGroundThreat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) end
+                if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 14000 then --8 UEF strats is 14k mass and has 24.8k strike damage, which is enough to take out a t3 shield and t3 arti depending on faction
+                    iLongCycleCurCount = 0
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]) == false then
+                        for iEntry, tTemplateTable in M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates] do
+                            if M28Utilities.IsTableEmpty(tTemplateTable[M28Map.subrefGEArtiUnits]) == false then
+                                iCurTemplateMassValue = 0
+                                for iUnit, oUnit in tTemplateTable[M28Map.subrefGEArtiUnits] do
+                                    if not(oUnit.Dead) then iCurTemplateMassValue = iCurTemplateMassValue + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete() end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering template iEntry='..iEntry..'; iCurTemplateMassValue='..iCurTemplateMassValue) end
+                                if iCurTemplateMassValue >= 68000 then
+                                    if not(ttGameEnderLocationsToMonitorForSnipe) then ttGameEnderLocationsToMonitorForSnipe = {} end
+                                    table.insert(ttGameEnderLocationsToMonitorForSnipe, {tTemplateTable[M28Map.subrefGEMidpoint][1], tTemplateTable[M28Map.subrefGEMidpoint][2], tTemplateTable[M28Map.subrefGEMidpoint][3]})
+                                end
                             end
-                            if iCurTemplateMassValue >= 68000 then
-                                if not(ttGameEnderLocationsToMonitorForSnipe) then ttGameEnderLocationsToMonitorForSnipe = {} end
-                                table.insert(ttGameEnderLocationsToMonitorForSnipe, {tTemplateTable[M28Map.subrefGEMidpoint][1], tTemplateTable[M28Map.subrefGEMidpoint][2], tTemplateTable[M28Map.subrefGEMidpoint][3]})
+                        end
+                    end
+                    --Check t3 arti not in GE tempalte
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        local tFriendlyUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder, false, true)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is tFriendlyUnits empty for oBrain='..oBrain.Nickname..'='..tostring(M28Utilities.IsTableEmpty(tFriendlyUnits))) end
+                        if M28Utilities.IsTableEmpty(tFriendlyUnits) == false then
+                            for iUnit, oUnit in tFriendlyUnits do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have t3 arti, checking if part of GE template, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[M28Building.reftArtiTemplateRefs]='..repru(oUnit[M28Building.reftArtiTemplateRefs])) end
+                                if not(oUnit[M28Building.reftArtiTemplateRefs]) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will add arti to location of GE locations to monitor for snipe') end
+                                    if not(ttGameEnderLocationsToMonitorForSnipe) then ttGameEnderLocationsToMonitorForSnipe = {} end
+                                    table.insert(ttGameEnderLocationsToMonitorForSnipe, oUnit:GetPosition())
+                                end
                             end
                         end
                     end
@@ -15337,12 +15417,34 @@ function MonitorForEnemySnipeOfGameEnderTemplate(oBrain)
                 if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyT3Bombers empty='..tostring(M28Utilities.IsTableEmpty(tEnemyT3Bombers))) end
                 if M28Utilities.IsTableEmpty(tEnemyT3Bombers) == false then
                     local oClosestEnemyBomberToAirSupportPoint
-                    local iClosestBomberDist = 400 --Ignore bombers further from our support point than this
+                    local iClosestBomberDist = 500 --Ignore bombers further from our support point than this
                     local iCurDist
                     local tSupportPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirAsfSupportPoint]
+                    local tNearestFriendlyBase
+                    local iSupportPlateau, iSupportZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tSupportPoint)
+                    if iSupportPlateau and iSupportZone then
+                        local tSupportLZOrWZTeamData
+                        if iSupportPlateau == 0 then
+                            tSupportLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iSupportZone]][M28Map.subrefPondWaterZones][iSupportZone][M28Map.subrefWZTeamData][iTeam]
+                            tNearestFriendlyBase = tSupportLZOrWZTeamData[M28Map.reftClosestFriendlyBase]
+                        else
+                            tSupportLZOrWZTeamData = M28Map.tAllPlateaus[iSupportPlateau][M28Map.subrefPlateauLandZones][iSupportZone][M28Map.subrefLZTeamData][iTeam]
+                            tNearestFriendlyBase = tSupportLZOrWZTeamData[M28Map.reftClosestFriendlyBase]
+                        end
+                        if (tSupportLZOrWZTeamData[M28Map.refiModDistancePercent] or 0) > 0.4 then
+                            iClosestBomberDist = math.max(iClosestBomberDist, math.min(0.8, math.max(0.1 + tSupportLZOrWZTeamData[M28Map.refiModDistancePercent])) * math.max(M28Map.rMapPlayableArea[3] - M28Map.rMapPlayableArea[1], M28Map.rMapPlayableArea[4] - M28Map.rMapPlayableArea[2]))
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iClosestBomberDist max value wanted='..iClosestBomberDist..'; tSupportLZOrWZTeamData[M28Map.refiModDistancePercent]='..(tSupportLZOrWZTeamData[M28Map.refiModDistancePercent] or 'nil')) end
+                    end
                     for iBomber, oBomber in tEnemyT3Bombers do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; refiAssignedSuicideASF='..(oBomber[refiAssignedSuicideASF] or 'nil')) end
                         if not(oBomber.Dead) and (oBomber[refiAssignedSuicideASF] or 0) < 2 then
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tSupportPoint)
+
+                            if not(oClosestEnemyBomberToAirSupportPoint) and tNearestFriendlyBase then
+                                iCurDist = math.min(M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tSupportPoint), M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tNearestFriendlyBase))
+                            else
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tSupportPoint)
+                            end
                             if iCurDist < iClosestBomberDist and M28UnitInfo.GetUnitSpeed(oBomber) >= 10 then
                                 --Check we either can see bomber, or it's not too far from when we last knew where it was
                                 if bDebugMessages == true then LOG(sFunctionRef..': Identifying closest enemy bomber, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; iCurDist='..iCurDist..'; DIst to last known position='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), (oBomber[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or {-100, 0, -100}))..'; Can see bomber='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oBomber, false))) end
@@ -15350,24 +15452,48 @@ function MonitorForEnemySnipeOfGameEnderTemplate(oBrain)
                                     iClosestBomberDist = iCurDist
                                     oClosestEnemyBomberToAirSupportPoint = oBomber
                                 end
-                            elseif iCurDist < iClosestBomberDist then LOG(sFunctionRef..': Ignoring bomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' as it is going too slow, speed='..M28UnitInfo.GetUnitSpeed(oBomber))
+                            elseif bDebugMessages == true then
+                                if iCurDist < iClosestBomberDist then LOG(sFunctionRef..': Ignoring bomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' as it is going too slow, speed='..M28UnitInfo.GetUnitSpeed(oBomber))
+                                else LOG(sFunctionRef..'; Ignoring bomber as too far away, iCurDist='..iCurDist)
+                                end
                             end
                         elseif bDebugMessages == true then LOG(sFunctionRef..': Ignoring oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' as it is either dead or we have suicided into it already, refiAssignedSuicideASF='..(oBomber[refiAssignedSuicideASF] or 'nil'))
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyBomberToAirSupportPoint='..(oClosestEnemyBomberToAirSupportPoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyBomberToAirSupportPoint) or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyBomberToAirSupportPoint='..(oClosestEnemyBomberToAirSupportPoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyBomberToAirSupportPoint) or 'nil')..'; tNearestFriendlyBase='..repru(tNearestFriendlyBase)) end
                     if oClosestEnemyBomberToAirSupportPoint then
                         local iBomberFacingAngle = M28UnitInfo.GetUnitFacingAngle(oClosestEnemyBomberToAirSupportPoint)
                         local iAngleToTemplate
                         local bTargetBomber
+                        local iMaxDistToGETemplate = 300
+                        local iAngleDif
+                        local bBomberIsCloserToGETemplateThanAirSupport = false
+                        if tNearestFriendlyBase then
+                            iMaxDistToGETemplate = math.max(iMaxDistToGETemplate, M28Utilities.GetDistanceBetweenPositions(tSupportPoint, tNearestFriendlyBase))
+                            local iDistToFriendlyBase
+                            --If bomber is closer to all our GE template locations than the air support point then want to be more aggressive
+                            for _, tGEMidpoint in ttGameEnderLocationsToMonitorForSnipe do
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oClosestEnemyBomberToAirSupportPoint:GetPosition(), tGEMidpoint)
+                                iDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(tSupportPoint, tGEMidpoint)
+                                if iCurDist < iDistToFriendlyBase then
+                                    bBomberIsCloserToGETemplateThanAirSupport = true
+                                else
+                                    bBomberIsCloserToGETemplateThanAirSupport = false
+                                    break
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dist from support point to friendly base='..M28Utilities.GetDistanceBetweenPositions(tSupportPoint, tNearestFriendlyBase)..'; bBomberIsCloserToGETemplateThanAirSupport='..tostring(bBomberIsCloserToGETemplateThanAirSupport or false)) end
+                        end
+
                         for _, tGEMidpoint in ttGameEnderLocationsToMonitorForSnipe do
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oClosestEnemyBomberToAirSupportPoint:GetPosition(), tGEMidpoint)
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDist to GETemplate='..iCurDist..'; iClosestBomberDist (to support point)='..iClosestBomberDist) end
-                            if iCurDist <= 300 then --tried with <=250 dist threshold but still struggled to stop strats in time
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDist to GETemplate='..iCurDist..'; iClosestBomberDist (to support point)='..iClosestBomberDist..'; iMaxDistToGETemplate='..iMaxDistToGETemplate) end
+                            if iCurDist <= iMaxDistToGETemplate then --tried with <=250 dist threshold but still struggled to stop strats in time
                                 --Is bomberh eading towards here?
                                 iAngleToTemplate = M28Utilities.GetAngleFromAToB(oClosestEnemyBomberToAirSupportPoint:GetPosition(), tGEMidpoint)
-                                if bDebugMessages == true then LOG(sFunctionRef..': iBomberFacingAngle='..iBomberFacingAngle..'; iAngleToTemplate='..iAngleToTemplate) end
-                                if iCurDist <= 125 or M28Utilities.GetAngleDifference(iAngleToTemplate, iBomberFacingAngle) <= 10 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': iBomberFacingAngle='..iBomberFacingAngle..'; iAngleToTemplate='..iAngleToTemplate..'; Angle difference (iAngleDif updated to this if dist too far)='..M28Utilities.GetAngleDifference(iAngleToTemplate, iBomberFacingAngle)..'; bBomberIsCloserToGETemplateThanAirSupport='..tostring(bBomberIsCloserToGETemplateThanAirSupport or false)) end
+                                if iCurDist > 175 then iAngleDif = M28Utilities.GetAngleDifference(iAngleToTemplate, iBomberFacingAngle) end
+                                if iCurDist <= 175 or iAngleDif <= 18 or (iAngleDif <= 28 and iCurDist <= 275) or (iCurDist <= 375 and iAngleDif <= 25 and bBomberIsCloserToGETemplateThanAirSupport) then
                                     --Bomber likely heading to snipe our GE template; dont want to suicide asfs if bomber not yet fairly close though if there's significant nearby enemy AA
                                     bTargetBomber = false
                                     if iCurDist <= 175 then bTargetBomber = true

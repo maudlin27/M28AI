@@ -128,7 +128,7 @@ function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
                     if bDebugMessages == true then LOG(sFunctionRef..': iLoopCount='..iLoopCount..'; iTempAngleDirectionToMove='..iTempAngleDirectionToMove..'; iInitialAngleAdj='..iInitialAngleAdj..'; iAngleAdjFactor='..iAngleAdjFactor..'; iCurFacingDirection='..iCurFacingDirection..'; iFacingAngleWanted='..iFacingAngleWanted) end
 
 
-                    iTempDistanceAwayToMove = iTempDistanceAwayToMove + iDistanceIncreasePerCycle * iDistanceIncreasePerCycle * (iDistanceIncreaseCompoundFactor ^ iLoopCount - 1)
+                    iTempDistanceAwayToMove = iTempDistanceAwayToMove + iDistanceIncreasePerCycle * iDistanceIncreasePerCycle * (math.pow(iDistanceIncreaseCompoundFactor, iLoopCount - 1))
                     tTempLocationToMove = M28Utilities.MoveInDirection(oUnit:GetPosition(), iTempAngleDirectionToMove, iTempDistanceAwayToMove, true, false, true)
                     M28Orders.IssueTrackedMove(oUnit, tTempLocationToMove, 0.25, true, 'TempMA', true)
                     if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order to tTempLocationToMove='..repru(tTempLocationToMove)..'; iTempAngleDirectionToMove='..iTempAngleDirectionToMove) end
@@ -1993,9 +1993,9 @@ function MoveAwayFromFactory(oUnit, oEngineerOrFactory)
                     end
                     local iMicroDelay = 1.5
                     if EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oFactory.UnitId) then iMicroDelay = 4 --done as when was 1.5 would have RAS SACUs given new orders like GE template just after being built and getting stuck
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) and EntityCategoryContains(M28UnitInfo.categories.TECH3 * M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) then iMicroDelay = 4
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) and EntityCategoryContains(categories.TECH3 * M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) then iMicroDelay = 4
                     end
-                    TrackTemporaryUnitMicro(oUnit, 1.5)
+                    TrackTemporaryUnitMicro(oUnit, iMicroDelay)
                 end
 
             end
