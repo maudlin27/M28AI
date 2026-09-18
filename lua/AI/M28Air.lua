@@ -15359,7 +15359,7 @@ end
 
 function MonitorForEnemySnipeOfGameEnderTemplate(oBrain)
     local iAirSubteam = oBrain.M28AirSubteam
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'MonitorForEnemySnipeOfGameEnderTemplate'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, will call unless refbActiveEnemyStratSnipeMonitor already active, refbActiveEnemyStratSnipeMonitor='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbActiveEnemyStratSnipeMonitor] or false)) end
