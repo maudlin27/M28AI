@@ -11663,7 +11663,7 @@ end--]]
                             iExtraEngisWanted = math.min(5 - iTechLevel, math.max(1, 4 / iBuildRate) - iEngisHave, math.max(0, iExtraEngisWanted - iEngisHave), iEngiRemainingCapacity)
                             --Reduce extra engis wanted if we have been waiting a while
                             if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have been waiting a while, in which case do we want to reduce engineers wnated, time spent waiting='..(oUnit[refiTransportTimeSpentWaiting] or 'nil')..'; iEngisHave='..iEngisHave..'; iExtraEngisWanted pre adjust='..iExtraEngisWanted..'; Dist to zone midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])) end
-                            if (oUnit[refiTransportTimeSpentWaiting] or 0) >= 30 and iEngisHave >= 1 and iEngisHave >= iExtraEngisWanted then
+                            if (oUnit[refiTransportTimeSpentWaiting] or 0) >= 30 and iEngisHave >= 1 and (iEngisHave >= iExtraEngisWanted or oUnit[refiTransportTimeSpentWaiting] >= 90) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Time spent waiting >= 30 so dont want more engineers') end
                                 iExtraEngisWanted = 0
                             elseif iEngisHave >= 2 then
