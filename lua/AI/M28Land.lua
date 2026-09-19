@@ -15075,8 +15075,11 @@ function ManageRaidersInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZon
                 end
             end
             if bRaiderMovingOn then
-                --Move to target zone unless we are already there
-                if oRaider[refiRaidingTargetZone] == iLandZone then
+                --Move to target zone unless we are already there or have special micro active
+                if bDebugMessages == true then LOG(sFunctionRef..': Raider will move to target zone, base iPlateau='..iPlateau..'; iLandZOne='..iLandZone..'; oRaider='..oRaider.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRaider)..'; oRaider[refiRaidingTargetZone]='..(oRaider[refiRaidingTargetZone] or 'nil')..'; is target LZData nil='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][oRaider[refiRaidingTargetZone]] == nil)..'; refbSpecialMicroActive='..tostring(oRaider[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                if oRaider[M28UnitInfo.refbSpecialMicroActive] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Wont give new orders due to special micro') end
+                elseif oRaider[refiRaidingTargetZone] == iLandZone then
                     --Reassess where to raid
                     GetRaidingZoneTarget(iPlateau, iLandZone, iTeam, oRaider[M28UnitInfo.refiCombatRange] - 3)
                     if (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 0) > 0 then
@@ -15086,8 +15089,22 @@ function ManageRaidersInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZon
                         ClearUnitRaiderStatus(oRaider, iTeam)
                     end
                 else
-                    local tTargetZoneLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][oRaider[refiRaidingTargetZone]]
-                    M28Orders.IssueTrackedAttackMove(oRaider, tTargetZoneLZData[M28Map.subrefMidpoint], 3, false, 'RaidMvLZ'..oRaider[refiRaidingTargetZone], false)
+                    local tRaidingTargetMidpoint = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][oRaider[refiRaidingTargetZone]][M28Map.subrefMidpoint]
+
+                    if not(tRaidingTargetMidpoint) then
+                        --Once cause - raider has moved onto cliff and its plateau is showing as different to what would expect
+                        if bDebugMessages == true then LOG(sFunctionRef..': Error, dont have a midpoint, if raider plateau previously changed then will try that old plateau, otherwise will go to closest enemy base, oRaider[M28UnitInfo.refiOwnerPreviousPlateauIfChanged]='..(oRaider[M28UnitInfo.refiOwnerPreviousPlateauIfChanged] or 'nil')) end
+                        if oRaider[M28UnitInfo.refiOwnerPreviousPlateauIfChanged] then
+                            tRaidingTargetMidpoint = M28Map.tAllPlateaus[oRaider[M28UnitInfo.refiOwnerPreviousPlateauIfChanged]][M28Map.subrefPlateauLandZones][oRaider[refiRaidingTargetZone]][M28Map.subrefMidpoint]
+                        end
+                        if not(tRaidingTargetMidpoint) then
+                            --Go for nearest enemy base as redundancy
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will target closest enemy base') end
+                            tRaidingTargetMidpoint = tLZTeamData[M28Map.reftClosestEnemyBase]
+                        end
+                    else
+                        M28Orders.IssueTrackedAttackMove(oRaider, tRaidingTargetMidpoint, 3, false, 'RaidMvLZ'..oRaider[refiRaidingTargetZone], false)
+                    end
                 end
             end
         end

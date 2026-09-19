@@ -1099,7 +1099,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
         local iPlateauRef = iPlateau
         local iLandZoneRef = iLandZone
         local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData]
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add unit to zone, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; is LZTeamData nil='..tostring(tLZTeamData == nil)..'; is oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] nil='..tostring(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] == nil)..'; Unit position='..repru(oUnit:GetPosition())) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add unit to zone, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; is LZTeamData nil='..tostring(tLZTeamData == nil)..'; is oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] nil='..tostring(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] == nil)..'; Unit position='..repru(oUnit:GetPosition())..'; oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])) end
         if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then
             oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {}
             if M28Utilities.IsTableEmpty(tLZTeamData) then
@@ -1113,6 +1113,14 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                 iPlateauRef = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][1]
                 iLandZoneRef = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][2]
                 tLZTeamData = M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData]
+            elseif not(iPlateau == oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][1]) and not(bIsEnemyAirUnit) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit is switching its plateau, if it is a non-air unit this is unlikely so will enable micro logic for a couple of seconds and ecord the previous plateau') end
+                if oUnit:GetAIBrain().M28Team == aiBrain.M28Team and not(EntityCategoryContains(M28UnitInfo.refCategoryAllAir, oUnit.UnitId)) and not(oUnit:IsUnitState('Attached')) and (not(oUnit[M28Air.refiTimeLastDropped]) or GetGameTimeSeconds() - oUnit[M28Air.refiTimeLastDropped] >= 20) then
+                    local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
+                    M28Micro.TrackTemporaryUnitMicro(oUnit, 2, nil, true)
+                    oUnit[M28UnitInfo.refiOwnerPreviousPlateauIfChanged] = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][1]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Changed refiOwnerPreviousPlateauIfChanged to record old iPlateau='..(oUnit[M28UnitInfo.refiOwnerPreviousPlateauIfChanged] or 'nil')) end
+                end
             end
         end
 
