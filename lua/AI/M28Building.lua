@@ -4649,7 +4649,10 @@ function JustBuiltParagon(oParagon)
                         end
                     end
                 end
-                if not(bGiftedParagonToOtherBrain) then
+                if not(bGiftedParagonToOtherBrain)
+                --Check not dealing with a human player with combined armies on (as dont want to gift a human player units whne they have built a paragon
+                    and not(aiBrain.BrainType == 'Human')
+                then
                     --Gift mexes, mass storage, half of our pgens and (if are getting near unit cap) combat units to another teammate; meanwhile have teammates gift mass using units (factories engineers, SACUs) to us
                     --SACUs lose upgrades on transfer!
                     local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
