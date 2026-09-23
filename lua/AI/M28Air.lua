@@ -7864,7 +7864,7 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget, oOptionalTarget)
     end
 
     local bConsiderAttackIfCloseToTarget
-    if oOptionalTarget and (M28Utilities.bLoudModActive or M28Utilities.bSteamActive) then --(QUIET meant to have fixed LOUD's issues with gunships not being able to fire at nearby units); Steam has issues similar to loud where gunsihps may not fire if not facing target
+    if oOptionalTarget and (M28Utilities.bLoudModActive or M28Utilities.bSteamActive or (tAvailableGunships[1].UnitId and tAvailableGunships[1]:GetAIBrain().M28SCTA)) then --(QUIET meant to have fixed LOUD's issues with gunships not being able to fire at nearby units); Steam has issues similar to loud where gunsihps may not fire if not facing target
         bConsiderAttackIfCloseToTarget = true
     end
 
