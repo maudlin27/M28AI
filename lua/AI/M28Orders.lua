@@ -1377,7 +1377,12 @@ function IssueTrackedTMLMissileLaunch(oUnit, tOrderPosition, iDistanceToReissueO
             if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
             oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueTMLMissile, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
-            IssueTactical({oUnit}, tOrderPosition)
+
+            if oUnit.UnitId == 'cortron' or oUnit.UnitId == 'armemp' then
+                IssueNuke({oUnit}, tOrderPosition)
+            else
+                IssueTactical({oUnit}, tOrderPosition)
+            end
 
             oUnit[M28Building.reftActiveNukeTarget] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}
         end
