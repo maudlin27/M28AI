@@ -57,6 +57,7 @@ refiLastDodgeBombEvent = 'M28LastDodB' --gametimeseconds that last triggered the
 reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
 reftRecentUnitPositions = 'M28RcUnP' --[x] = 1, 2, 3; based on previous recorded positions; used for TML targeting logic; note that this isnt by team to reduce tables required, since if have multiple M28 then only the first one will try and record this in MonitorUnitRecentPositions
 reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateau, iLandZoneRef}
+refiOwnerPreviousPlateauIfChanged = 'M28UPrPl' --if a non-air unit changes its assigned plateau for the team its owner is in, then the previous pleateau is recorded here as, unless it was dropped, it was likely an error
 reftRecentPlateauAndZoneByTeam = 'M28UnitPrvPlatZ' --[x] is the preceding entry, returns {iPlateauOrZero, iLandOrWaterZoneRef}; will keep track of the last 8 changes (used to realise if a unit is stuck alternating between the same 2 zones)
 refiPatrolStuckCount = 'M28UStCn' --number of times unit has been stuck patrolling
 refiNavalPathingStuckCountByZone = 'M28UStNvC' --[x] is starting water zone, number of times we have run the 'unit is stuck' logic

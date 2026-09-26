@@ -3518,6 +3518,7 @@ function OnTransportLoad(oUnit, oTransport, bone)
                 end
                 --Clear the last assigned unit
                 oTransport[M28Air.refoTransportUnitTryingToLoad] = nil
+                if oTransport[M28Air.refiTransportTimeSpentWaiting] then oTransport[M28Air.refiTransportTimeSpentWaiting] = math.max(0, oTransport[M28Air.refiTransportTimeSpentWaiting] - 15) end
                 --Clear any LZTeamData tracking
                 if oUnit[M28Air.reftCombatDropPlateauAndZone] then
                     local tLZData = M28Map.tAllPlateaus[oUnit[M28Air.reftCombatDropPlateauAndZone][1]][M28Map.subrefPlateauLandZones][oUnit[M28Air.reftCombatDropPlateauAndZone][2]]

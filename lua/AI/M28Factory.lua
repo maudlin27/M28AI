@@ -5130,6 +5130,16 @@ function SetPriorityPreferredUnitsByCategory(aiBrain)
 
         aiBrain[reftBlueprintPriorityOverride]['sel0324'] = -1000 --mobile omni (that also has AA so gets misused as an AA unit when
 
+        if aiBrain.M28SCTA then
+            aiBrain[reftBlueprintPriorityOverride]['corwin'] = 1 --wind turbine (instead of solar)
+            aiBrain[reftBlueprintPriorityOverride]['corsolar'] = 0
+            aiBrain[reftBlueprintPriorityOverride]['armwin'] = 1
+            aiBrain[reftBlueprintPriorityOverride]['armsolar'] = 0
+            --Mine layers:
+            aiBrain[reftBlueprintPriorityOverride]['armmlv'] = -1000
+            aiBrain[reftBlueprintPriorityOverride]['cormlv'] = -1000
+        end
+
         --AZ Orig LOUD unit mod suggestions (non-QUIET), and other LOUD adjustments
         if M28Utilities.bLoudModActive then
             aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = 1 --Thaams are stronger than protector bots per QUIET discord

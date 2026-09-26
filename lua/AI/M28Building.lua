@@ -448,11 +448,15 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
         end--]]
 
         local iTMLRange = math.max((oTML[M28UnitInfo.refiManualRange] or 0), (oTML[M28UnitInfo.refiIndirectRange] or 0))
-        if iTMLRange == 0 then iTMLRange = iTMLMissileRange end
-        --Increase range if mobile
         if EntityCategoryContains(categories.MOBILE, oTML.UnitId) then
+            iTMLRange = math.max(iTMLRange, (oTML[M28UnitInfo.refiDFRange] or 0))
+            if iTMLRange == 0 then iTMLRange = iTMLMissileRange end
+            --Increase range if mobile
             iTMLRange = iTMLRange + 10
+        else
+            if iTMLRange == 0 then iTMLRange = iTMLMissileRange end
         end
+
         --Increase range for aoe
         iTMLRange = iTMLRange + (oTML[M28UnitInfo.refiIndirectAOE] or 2)
         if bDebugMessages == true then LOG(sFunctionRef..': TMl range: Manual range='..(oTML[M28UnitInfo.refiManualRange] or 0)..'; IF range='..(oTML[M28UnitInfo.refiIndirectRange] or 0)..'; AOE='..(oTML[M28UnitInfo.refiIndirectAOE] or 2)..'; Is TML mobile='..tostring(EntityCategoryContains(categories.MOBILE, oTML.UnitId))..'; TML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)) end

@@ -7864,7 +7864,7 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget, oOptionalTarget)
     end
 
     local bConsiderAttackIfCloseToTarget
-    if oOptionalTarget and (M28Utilities.bLoudModActive or M28Utilities.bSteamActive) then --(QUIET meant to have fixed LOUD's issues with gunships not being able to fire at nearby units); Steam has issues similar to loud where gunsihps may not fire if not facing target
+    if oOptionalTarget and (M28Utilities.bLoudModActive or M28Utilities.bSteamActive or (tAvailableGunships[1].UnitId and tAvailableGunships[1]:GetAIBrain().M28SCTA)) then --(QUIET meant to have fixed LOUD's issues with gunships not being able to fire at nearby units); Steam has issues similar to loud where gunsihps may not fire if not facing target
         bConsiderAttackIfCloseToTarget = true
     end
 
@@ -11663,7 +11663,7 @@ end--]]
                             iExtraEngisWanted = math.min(5 - iTechLevel, math.max(1, 4 / iBuildRate) - iEngisHave, math.max(0, iExtraEngisWanted - iEngisHave), iEngiRemainingCapacity)
                             --Reduce extra engis wanted if we have been waiting a while
                             if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have been waiting a while, in which case do we want to reduce engineers wnated, time spent waiting='..(oUnit[refiTransportTimeSpentWaiting] or 'nil')..'; iEngisHave='..iEngisHave..'; iExtraEngisWanted pre adjust='..iExtraEngisWanted..'; Dist to zone midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])) end
-                            if (oUnit[refiTransportTimeSpentWaiting] or 0) >= 30 and iEngisHave >= 1 and iEngisHave >= iExtraEngisWanted then
+                            if (oUnit[refiTransportTimeSpentWaiting] or 0) >= 30 and iEngisHave >= 1 and (iEngisHave >= iExtraEngisWanted or oUnit[refiTransportTimeSpentWaiting] >= 90) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Time spent waiting >= 30 so dont want more engineers') end
                                 iExtraEngisWanted = 0
                             elseif iEngisHave >= 2 then
@@ -12011,7 +12011,7 @@ function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConside
                         end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Will consider dropping transport early, special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Dist to cur unload destination='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])..'; Last order detsination pre update='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; iClosestEnemyAirAA='..iClosestEnemyAirAA..'; Unit position='..repru(oUnit:GetPosition())..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; iAirAAWithinThresholdMassValue='..iAirAAWithinThresholdMassValue) end
-                    if iClosestEnemyAirAA <= 10 and (iAirAAWithinThresholdMassValue >= 100 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.7) then --i.e. air unit is 10 away from being in range of us (or less)
+                    if iClosestEnemyAirAA <= 10 and (iAirAAWithinThresholdMassValue >= 150 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.35 or (iAirAAWithinThresholdMassValue >= 100 and M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.55)) then --i.e. air unit is 10 away from being in range of us (or less)
                         --If combat drop then require us to be dropping on land
                         if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or not(M28Map.IsUnderwater({oUnit:GetPosition()[1], GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]), oUnit:GetPosition()[3]}))) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Dropping early as enemy has AirAA') end
