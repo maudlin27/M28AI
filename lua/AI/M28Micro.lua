@@ -2401,6 +2401,7 @@ function KeepUnitsAwayFromNukeOrTMLTarget(oProjectile, oLauncher, iTeam, bEnemyN
 
                                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and oUnit:IsUnitState('Upgrading') then
                                     oUnit[M28UnitInfo.refiRecentTMLTargetingUnit] = (oUnit[M28UnitInfo.refiRecentTMLTargetingUnit] or 0) + 1
+                                    M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refiRecentTMLTargetingUnit, -1, 10, nil, nil, nil, nil, true)
                                     if oUnit[M28UnitInfo.refiRecentTMLTargetingUnit] <= 1 and oUnit:GetMaxHealth() >= 7000 then
                                         if M28UnitInfo.IsUnitValid(oUnit[M28Land.refoAssignedMobileShield]) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[M28Land.refoAssignedMobileShield]:GetPosition()) <= oUnit[M28Land.refoAssignedMobileShield]:GetBlueprint().Defense.Shield.ShieldSize * 0.5 - 4 then
                                             bWantToDodge = false
