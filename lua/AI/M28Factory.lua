@@ -1310,7 +1310,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
-    if iFactoryTechLevel == 2 and aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then bDebugMessages = true end
+
 
     local iEngisInZone
     function GetEngiCountInZone()
