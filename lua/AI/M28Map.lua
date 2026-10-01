@@ -9457,14 +9457,23 @@ function GetNearestWaterToBuildNavalFactoryInPlayableArea(aiBrain, tStartPositio
                                         iCurHorizontalRightClearance = 0
                                         for iClearanceLeft = 2, 10, 2 do
                                             tPotentialHorizontalClearanceLocation = {tPossibleBuildLocation[1] - iClearanceLeft, 0, tPossibleBuildLocation[3]}
-                                            if aiBrain:CanBuildStructureAt('ueb0103', tPotentialHorizontalClearanceLocation) then
+                                            if aiBrain:CanBuildStructureAt('ueb0103', tPotentialHorizontalClearanceLocation)
+                                            --Check we can also build by half of thiz for each Z value
+                                            and aiBrain:CanBuildStructureAt('ueb0103', {tPotentialHorizontalClearanceLocation[1], 0, tPotentialHorizontalClearanceLocation[3] + iClearanceLeft * 0.5})
+                                                    and aiBrain:CanBuildStructureAt('ueb0103', {tPotentialHorizontalClearanceLocation[1], 0, tPotentialHorizontalClearanceLocation[3] - iClearanceLeft * 0.5})
+                                            then
+
                                                 iCurHorizontalLeftClearance = iClearanceLeft + 2 --assume that the naval fac build location can be pathed through
                                             end
                                         end
                                         if iCurHorizontalLeftClearance < 12 then
                                             for iClearanceRight = 2, 12, 2 do
                                                 tPotentialHorizontalClearanceLocation = {tPossibleBuildLocation[1] + iClearanceRight, 0, tPossibleBuildLocation[3]}
-                                                if aiBrain:CanBuildStructureAt('ueb0103', tPotentialHorizontalClearanceLocation) then
+                                                if aiBrain:CanBuildStructureAt('ueb0103', tPotentialHorizontalClearanceLocation)
+                                                        --Check we can also build by half of thiz for each Z value
+                                                    and aiBrain:CanBuildStructureAt('ueb0103', {tPotentialHorizontalClearanceLocation[1], 0, tPotentialHorizontalClearanceLocation[3] + iClearanceRight * 0.5})
+                                                    and aiBrain:CanBuildStructureAt('ueb0103', {tPotentialHorizontalClearanceLocation[1], 0, tPotentialHorizontalClearanceLocation[3] - iClearanceRight * 0.5})
+                                                then
                                                     iCurHorizontalRightClearance = iClearanceRight
                                                 end
                                             end
