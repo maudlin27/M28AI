@@ -44,6 +44,7 @@ refbActiveDelayedCheck = 'M28FAcDC' --true if we are running code to consider if
 refbPrimaryFactoryForIslandOrPond = 'M28FaPrim' --true if this is the primary factory for a zone that has a decent number of mexes (so it doesnt get paused in a mass stall)
 reftsFactoryEnhancementPreferences = 'M28FaPref' --false if no enhancements available or wanted, otherwise, contains a table of enhancement strings for a factory to try and get
 refsFactoryNextBlueprintOverride = 'M28FaOvrd' --If this is set, the factory will build this unit in place of normal logic
+refiNavalFactoryHorizontalClearance = 'M28NvFcCl' --Records horizontal distance where we can build things on water, and hence space for ships to go past; rough guide a naval fac built in an area 9 sams wide couldnt have t3 ships fit past it, so ideally would want a distance of 10 to one side or the other that can build buildings on, from top and bottom of factory
 
 --Variables against units (generally):
 refiTimeOfLastFacBlockOrder = 'M28FacBlkO' --Gametimeseconds that a unit was told to move (to try and unblock a factory), or that a factory checked for blocking units
@@ -7267,6 +7268,37 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 end
             end
 
+            --Dont upgrade naval fac if it has poor clearance and we have other factories with better clearance in an adjacent WZ
+
+            if not(oFactory[refiNavalFactoryHorizontalClearance]) then
+                oFactory[refiNavalFactoryHorizontalClearance] = GetNavalFactoryHorizontalClearance(oFactory)
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering upgrading naval factory, refiNavalFactoryHorizontalClearance='..oFactory[refiNavalFactoryHorizontalClearance]..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
+            if oFactory[refiNavalFactoryHorizontalClearance] < 12 then
+                --Do we have any HQs with better clearance?
+                local iSearchCategory
+                if iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestNavalFactoryTech] and EntityCategoryContains(M28UnitInfo.refCategoryNavalHQ, oFactory.UnitId) then
+                    iSearchCategory = M28UnitInfo.refCategoryNavalHQ
+                else
+                    iSearchCategory = M28UnitInfo.refCategoryNavalFactory
+                end
+                local tAllOurNavalFactories = aiBrain:GetListOfUnits(iSearchCategory, false, true)
+                if M28Utilities.IsTableEmpty(tAllOurNavalFactories) == false then
+                    for iOtherFactory, oOtherFactory in tAllOurNavalFactories do
+                        if not(oOtherFactory[refiNavalFactoryHorizontalClearance]) then oOtherFactory[refiNavalFactoryHorizontalClearance] = GetNavalFactoryHorizontalClearance(oOtherFactory) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Do we have worse clearance than oOtherFactory='..oOtherFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOtherFactory)..'? oOtherFactory[refiNavalFactoryHorizontalClearance]='..(oOtherFactory[refiNavalFactoryHorizontalClearance] or 'nil')..'; aiBrain[M28Economy.refiOurHighestNavalFactoryTech]='..aiBrain[M28Economy.refiOurHighestNavalFactoryTech]) end
+                        if oOtherFactory[refiNavalFactoryHorizontalClearance] > oFactory[refiNavalFactoryHorizontalClearance] then
+                            --Dont upgrade unless T1 and have decent naval clearance and not low mass
+                            if bHaveLowMass or bHaveLowPower or iFactoryTechLevel >= 2 or oFactory[refiNavalFactoryHorizontalClearance] <= 8 or iFactoryTechLevel == aiBrain[M28Economy.refiOurHighestNavalFactoryTech] then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Wont upgrade naval factory afterall as it has poor clearance') end
+                                return nil
+                            end
+                            break
+                        end
+                    end
+                end
+            end
+
 
             sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
             if sBPIDToBuild then M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) end
@@ -8056,6 +8088,42 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     oFactory[refiTimeSinceLastFailedToGetOrder] = GetGameTimeSeconds() --Redundancy, will also include in parent logic
     if tWZTeamData then tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] = GetGameTimeSeconds() end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetNavalFactoryHorizontalClearance(oFactory)
+    local sFunctionRef = 'GetNavalFactoryHorizontalClearance'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iBestClearance
+    local tBasePosition = oFactory:GetPosition()
+    local aiBrain = oFactory:GetAIBrain()
+    local iFactoryRadius = oFactory:GetBlueprint().Physics.SkirtSizeX * 0.5
+
+    for iXAdjust = 10, 2, -2 do
+        for iXFactor = -1, 1, 2 do
+            for iZAdjust = 4, -4, -8 do
+                --Can we build a T2 torp launcher here?
+                if aiBrain:CanBuildStructureAt('ueb2205', {tBasePosition[1] + (iXAdjust + iFactoryRadius) * iXFactor, 0, tBasePosition[3] + iZAdjust}) then
+                    if iZAdjust > 0 then
+                        --We can build both from top and bottom of naval fac
+                        if iXFactor < 0 then --increase clearance by 2 for naval build area
+                            iBestClearance = 2 + iXAdjust
+                        else iBestClearance = iXAdjust
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Found a clearance match so exiting code, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; iBestClearance='..(iBestClearance or 'nil')) end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return iBestClearance
+                    end
+                else
+                    break
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; iBestClearance='..(iBestClearance or 'nil')) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return (iBestClearance or 0)
 end
 
 function UpdateLastBuiltTracker(oFactory, sBlueprint)

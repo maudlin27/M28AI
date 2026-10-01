@@ -9429,6 +9429,10 @@ function GetNearestWaterToBuildNavalFactoryInPlayableArea(aiBrain, tStartPositio
     local iTerrainLabel
     local bHaveValidLocation = false
     local bDontCheckInPlayableArea = not(bCheckInPlayableArea)
+    local iBestHorizontalClearance = -1
+    local tBuildAreaWithPoorClearance, iCurHorizontalLeftClearance, iCurHorizontalRightClearance, iCurHorizontalClearance
+    local tPotentialHorizontalClearanceLocation
+    local bCurBuildAreaHasBetterClearanceToLeft
     for iDistToTravel = iDistInterval, iMaxSearch, iDistInterval do
         for iAngleAdjust = 0, 170, 10 do
             for iAngleFactor = -1, 1, 2 do
@@ -9448,13 +9452,43 @@ function GetNearestWaterToBuildNavalFactoryInPlayableArea(aiBrain, tStartPositio
                                         break
                                     end
                                     if aiBrain:CanBuildStructureAt('ueb0103', tPossibleBuildLocation) then
-                                        bHaveValidLocation = true
-                                        tNavalBuildArea = {tPossibleBuildLocation[1], tPossibleBuildLocation[2], tPossibleBuildLocation[3]}
-                                        if bDebugMessages == true then
-                                            LOG(sFunctionRef..': Have valid location='..repru(tPossibleBuildLocation)..'; will draw in white')
-                                            M28Utilities.DrawLocation(tPossibleBuildLocation, 1, 100, 2)
+                                        --Check the horizontal clearance on one side, as we dont want to block T3 ships - require a gap of at least 5 SAMs to the left, or 6 SAMs to the right
+                                        iCurHorizontalLeftClearance = 0
+                                        iCurHorizontalRightClearance = 0
+                                        for iClearanceLeft = 2, 10, 2 do
+                                            tPotentialHorizontalClearanceLocation = {tPossibleBuildLocation[1] - iClearanceLeft, 0, tPossibleBuildLocation[3]}
+                                            if aiBrain:CanBuildStructureAt('ueb0103', tPotentialHorizontalClearanceLocation) then
+                                                iCurHorizontalLeftClearance = iClearanceLeft + 2 --assume that the naval fac build location can be pathed through
+                                            end
                                         end
-                                        break
+                                        if iCurHorizontalLeftClearance < 12 then
+                                            for iClearanceRight = 2, 12, 2 do
+                                                tPotentialHorizontalClearanceLocation = {tPossibleBuildLocation[1] + iClearanceRight, 0, tPossibleBuildLocation[3]}
+                                                if aiBrain:CanBuildStructureAt('ueb0103', tPotentialHorizontalClearanceLocation) then
+                                                    iCurHorizontalRightClearance = iClearanceRight
+                                                end
+                                            end
+                                        end
+                                        iCurHorizontalClearance = math.max(iCurHorizontalLeftClearance, iCurHorizontalRightClearance)
+
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have somewhere we can build, iCurHorizontalLeftClearance='..iCurHorizontalLeftClearance..'; iCurHorizontalRightClearance='..iCurHorizontalRightClearance..'; iCurHorizontalClearance='..iCurHorizontalClearance) end
+                                        if iCurHorizontalClearance >= 12 then
+                                            bHaveValidLocation = true
+                                            tNavalBuildArea = {tPossibleBuildLocation[1], tPossibleBuildLocation[2], tPossibleBuildLocation[3]}
+                                            if bDebugMessages == true then
+                                                LOG(sFunctionRef..': Have valid location='..repru(tPossibleBuildLocation)..'; will draw in white')
+                                                M28Utilities.DrawLocation(tPossibleBuildLocation, 1, 100, 2)
+                                            end
+                                            break
+                                        elseif iCurHorizontalClearance > iBestHorizontalClearance then
+                                            tBuildAreaWithPoorClearance = {tPossibleBuildLocation[1], tPossibleBuildLocation[2], tPossibleBuildLocation[3]}
+                                            iBestHorizontalClearance = iCurHorizontalClearance
+                                            bCurBuildAreaHasBetterClearanceToLeft = iCurHorizontalRightClearance <= iCurHorizontalLeftClearance
+                                            if bDebugMessages == true then
+                                                LOG(sFunctionRef..': Have a location with poor clearance='..repru(tPossibleBuildLocation)..'; will draw in gold')
+                                                M28Utilities.DrawLocation(tPossibleBuildLocation, 4, 100, 2)
+                                            end
+                                        end
                                     else
                                         if bDebugMessages == true then
                                             LOG(sFunctionRef..': Have invalid location='..repru(tPossibleBuildLocation)..'; will draw in red')
@@ -9479,6 +9513,27 @@ function GetNearestWaterToBuildNavalFactoryInPlayableArea(aiBrain, tStartPositio
             if bHaveValidLocation then break end
         end
         if bHaveValidLocation then break end
+    end
+    if not(tNavalBuildArea) and tBuildAreaWithPoorClearance then
+        tNavalBuildArea = tBuildAreaWithPoorClearance
+        --Adjust build location to left or right to get best clearance
+        if bCurBuildAreaHasBetterClearanceToLeft then
+            for iXAdjust = iBestHorizontalClearance, 2, -2 do
+                if aiBrain:CanBuildStructureAt('ueb0103', {tNavalBuildArea[1] - iBestHorizontalClearance, 0, tNavalBuildArea[3]}) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Adjusting build area for horizontal clearance, moving to left iXAdjust='..iXAdjust) end
+                    tNavalBuildArea = {tNavalBuildArea[1] - iXAdjust, 0, tNavalBuildArea[3]}
+                    break
+                end
+            end
+        else
+            for iXAdjust = iBestHorizontalClearance, 2, -2 do
+                if aiBrain:CanBuildStructureAt('ueb0103', {tNavalBuildArea[1] + iBestHorizontalClearance, 0, tNavalBuildArea[3]}) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Adjusting build area for horizontal clearance, moving to right iXAdjust='..iXAdjust) end
+                    tNavalBuildArea = {tNavalBuildArea[1] + iXAdjust, 0, tNavalBuildArea[3]}
+                    break
+                end
+            end
+        end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, tNavalBuildArea='..repru(tNavalBuildArea)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
