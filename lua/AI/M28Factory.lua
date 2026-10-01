@@ -8099,7 +8099,7 @@ function GetNavalFactoryHorizontalClearance(oFactory)
     local tBasePosition = oFactory:GetPosition()
     local aiBrain = oFactory:GetAIBrain()
     local iFactoryRadius = oFactory:GetBlueprint().Physics.SkirtSizeX * 0.5
-
+    local bAreSeraphim = EntityCategoryContains(CATEGORIES.SERAPHIM, oFactory.UnitId)
     for iXAdjust = 10, 2, -2 do
         for iXFactor = -1, 1, 2 do
             for iZAdjust = 12, -12, -6 do
@@ -8108,13 +8108,15 @@ function GetNavalFactoryHorizontalClearance(oFactory)
                     if aiBrain:CanBuildStructureAt('ueb2205', {tBasePosition[1] + (iXAdjust + iFactoryRadius) * iXFactor, 0, tBasePosition[3] + iZAdjust}) then
                         if iZAdjust > 0 then
                             --We can build both from top and bottom of naval fac
-                            if iXFactor < 0 then --increase clearance by 2 for naval build area
+                            if bAreSeraphim and iXFactor > 0 then --increase clearance by 2 for naval build area; seraphim build to the right, others to the left
+                                iBestClearance = 2 + iXAdjust
+                            elseif not(bAreSeraphim) and iXFactor < 0 then
                                 iBestClearance = 2 + iXAdjust
                             else iBestClearance = iXAdjust
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Found a clearance match so exiting code, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; iBestClearance='..(iBestClearance or 'nil')) end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            return iBestClearance
+                                return iBestClearance
                         end
                     else
                         break

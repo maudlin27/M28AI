@@ -9433,6 +9433,7 @@ function GetNearestWaterToBuildNavalFactoryInPlayableArea(aiBrain, tStartPositio
     local tBuildAreaWithPoorClearance, iCurHorizontalLeftClearance, iCurHorizontalRightClearance, iCurHorizontalClearance
     local tPotentialHorizontalClearanceLocation
     local bCurBuildAreaHasBetterClearanceToLeft
+
     for iDistToTravel = iDistInterval, iMaxSearch, iDistInterval do
         for iAngleAdjust = 0, 170, 10 do
             for iAngleFactor = -1, 1, 2 do
@@ -9462,8 +9463,12 @@ function GetNearestWaterToBuildNavalFactoryInPlayableArea(aiBrain, tStartPositio
                                             and aiBrain:CanBuildStructureAt('ueb0103', {tPotentialHorizontalClearanceLocation[1], 0, tPotentialHorizontalClearanceLocation[3] + iClearanceLeft * 0.5})
                                                     and aiBrain:CanBuildStructureAt('ueb0103', {tPotentialHorizontalClearanceLocation[1], 0, tPotentialHorizontalClearanceLocation[3] - iClearanceLeft * 0.5})
                                             then
+                                                if aiBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then
+                                                    iCurHorizontalLeftClearance = iClearanceLeft --Seraphim units build to the right
+                                                else
+                                                    iCurHorizontalLeftClearance = iClearanceLeft + 2 --assume that the naval fac build location can be pathed through
 
-                                                iCurHorizontalLeftClearance = iClearanceLeft + 2 --assume that the naval fac build location can be pathed through
+                                                end
                                             end
                                         end
                                         if iCurHorizontalLeftClearance < 12 then
@@ -9474,7 +9479,12 @@ function GetNearestWaterToBuildNavalFactoryInPlayableArea(aiBrain, tStartPositio
                                                     and aiBrain:CanBuildStructureAt('ueb0103', {tPotentialHorizontalClearanceLocation[1], 0, tPotentialHorizontalClearanceLocation[3] + iClearanceRight * 0.5})
                                                     and aiBrain:CanBuildStructureAt('ueb0103', {tPotentialHorizontalClearanceLocation[1], 0, tPotentialHorizontalClearanceLocation[3] - iClearanceRight * 0.5})
                                                 then
-                                                    iCurHorizontalRightClearance = iClearanceRight
+                                                    if aiBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then
+                                                        iCurHorizontalLeftClearance = iClearanceRight + 2 --Seraphim units build to the right
+                                                    else
+                                                        iCurHorizontalRightClearance = iClearanceRight
+
+                                                    end
                                                 end
                                             end
                                         end
