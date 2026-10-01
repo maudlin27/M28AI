@@ -700,7 +700,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Wont dodge for sera destroyer as it has recently fired, but if time to impact is a while want to consider dodging in a moment, iTimeUntilImpact='..iTimeUntilImpact) end
                                     --Dont bother dodging if missile attack and we are moving away from it
                                     if iTimeUntilImpact >= 2.5 and not(M28UnitInfo.IsUnitUnderwater(oTarget)) then
-                                        --          ConsiderDelayedMissileDodge(oTarget, oAttackerForReferenceOnly, oWeapon, iTimeToDodge,                                              iTimeToWaitInSeconds, iDistanceFromOrigPositionToDodge)
+                                        --          ConsiderDelayedMissileDodge(oTarget, oLauncher, oWeapon, iTimeToDodge,                                              iTimeToWaitInSeconds, iDistanceFromOrigPositionToDodge)
                                         ForkThread(ConsiderDelayedMissileDodge, oTarget, oUnit,                     oWeapon, math.max(1, math.min(2, iTimeUntilImpact - 1.6)), 1 - math.max(0.5, GetGameTimeSeconds() - oTarget[M28UnitInfo.refiLastWeaponEvent] or 0), (oWeaponBP.DamageRadius or 0) + 2)
                                     end
                                 end
@@ -2374,6 +2374,7 @@ function KeepUnitsAwayFromNukeOrTMLTarget(oProjectile, oLauncher, iTeam, bEnemyN
             local iMoveDistance = iSearchArea + 15
             local bKeepInCampaignArea = M28Map.bIsCampaignMap
             local iAngleToTMLLauncher, iAngleDifToLauncher
+            local bWantToDodge = true
 
             while not(oProjectile:BeenDestroyed()) and not(aiBrain.M28IsDefeated)  do
                 --Every second check for friendly experimental, ACU, and T3 land units around the target area and have them move away
@@ -2385,6 +2386,7 @@ function KeepUnitsAwayFromNukeOrTMLTarget(oProjectile, oLauncher, iTeam, bEnemyN
                         if oUnit:GetAIBrain().M28AI and (not(oUnit[M28UnitInfo.refbEasyBrain]) or (not(bEnemyNuke) and EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId))) then
                             iAngleToUnit = M28Utilities.GetAngleFromAToB(tTarget, oUnit:GetPosition())
                             if bIsTML then
+                                bWantToDodge = true
                                 iAngleToTMLLauncher = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oLauncher:GetPosition())
                                 iAngleDifToLauncher = M28Utilities.GetAngleDifference(iAngleToUnit, iAngleToTMLLauncher)
                                 if bDebugMessages == true then LOG(sFunctionRef..': iAngleToTMLLauncher='..iAngleToTMLLauncher..'; iAngleDifToLauncher='..iAngleDifToLauncher) end
@@ -2395,10 +2397,35 @@ function KeepUnitsAwayFromNukeOrTMLTarget(oProjectile, oLauncher, iTeam, bEnemyN
                                         iAngleToUnit = iAngleToUnit - 15
                                     end
                                 end
+                                --ACU - dont dodge if upgrading and have TMD or mobile shield, and only 1 missile
+
+                                if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and oUnit:IsUnitState('Upgrading') then
+                                    oUnit[M28UnitInfo.refiRecentTMLTargetingUnit] = (oUnit[M28UnitInfo.refiRecentTMLTargetingUnit] or 0) + 1
+                                    M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refiRecentTMLTargetingUnit, -1, 10, nil, nil, nil, nil, true)
+                                    if oUnit[M28UnitInfo.refiRecentTMLTargetingUnit] <= 1 and oUnit:GetMaxHealth() >= 7000 then
+                                        if M28UnitInfo.IsUnitValid(oUnit[M28Land.refoAssignedMobileShield]) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[M28Land.refoAssignedMobileShield]:GetPosition()) <= oUnit[M28Land.refoAssignedMobileShield]:GetBlueprint().Defense.Shield.ShieldSize * 0.5 - 4 then
+                                            bWantToDodge = false
+                                        else
+                                            local tNearbyTMD = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oUnit:GetPosition(), 250, 'Ally')
+                                            if M28Utilities.IsTableEmpty(tNearbyTMD) == false then
+                                                for iTMD, oTMD in tNearbyTMD do
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': CHecking if oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' can protect ACU from oTML, oLauncher='..(oLauncher.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher) or 'nil')) end
+                                                    if M28Building.IsTMDProtectingUnitFromTML(oTMD, oUnit, oLauncher, nil, nil) then
+                                                        bWantToDodge = false
+                                                        break
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': bWantToDodge after checking if upgrading ACU has TMD or mobile shield protecting it='..tostring(bWantToDodge)) end
+                                end
                             end
-                            local tMoveAwayPoint = M28Utilities.MoveInDirection(tTarget, iAngleToUnit, iMoveDistance, true, false, bKeepInCampaignArea)
-                            M28Orders.IssueTrackedMove(oUnit, tMoveAwayPoint, 5, false, 'NukeDodge', true)
-                            TrackTemporaryUnitMicro(oUnit, 1)
+                            if bWantToDodge then
+                                local tMoveAwayPoint = M28Utilities.MoveInDirection(tTarget, iAngleToUnit, iMoveDistance, true, false, bKeepInCampaignArea)
+                                M28Orders.IssueTrackedMove(oUnit, tMoveAwayPoint, 5, false, 'NukeDodge', true)
+                                TrackTemporaryUnitMicro(oUnit, 1)
+                            end
                         end
                     end
                 end
@@ -3603,7 +3630,7 @@ function SuicideYthothaIntoEnemyBase(oUnit, tEnemyBaseToSuicideInto, iMaxDistFro
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ConsiderDelayedMissileDodge(oTarget, oAttackerForReferenceOnly, oWeapon, iTimeToDodge, iTimeToWaitInSeconds, iDistanceFromOrigPositionToDodge)
+function ConsiderDelayedMissileDodge(oTarget, oLauncher, oWeapon, iTimeToDodge, iTimeToWaitInSeconds, iDistanceFromOrigPositionToDodge)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderDelayedMissileDodge'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -3616,10 +3643,10 @@ function ConsiderDelayedMissileDodge(oTarget, oAttackerForReferenceOnly, oWeapon
             WaitSeconds(0.5)
             if bDebugMessages == true then LOG(sFunctionRef..': Havew aited another half second, refbSpecialMicroActive='..tostring(oTarget[M28UnitInfo.refbSpecialMicroActive] or false)) end
         end
-        if not(oTarget[M28UnitInfo.refbSpecialMicroActive]) then
+        if not(oTarget[M28UnitInfo.refbSpecialMicroActive]) and EntityCategoryContains(categories.MOBILE, oTarget.UnitId) then
             if M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), tPositionWhenConsideringDelay) <= iDistanceFromOrigPositionToDodge then
                 --DodgeShot(oTarget, oOptionalWeapon, oAttacker, iTimeToDodge)
-                DodgeShot(oTarget, oWeapon, oAttackerForReferenceOnly, iTimeToDodge)
+                DodgeShot(oTarget, oWeapon, oLauncher, iTimeToDodge)
             end
         end
     end
