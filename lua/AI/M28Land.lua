@@ -6462,7 +6462,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             if bDebugMessages == true then LOG(sFunctionRef..': Increasing enemy LR threat for long range building threat, tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]..'; iEnemyCombatThreat after increase='..iEnemyCombatThreat) end
                         end
                     end
-                    local tbZonesConsidered = {}
+                    local tbOtherZonesConsidered = {[iLandZone] = true}
                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                         if bDebugMessages == true then LOG(sFunctionRef..': Calculating enemy threat, iFirebaseThreatAdjust='..iFirebaseThreatAdjust) end
                         if iFirebaseThreatAdjust == 0 then
@@ -6493,9 +6493,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             bACUInCombatButProbablySafe = false
                             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                 if bHaveACUInTroubleAndRecentlyInCombat == nil then bHaveACUInTroubleAndRecentlyInCombat = false end --so we know we have considered this
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy threat in adjacent zone '..iAdjLZ..'; tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ]='..tostring(tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ] or false)..'; tbZonesConsidered[iAdjLZ]='..tostring(tbZonesConsidered[iAdjLZ] or false)) end
-                                if not(tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ]) and not(tbZonesConsidered[iAdjLZ]) then
-                                    tbZonesConsidered[iAdjLZ] = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy threat in adjacent zone '..iAdjLZ..'; tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ]='..tostring(tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ] or false)..'; tbOtherZonesConsidered[iAdjLZ]='..tostring(tbOtherZonesConsidered[iAdjLZ] or false)) end
+                                if not(tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ]) and not(tbOtherZonesConsidered[iAdjLZ]) then
+                                    tbOtherZonesConsidered[iAdjLZ] = true
                                     --If dealing with a core base or an ACU that is in combat then include friendly ACUs
                                     local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied ACUs empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefAlliedACU]))..'; tAdjLZTeamData[M28Map.refbACUInTrouble]='..tostring(tAdjLZTeamData[M28Map.refbACUInTrouble] or false)..'; Enemy mobile DF in AdjLZ='..(tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Is table of enemy DF units for AdjLZ empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftoNearestDFEnemies]))) end
@@ -6566,19 +6566,23 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     --Update for nearby plateaus with threats
                     if tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] then
                         for iEntry, tPlateauAndZone in tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] do
-                            if not(tbZonesConsidered[tPlateauAndZone[2]]) or not(tPlateauAndZone[1] == iPlateau) then --redundancy, in theory shoudlnt be possible for adjacent zone to be recorded as dangerous nearby zone
+                            if not(tbOtherZonesConsidered[tPlateauAndZone[2]]) or not(tPlateauAndZone[1] == iPlateau) then --redundancy, in theory shoudlnt be possible for adjacent zone to be recorded as dangerous nearby zone
                                 if tPlateauAndZone[1] == iPlateau then
-                                    tbZonesConsidered[tPlateauAndZone[2]] = true
+                                    tbOtherZonesConsidered[tPlateauAndZone[2]] = true
                                 end
                                 iEnemyCombatThreat = iEnemyCombatThreat + GetCombatThreatFromAdjacentZone(M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam], bAdjustStructureThreat)
                             end
                         end
                     end
                     --If not considered the zone the nearest enemy is in then update for this
-                    if oNearestEnemyToFriendlyBase and not(tbZonesConsidered[oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]]) and oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] then
+                    if oNearestEnemyToFriendlyBase and not(tbOtherZonesConsidered[oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]]) and oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                    and not(iLandZone == oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2])
+                    then
                         if bDebugMessages == true then LOG(sFunctionRef..': Increasing enemy combat threat as nearest enemy isnt in a zone we have considered, iEnemyCombatThreat before adjustment='..iEnemyCombatThreat) end
-                        if not(tbZonesConsidered) then tbZonesConsidered = {} end
-                        tbZonesConsidered[oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]] = true
+                        if not(tbOtherZonesConsidered) then
+                            tbOtherZonesConsidered = {[iLandZone] = true}
+                        end
+                        tbOtherZonesConsidered[oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]] = true
                         iEnemyCombatThreat = iEnemyCombatThreat + GetCombatThreatFromAdjacentZone(M28Map.tAllPlateaus[oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]][M28Map.subrefPlateauLandZones][oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]][M28Map.subrefLZTeamData][iTeam], false)
                         if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat after adjustment='..iEnemyCombatThreat) end
                     end
@@ -7408,6 +7412,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         local bFiringAtNegligibleThreatInLRExperimentalRange = false --used for megalith and fatboy so won't attack-move towards enemy
 
                         if bAreInScenario1 then --Recheck as we might have changed to false if on checking adjacent zones an enemy outranges us
+                            tLZTeamData[M28Map.subrefbLandInScenario2PrevCycle] = false
                             local bHaveSRExperimentalsInCombat = false
                             local oUpgradingACU
                             if M28Utilities.IsTableEmpty(toEnemyACUsNearZone) == false then
@@ -9578,11 +9583,18 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         end
                     end
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': Dont outrange enemy, bAttackWithEverything='..tostring(bAttackWithEverything)..'; Is table of ACUs in the LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont outrange enemy, bAttackWithEverything='..tostring(bAttackWithEverything)..'; Is table of ACUs in the LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]))..'; subrefbLandInScenario2PrevCycle='..tostring(tLZTeamData[M28Map.subrefbLandInScenario2PrevCycle])) end
                     local bUpdateNearestUnit = false
                     local bCheckIfNearestUnitVisible = bUpdateNearestUnit
                     if not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) >= 10 then
                         bCheckIfNearestUnitVisible = true
+                    end
+
+                    if bAttackWithEverything then
+                        tLZTeamData[M28Map.subrefbLandInScenario2PrevCycle] = true
+                    elseif tLZTeamData[M28Map.subrefbLandInScenario2PrevCycle] then
+                        tLZTeamData[M28Map.subrefbLandInScenario2PrevCycle] = false
+                        bAttackWithEverything = true
                     end
 
                     if bAttackWithEverything then
@@ -12428,7 +12440,10 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
             local iCurUnitThreat
             if bDebugMessages == true then LOG(sFunctionRef..': Will consider including adjacent combat units for LZ '..iLandZone..' with iCurLZValue='..iCurLZValue..'; is table of adjacent LZs empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))..'; bConsiderAdjacentIndirect='..tostring(bConsiderAdjacentIndirect)..'; bConsiderAdjacentDF='..tostring(bConsiderAdjacentDF)..'; bConsiderAdjacentMAA='..tostring(bConsiderAdjacentMAA or false)) end
             local bConsiderGivingOrdersToUnits
-            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false and not(tLZData[M28Map.subrefbPacifistArea]) then
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false and not(tLZData[M28Map.subrefbPacifistArea])
+            --Also require us to already have some combat units or significant base in this zone for it to commandeer units in an adjacent zone
+            and (M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or (tLZTeamData[M28Map.subrefLZSValue] or 0) >= 60)
+            then
                 for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                     local tAltLZTeam = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                     if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; Base LZ='..iLandZone..'; iAdjLZ='..iAdjLZ..'; LZTValue='..repru(tAltLZTeam[M28Map.subrefLZTValue])..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tAltLZTeam[M28Map.subreftoLZOrWZAlliedUnits]))) end
@@ -13594,14 +13609,13 @@ function TrackWallSegment(oWall, bJustBuilt)
                 table.insert(tLZData[M28Map.subrefLZPlayerWallSegments], oWall)
                 --Consider adding to nearby zones incase wall is built inbetween two zones
                 local iAltPlateau, iAltLandZone
-                local tbZonesConsidered = {}
-                tbZonesConsidered[iLandZone] = true
+                local tbOtherZonesConsidered = {[iLandZone] = true}
                 for iCurAngle = 0, 315, 45 do
                     local tAltPosition = M28Utilities.MoveInDirection(oWall:GetPosition(), iCurAngle, 8, true, false, false)
                     if tAltPosition then
                         iAltPlateau, iAltLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tAltPosition)
-                        if iAltLandZone and not(tbZonesConsidered[iAltLandZone]) and iAltPlateau == iPlateau then
-                            tbZonesConsidered[iAltLandZone] = true
+                        if iAltLandZone and not(tbOtherZonesConsidered[iAltLandZone]) and iAltPlateau == iPlateau then
+                            tbOtherZonesConsidered[iAltLandZone] = true
                             local tAltLZData = M28Map.tAllPlateaus[iAltPlateau][M28Map.subrefPlateauLandZones][iAltLandZone]
                             if not(tAltLZData[M28Map.subrefLZPlayerWallSegments]) then tAltLZData[M28Map.subrefLZPlayerWallSegments] = {} end
                             table.insert(tAltLZData[M28Map.subrefLZPlayerWallSegments], oWall)

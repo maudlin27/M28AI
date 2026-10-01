@@ -294,6 +294,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefbLZWantsIndirectSupport = 'LZWantsIndirectSupport' --true if want indirect units for the LZ
             subrefiTimeOfMMLFiringNearTMDOrShield = 'LZTimMMLFNrTMD' --Gametimeseconds that had MML firing in the zone who were near TMD
             subrefiTimeFriendlyTMDHitEnemyMissile = 'LZTimTMDVsEn' --GetGameTimeSeconds that had TMD intercept enemy missile
+            subrefbLandInScenario2PrevCycle = 'LnInS2' --true if land combat units are in scenario 2 (used to give a 1 cycle delay on switching to retreating, to cover units moving between zones)
 
             subreftEnemyFirebasesInRange = 'LZEnemyFirebasesInRange' --[x] is just a count (1,2,3), returns {iPlateau, iLandZone} of the firebase
             refiTimeOfLastIndirectFirebaseAttack = 'LZIndFBAtc' --gametimeseconds that we last attacked a firebase in this zone with indirect units
