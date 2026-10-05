@@ -8099,7 +8099,7 @@ function GetNavalFactoryHorizontalClearance(oFactory)
     local tBasePosition = oFactory:GetPosition()
     local aiBrain = oFactory:GetAIBrain()
     local iFactoryRadius = oFactory:GetBlueprint().Physics.SkirtSizeX * 0.5
-    local bAreSeraphim = EntityCategoryContains(CATEGORIES.SERAPHIM, oFactory.UnitId)
+    local bAreSeraphim = EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)
     for iXAdjust = 10, 2, -2 do
         for iXFactor = -1, 1, 2 do
             for iZAdjust = 12, -12, -6 do
