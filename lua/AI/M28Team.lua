@@ -5889,6 +5889,36 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                     tTeamData[iTeam][subrefbRushT3AirInAirSlot] = true
                 end
             end
+        elseif M28Map.bIsLowMexMap then
+            --Set special brain strategies
+            local iDistToNearestEnemy
+            for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                --Get nearest enemy
+                iDistToNearestEnemy = M28Map.iMapSize
+
+                local tStart = M28Map.GetPlayerStartPosition(oBrain)
+                local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(tStart, true, iTeam)
+                if tLZTeamData[M28Map.reftClosestEnemyBase] then
+                    iDistToNearestEnemy = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tStart)
+                end
+                local iRandom = math.random(1, 100)
+                if iDistToNearestEnemy <= 350 then --going early land viable
+                    if iRandom <= 25 then
+                        oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
+                        oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
+                    elseif iRandom <= 50 then
+                        oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
+                    elseif iRandom <= 75 then
+                        oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
+                    end
+                else
+                    if iRandom <= 67 then
+                        oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
+                    end
+                end
+                if true and GetGameTimeSeconds() <= 600 then oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering low mex strategy for oBrain='..oBrain.Nickname..'; iRandom='..iRandom..'; iDistToNearestEnemy='..iDistToNearestEnemy..'; refbLowMaxGetEarlyLand='..tostring(oBrain[M28Overseer.refbLowMaxGetEarlyLand] or false)..'; refbLowMaxGetEarlyAir='..tostring(oBrain[M28Overseer.refbLowMaxGetEarlyAir] or false)) end
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
