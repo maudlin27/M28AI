@@ -4920,4 +4920,5 @@ function HaveEnoughGrossEcoToSupportLandHQUpgrade(aiBrain, iOptionalTechOverride
             return true
         end
     end
+    return false
 end
