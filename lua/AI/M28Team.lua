@@ -5903,20 +5903,25 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                 end
                 local iRandom = math.random(1, 100)
                 if iDistToNearestEnemy <= 350 then --going early land viable
-                    if iRandom <= 25 then
+                    if iRandom <= 33 then
                         oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
                         oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
-                    elseif iRandom <= 50 then
+                    elseif iRandom <= 67 then
                         oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
-                    elseif iRandom <= 75 then
+                    else--if iRandom <= 75 then
                         oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
                     end
                 else
-                    if iRandom <= 67 then
+                    if iRandom <= 75 then
+                        oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
+                    elseif iRandom <= 88 then
+                        oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
+                    else
+                        oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
                         oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
                     end
                 end
-                if true and GetGameTimeSeconds() <= 600 then oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true end
+                if true and GetGameTimeSeconds() <= 600 then oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true oBrain[M28Overseer.refbLowMaxGetEarlyAir] = false end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering low mex strategy for oBrain='..oBrain.Nickname..'; iRandom='..iRandom..'; iDistToNearestEnemy='..iDistToNearestEnemy..'; refbLowMaxGetEarlyLand='..tostring(oBrain[M28Overseer.refbLowMaxGetEarlyLand] or false)..'; refbLowMaxGetEarlyAir='..tostring(oBrain[M28Overseer.refbLowMaxGetEarlyAir] or false)) end
             end
         end

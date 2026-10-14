@@ -915,7 +915,6 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
             local bProceed
             if bDebugMessages == true then LOG(sFunctionRef..': Is tCurUnits empty='..tostring(M28Utilities.IsTableEmpty(tCurUnits))..'; oBrain='..oBrain.Nickname..'; iTeam='..iTeam..'; iAirSubteam='..iAirSubteam) end
             if M28Utilities.IsTableEmpty(tCurUnits) == false then
-                bDebugMessages = true
                 if bIncludeBombersInSpecialLogic == nil then
                     bIncludeBombersInSpecialLogic = false
                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiWaterZonesForBomberToKillEngis]) == false then
@@ -5588,7 +5587,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
 end
 
 function EnemyBaseEarlyBomber(oBomber)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'EnemyBaseEarlyBomber'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -5828,7 +5827,7 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ApplyEngiHuntingBomberLogic'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    bDebugMessages = true
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..(oBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBomber) or 'nil')..' owned by '..oBomber:GetAIBrain().Nickname..'; AirSubteam='..iAirSubteam..'; iTeam='..iTeam..'; subrefiHighestFriendlyAirFactoryTech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; refiEnemyAirAAThreat='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil')..'; low mex conditions='..tostring((M28Map.bIsLowMexMap and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] == 0))..'; Time='..GetGameTimeSeconds()..'; Brain owner='..oBomber:GetAIBrain().Nickname) end
     local bContinue = true
     M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTimeOfLastEngiHunterBomberOrder] = GetGameTimeSeconds()

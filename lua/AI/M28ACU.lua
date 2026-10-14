@@ -489,9 +489,17 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
         local iCurFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)
         if bDebugMessages == true then LOG(sFunctionRef..': iCurFactories='..iCurFactories..'; GetMexesNotNearPlayerStartingZone='..M28Conditions.GetMexesNotNearPlayerStartingZone()) end
         if iCurFactories == 0 and (aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or iMexInLandZone == 0) then
-            ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
+            if not(aiBrain[M28Overseer.refbLowMaxGetEarlyLand]) then
+                ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory)
+            else
+                ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
+            end
         elseif iCurFactories == 0 and M28Conditions.GetMexesNotNearPlayerStartingZone() > 0 then
-            ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
+            if not(aiBrain[M28Overseer.refbLowMaxGetEarlyLand]) then
+                ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory)
+            else
+                ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
+            end
         else
             --Attack (further away) nearby units
             if not(AttackNearestEnemyWithACU(iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, oACU, 100)) then
