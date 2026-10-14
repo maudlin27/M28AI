@@ -5386,7 +5386,7 @@ end
 
 function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForAirFactory'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iCategoryToBuild
@@ -6108,7 +6108,11 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         end
         if iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] and tLZTeamData[M28Map.subrefLZbCoreBase] then
             if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= 4 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= 2 then
-                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+                if M28Map.bIsLowMexMap and aiBrain:GetEconomyStoredRatio('MASS') < 0.7 and tLZData[M28Map.subrefTotalSignificantMassReclaim] < 200 and aiBrain[M28Economy.refiGrossMassBaseIncome] < iFactoryTechLevel and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAllAir * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) < 10 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Low mex map so wont get engi afterall') end
+                else
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+                end
             end
         end
 
