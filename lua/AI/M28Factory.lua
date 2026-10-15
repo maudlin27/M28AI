@@ -3069,7 +3069,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --Initiail combat
         if bDebugMessages == true then LOG(sFunctionRef .. ': Considering initial combat units, lifetime count=' .. M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat)..'; Is this core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])) end
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if bCanPathToEnemyWithLand and iFactoryTechLevel == 1 and bHaveHighestLZTech and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat - categories.COMMAND) < 3 then
+        if bCanPathToEnemyWithLand and iFactoryTechLevel == 1 and bHaveHighestLZTech and ((not(M28Map.bIsLowMexMap) and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat - categories.COMMAND) < 3) or (M28Map.bIsLowMexMap and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat - categories.COMMAND) <= 4)) then
             --Get LABs for the first couple of combat units (non-seraphim) unless low mex map
             if bDebugMessages == true then LOG(sFunctionRef..': T1 factory - Will get attack bot if are non-seraphim and low LC for this brain, LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLightAttackBot)) end
             if M28Map.bIsLowMexMap then
@@ -3082,19 +3082,31 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         or M28Map.iMapSize > 512 and M28Utilities.GetDistanceBetweenPositions(oFactory:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]) >= 450 then
                     iArtiWanted = 1
                     --Is enemy so close that we should get more t1 arti?
-                elseif M28Map.iMapSize <= 256 then
+                elseif M28Map.iMapSize <= 256 or M28Utilities.GetDistanceBetweenPositions(oFactory:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]) <= 300 then
                     --Is enemy ACU upgrading (also add check it hasnt moved from last known position suggesitng it is upgrading)? if so get more
                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
                         for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
                             if bDebugMessages == true then LOG(sFunctionRef..': ACU last known position='..repru(oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
                             if oACU:IsUnitState('Upgrading') and oACU:GetWorkProgress() < 0.7 and M28Utilities.IsTableEmpty(oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) == false and M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oACU:GetPosition()) <= 1 then
-                                iArtiWanted = 4
-                                break
+                                if M28Map.iMapSize <= 256 or M28Utilities.GetDistanceBetweenPositions(oFactory:GetPosition(), oACU:GetPosition()) <= 300 then
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] == 0 then
+                                        iArtiWanted = 4
+                                    else
+                                        iArtiWanted = 3
+                                    end
+                                    break
+                                end
                             end
                         end
                     end
+                    if iArtiWanted <= 2 and M28Map.iMapSize <= 512 and aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 0 then
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] == 0 then
+                            iArtiWanted = 3
+                        else iArtiWanted = 2
+                        end
+                    end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': iArtiWanted='..iArtiWanted..'; iArtiCount='..iArtiCount..'; iMapSize='..M28Map.iMapSize) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iArtiWanted='..iArtiWanted..'; iArtiCount='..iArtiCount..'; iMapSize='..M28Map.iMapSize..'; refiOurHighestAirFactoryTech='..aiBrain[M28Economy.refiOurHighestAirFactoryTech]..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(oFactory:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])) end
                 if iArtiCount < iArtiWanted then
                     if bDebugMessages == true then LOG(sFunctionRef..': iArtiCount='..iArtiCount..'; refbWantLandScout='..tostring(tLZTeamData[M28Map.refbWantLandScout])..'; bDontConsiderLandScouts='..tostring(bDontConsiderLandScouts)..'; Scout LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout)) end
                     if tLZTeamData[M28Map.refbWantLandScout] and tLZTeamData[M28Map.subrefLZbCoreBase] and not (bDontConsiderLandScouts) and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) < iArtiCount then
