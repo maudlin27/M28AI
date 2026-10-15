@@ -617,6 +617,10 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
                                     M28Orders.IssueTrackedCapture(oACU, oClosestCaptureTarget, false, 'ACUCap', false)
                                 end
                             end
+                        else
+                            --End initial build order
+                            if bDebugMessages == true then LOG(sFunctionRef..': Ending low mex build order') end
+                            oACU[refbDoingInitialBuildOrder] = false
                         end
                     end
                 end
@@ -5070,7 +5074,11 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
             end
             if iBackupLZToMoveTo and not(iLZToMoveTo) then iLZToMoveTo = iBackupLZToMoveTo end
 
-
+            if not(iLZToMoveTo) and ((M28Map.bIsLowMexMap and (M28Map.iMapSize <= 512 or M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZTeamData[M28Map.reftClosestEnemyBase]) <= 400)) or (oACU[refbUseACUAggressively] and not(M28Map.bIsCampaignMap) and M28Map.iMapSize <= 512)) and aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] and (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] or aiBrain[M28Overseer.refbLowMaxGetEarlyAir]) then
+                --Go to enemy base
+                if bDebugMessages == true then LOG(sFunctionRef..': Will go to closest enemy base') end
+                iLZToMoveTo = M28Map.GetLandZoneFromPosition(tLZTeamData[M28Map.reftClosestEnemyBase])
+            end
 
             --[[if not(iLZToMoveTo) and iNearestPotentialExpansionPoint then
                 iLZToMoveTo = iNearestPotentialExpansionPoint
@@ -8126,35 +8134,48 @@ function DoWeStillWantToBeAggressiveWithACU(oACU)
     end
     if bNotCloseToSnipeTarget then
         if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Dangerous for ACUs so wont be aggressive') end
             bStillBeAggressive = false
         else
             --If we are going all-in on T1 spam then want to be aggressive with ACU if it has a gun
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, oACU:GetAIBrain().M28Team)
             if oACU[refiUpgradeCount] > 0 and M28Conditions.ZoneWantsT1Spam(tLZOrWZTeamData, iTeam) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.7 and GetGameTimeSeconds() <= 1000 and tLZOrWZTeamData[M28Map.refiModDistancePercent] < 0.6 then
                 --Will remain aggressive
+                if bDebugMessages == true then LOG(sFunctionRef..': Zone wants t1 spam so will be aggressive') end
             elseif M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 3 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] or 0) < 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] or 0) < 2 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] or 0) < 2 and not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Multiple teammates, not assassination, so will be aggressive') end
                 bStillBeAggressive = true --redundancy
             else
                 --If significant time elapsed then remove this flag
                 if GetGameTimeSeconds() >= 900 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Been a while so wont be aggressive') end
                     bStillBeAggressive = false
                 else
                     local iThresholdFactor = 1 + ((M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 1) - 1) * 0.25
                     if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] > 350 then iThresholdFactor = iThresholdFactor + 0.4 end
-                    if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.3 then bStillBeAggressive = false
+                    if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.3 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Low health so wont be aggressive') end
+                        bStillBeAggressive = false
                     elseif aiBrain[M28Economy.refiGrossMassBaseIncome] >= 5 * iThresholdFactor or (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryLandCombat - categories.TECH1) >= 4) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Good eco or tech so wont be aggressive') end
                         bStillBeAggressive = false
                     elseif M28Map.iMapSize > 512 and tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.4 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Large map and getting too close to enemy base so wont be aggressive') end
                         bStillBeAggressive = false
                     elseif not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Cant reach enemy by land so wont be aggressive') end
                         bStillBeAggressive = false
                     elseif M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU] and (oACU[refiUpgradeCount] or 0) == 0 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy has upgraded ACU and we lack upgrades so wont be aggressive') end
                         bStillBeAggressive = false
                     elseif M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat) >= 50 * iThresholdFactor then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Built lots of land so wont be aggressive') end
                         bStillBeAggressive = false
                     elseif M28Map.bIsCampaignMap then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Campaign map so wont be aggressive') end
                         bStillBeAggressive = false
                     elseif M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] > 0 or M28Conditions.GetHighestOtherTeamT3MexCount(iTeam) > 0 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': T3 mex exists so wont be aggressive') end
                         bStillBeAggressive = false
                     end
                 end

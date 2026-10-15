@@ -4138,7 +4138,18 @@ function CheckEnemyACUStatus(iTeam)
             for iACU, oACU in  tTeamData[iTeam][reftEnemyACUs] do
                 if M28UnitInfo.IsUnitValid(oACU) and (GetGameTimeSeconds() >= 600 or (aiBrain.GetArmyIndex and M28UnitInfo.CanSeeUnit(aiBrain, oACU))) then --after 10m of gametime a human would assume enemy will have gun anyway
                     if oACU:IsUnitState('Upgrading') or (oACU[M28ACU.refiUpgradeCount] or 0) > 0 then
-                        tTeamData[iTeam][refbEnemyHasUpgradedACU] = true
+                        --Low mex maps - only treat enemy as having upgrade once it is nearly done if they dont have significant energy and mass
+                        if not(M28Map.bIsLowMexMap) or oACU:GetWorkProgress() >= 0.85 or (oACU[M28ACU.refiUpgradeCount] or 0) > 0 then
+                            tTeamData[iTeam][refbEnemyHasUpgradedACU] = true
+                        else
+                            --On low mex maps would be reasonable to estimate what eco is possible and hence how quickly an ACU can be upgraded, below used as simplistic proxy of this
+                            local oEnemyBrain = oACU:GetAIBrain()
+                            if (oEnemyBrain:GetEconomyIncome('MASS') < 0.7 and oEnemyBrain:GetEconomyStored('MASS') <= 600) or (oEnemyBrain:GetEconomyIncome('ENERGY') < 10 and oEnemyBrain:GetEconomyStored('ENERGY') <= 12000) then
+                                --Assume will still take a bit of time for enemy ACU to get upgrade
+                            else
+                                tTeamData[iTeam][refbEnemyHasUpgradedACU] = true
+                            end
+                        end
                     end
                 end
             end
