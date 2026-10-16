@@ -7077,8 +7077,9 @@ function GetACUOrder(aiBrain, oACU)
                 local iFactoryEngineerAction = M28Engineer.refActionBuildLandFactory
                 if aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 0 or (aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 0 and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 6 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex - categories.TECH1) >= 2)) or (not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.8 and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] > 150 or (aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and aiBrain[M28Economy.refiNetEnergyBaseIncome] > 0)) and (aiBrain[M28Economy.refiGrossMassBaseIncome] > 2 or aiBrain[M28Economy.refiNetMassBaseIncome] > 0) and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.95 and (GetGameTimeSeconds() <= 360 or M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone, true))) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Do we have factories of any type in this LZ? Is table empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))..'; aiBrain[M28Economy.refiOurHighestLandFactoryTech]='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]) end
-
-                    if aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 0 then bWantAnotherFactory = true
+                    if M28Map.bIsLowMexMap and not(M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Low mex map so dont want more factories even if we lack a land or an air fac') end
+                    elseif aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 0 then bWantAnotherFactory = true
                         --elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) then bWantAnotherFactory = true
                     elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                         local iLandFacHQCount = 0
