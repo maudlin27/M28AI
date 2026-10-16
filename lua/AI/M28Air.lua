@@ -5876,6 +5876,8 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
             end
 
             if tStartLZOrWZData then
+                local oAlternativeTargetNotOfPreferredCategory
+                local bConsiderAlternativeTarget = (M28Map.bIsLowMexMap and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3)
                 function FilterToAvailableTargets(tPotentialTargets, iOptionalCategory) --COPY OF BELOW from managebombers, but with adj to ignore part-complete units
                     if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
                         local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
@@ -5889,6 +5891,13 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                                 if not(iOptionalCategory) or EntityCategoryContains(iOptionalCategory, oUnit.UnitId) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Adding to tEnemyTargets') end
                                     table.insert(tEnemyTargets, oUnit)
+                                elseif bConsiderAlternativeTarget and not(oAlternativeTargetNotOfPreferredCategory) then
+                                    --Check no AA in this zone
+                                    local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                    if (tTargetLZOrWZData[M28Map.subrefiThreatEnemyGroundAA] or 0) == 0 then
+
+                                        oAlternativeTargetNotOfPreferredCategory = oUnit
+                                    end
                                 end
                             end
                         end
@@ -6124,11 +6133,19 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                                 M28Orders.IssueTrackedMove(oBomber, tClosestMidpoint, 10, false, 'BScAP'..iClosestPlateauOrZero..'Z'..iClosestLZOrWZRef, false)
                                 tBomberTable = nil
                             else
-                                if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - will just attack move to enemy base at position '..repru(tStartLZOrWZTeamData[M28Map.reftClosestEnemyBase])) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - will return to rally point') end
                                 --aggressive move to the closest enemy base
-                                M28Orders.IssueTrackedAggressiveMove(oBomber, tStartLZOrWZTeamData[M28Map.reftClosestEnemyBase], 10, false, 'BAtBs', false)
+                                M28Orders.IssueTrackedMove(oBomber, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirRallyPoint], 30, false, 'BEnHRal', false)
                                 tBomberTable = nil
                             end
+                        elseif oAlternativeTargetNotOfPreferredCategory then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Redundancy1 - will attack oAlternativeTargetNotOfPreferredCategory') end
+                            AssignTorpOrBomberTargets(tBomberTable, { oAlternativeTargetNotOfPreferredCategory }, iAirSubteam, false, true)
+                        else
+                            --Return to rally point
+                            if bDebugMessages == true then LOG(sFunctionRef..': Redundancy2 - will just attack move to enemy base at position '..repru(tStartLZOrWZTeamData[M28Map.reftClosestEnemyBase])) end
+                            M28Orders.IssueTrackedMove(oBomber, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirRallyPoint], 30, false, 'BEnHRal', false)
+                            tBomberTable = nil
                         end
                     end
                 end
