@@ -4138,7 +4138,18 @@ function CheckEnemyACUStatus(iTeam)
             for iACU, oACU in  tTeamData[iTeam][reftEnemyACUs] do
                 if M28UnitInfo.IsUnitValid(oACU) and (GetGameTimeSeconds() >= 600 or (aiBrain.GetArmyIndex and M28UnitInfo.CanSeeUnit(aiBrain, oACU))) then --after 10m of gametime a human would assume enemy will have gun anyway
                     if oACU:IsUnitState('Upgrading') or (oACU[M28ACU.refiUpgradeCount] or 0) > 0 then
-                        tTeamData[iTeam][refbEnemyHasUpgradedACU] = true
+                        --Low mex maps - only treat enemy as having upgrade once it is nearly done if they dont have significant energy and mass
+                        if not(M28Map.bIsLowMexMap) or oACU:GetWorkProgress() >= 0.85 or (oACU[M28ACU.refiUpgradeCount] or 0) > 0 then
+                            tTeamData[iTeam][refbEnemyHasUpgradedACU] = true
+                        else
+                            --On low mex maps would be reasonable to estimate what eco is possible and hence how quickly an ACU can be upgraded, below used as simplistic proxy of this
+                            local oEnemyBrain = oACU:GetAIBrain()
+                            if (oEnemyBrain:GetEconomyIncome('MASS') < 0.7 and oEnemyBrain:GetEconomyStored('MASS') <= 600) or (oEnemyBrain:GetEconomyIncome('ENERGY') < 10 and oEnemyBrain:GetEconomyStored('ENERGY') <= 12000) then
+                                --Assume will still take a bit of time for enemy ACU to get upgrade
+                            else
+                                tTeamData[iTeam][refbEnemyHasUpgradedACU] = true
+                            end
+                        end
                     end
                 end
             end
@@ -5888,6 +5899,40 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will rush T3 air if have base in a safe position') end
                     tTeamData[iTeam][subrefbRushT3AirInAirSlot] = true
                 end
+            end
+        elseif M28Map.bIsLowMexMap then
+            --Set special brain strategies
+            local iDistToNearestEnemy
+            for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                --Get nearest enemy
+                iDistToNearestEnemy = M28Map.iMapSize
+
+                local tStart = M28Map.GetPlayerStartPosition(oBrain)
+                local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(tStart, true, iTeam)
+                if tLZTeamData[M28Map.reftClosestEnemyBase] then
+                    iDistToNearestEnemy = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tStart)
+                end
+                local iRandom = math.random(1, 100)
+                if iDistToNearestEnemy <= 350 then --going early land viable
+                    if iRandom <= 33 then
+                        oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
+                        oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
+                    elseif iRandom <= 67 then
+                        oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
+                    else--if iRandom <= 75 then
+                        oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
+                    end
+                else
+                    if iRandom <= 75 then
+                        oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
+                    elseif iRandom <= 88 then
+                        oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
+                    else
+                        oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
+                        oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering low mex strategy for oBrain='..oBrain.Nickname..'; iRandom='..iRandom..'; iDistToNearestEnemy='..iDistToNearestEnemy..'; refbLowMaxGetEarlyLand='..tostring(oBrain[M28Overseer.refbLowMaxGetEarlyLand] or false)..'; refbLowMaxGetEarlyAir='..tostring(oBrain[M28Overseer.refbLowMaxGetEarlyAir] or false)) end
             end
         end
     end

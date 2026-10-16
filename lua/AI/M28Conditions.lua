@@ -1494,7 +1494,15 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
     local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
 
-
+    if M28Map.bIsLowMexMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 2 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and aiBrain:GetEconomyStoredRatio('MASS') < 0.8 then
+        if (aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 0 and aiBrain[M28Overseer.refbLowMaxGetEarlyAir]) or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 0 and aiBrain[M28Overseer.refbLowMaxGetEarlyLand]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Low mex map but lack a factory we want') end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Low mex map so dont want more factories yet') end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return false
+        end
+    end
     local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
     local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
     if iCurIsland ~= iEnemyIsland and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.35 then
@@ -2174,10 +2182,13 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 if iLandFactoriesHave >= 1 then return true else return false end
             else
-                if iLandFactoriesHave >= 1 and M28Map.bIsLowMexMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 2 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 then
-                    if bDebugMessages == true then LOG(sFunctionRef..': low eco want air fac') end
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return true
+                if M28Map.bIsLowMexMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 2 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 then
+                    if aiBrain[M28Overseer.refbLowMaxGetEarlyAir] or (iLandFactoriesHave and aiBrain:GetEconomyStoredRatio('MASS') >= 0.8) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': low eco want air fac') end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    elseif bDebugMessages == true then LOG(sFunctionRef..': Low eco dont want any more factories')
+                    end
                 else
                     --Late game - get lots of air facs
                     if iLandFactoriesHave >= 1 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or (M28Utilities.bQuietModActive and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2))) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 or table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) >= 2))) then
@@ -4920,4 +4931,5 @@ function HaveEnoughGrossEcoToSupportLandHQUpgrade(aiBrain, iOptionalTechOverride
             return true
         end
     end
+    return false
 end

@@ -855,7 +855,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                         --If terrain height is also above map waterhight then have error (as might be units ahve been dropped from transport into water)
                         if GetTerrainHeight(tPosition[1], tPosition[3]) > iMapWaterHeight then
                             M28Utilities.ErrorHandler('Unable to find valid land zone, iSegmentX='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')..'; Optional pathing unit ID='..(oOptionalPathingUnit.UnitId or 'nil'))
-                            LOG('tPosition='..repru(tPosition)..'; Land label of position='..(NavUtils.GetLabel(refPathingTypeLand, tPosition) or 'nil'))
+                            --LOG('Unable to find land zone, tPosition='..repru(tPosition)..'; Land label of position='..(NavUtils.GetLabel(refPathingTypeLand, tPosition) or 'nil'))
                         end
                         --M28Utilities.DrawLocation(tPosition)
                     end

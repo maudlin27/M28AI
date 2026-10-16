@@ -59,6 +59,7 @@ refoMobileShieldTarget = 'M28LandMobileShieldTarget' --Aginst mobile shield, ret
 refoAssignedMobileStealth = 'M28LandAssignedMobileStealth' --If a mobile stealth is assigned to this unit, then returns the mobile stealth unit assigned
 refoMobileStealthTarget = 'M28LandMobileStealthTarget' --Against mobile stleaht units, returns the unit the mobile stealth is trying to cover
 refoLandScoutTarget = 'M28LndSTrg' --Against land scouts if assigned to follow a unit such as an ACU
+refbTemporaryLandScoutTarget = 'M28LTmSTr' --true if land scout target is only for current cycle
 
 function UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFSupport, bWantIndirectSupport)
     tLZTeamData[M28Map.subrefbLZWantsSupport] = (bWantDFSupport or bWantIndirectSupport)
@@ -1350,35 +1351,43 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
         if bDebugMessages == true then LOG(sFunctionRef..': Is available scout table empty='..tostring(M28Utilities.IsTableEmpty(tAvailableScouts))) end
 
         if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
-            function AssignLandScoutToUnit(oUnitToReceiveScout)
-                oUnitToReceiveScout[refoAssignedLandScout] = tAvailableScouts[1]
+            local bAssignedScoutToUnit = false
+            function AssignLandScoutToUnit(oUnitToReceiveScout, bTemporaryAssignment)
+                bAssignedScoutToUnit = true
                 tAvailableScouts[1][refoLandScoutTarget] = oUnitToReceiveScout
-                table.insert(toEscortScouts, tAvailableScouts[1])
-                table.remove(tAvailableScouts, 1)
+
                 if bDebugMessages == true then LOG(sFunctionRef..': Have assigned scout to unit '..oUnitToReceiveScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToReceiveScout)) end
-                if oUnitToReceiveScout[refbFlaggedForPriorityScout] then
-                    oUnitToReceiveScout[refbFlaggedForPriorityScout] = false
-                    oUnitToReceiveScout[refiTimeLastBuiltLandScoutForUnit] = nil
-                    local iCurLandSubteam = oUnitToReceiveScout:GetAIBrain().M28LandSubteam
-                    if M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[iCurLandSubteam][M28Team.reftoPriorityUnitsWantingLandScout]) == false then
-                        for iEntry, oEntry in M28Team.tLandSubteamData[iCurLandSubteam][M28Team.reftoPriorityUnitsWantingLandScout] do
-                            if oEntry == oUnitToReceiveScout then
-                                table.remove(M28Team.tLandSubteamData[iCurLandSubteam][M28Team.reftoPriorityUnitsWantingLandScout], iEntry)
-                                break
+                if bTemporaryAssignment then
+                    tAvailableScouts[1][refbTemporaryLandScoutTarget] = true
+                else
+                    if tAvailableScouts[1][refbTemporaryLandScoutTarget] then tAvailableScouts[1][refbTemporaryLandScoutTarget] = nil end
+                    oUnitToReceiveScout[refoAssignedLandScout] = tAvailableScouts[1]
+                    if oUnitToReceiveScout[refbFlaggedForPriorityScout] then
+                        oUnitToReceiveScout[refbFlaggedForPriorityScout] = false
+                        oUnitToReceiveScout[refiTimeLastBuiltLandScoutForUnit] = nil
+                        local iCurLandSubteam = oUnitToReceiveScout:GetAIBrain().M28LandSubteam
+                        if M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[iCurLandSubteam][M28Team.reftoPriorityUnitsWantingLandScout]) == false then
+                            for iEntry, oEntry in M28Team.tLandSubteamData[iCurLandSubteam][M28Team.reftoPriorityUnitsWantingLandScout] do
+                                if oEntry == oUnitToReceiveScout then
+                                    table.remove(M28Team.tLandSubteamData[iCurLandSubteam][M28Team.reftoPriorityUnitsWantingLandScout], iEntry)
+                                    break
+                                end
                             end
                         end
-                    end
-                    --Remove from LZTeamData
-                    local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitToReceiveScout:GetPosition(), true, iTeam)
-                    if M28Utilities.IsTableEmpty(tUnitLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]) == false then
-                        for iEntry, oEntry in tUnitLZTeamData[M28Map.reftoUnitsWantingPriorityScouts] do
-                            if oEntry == oUnitToReceiveScout then
-                                table.remove(tUnitLZTeamData[M28Map.reftoUnitsWantingPriorityScouts], iEntry)
-                                break
+                        --Remove from LZTeamData
+                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitToReceiveScout:GetPosition(), true, iTeam)
+                        if M28Utilities.IsTableEmpty(tUnitLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]) == false then
+                            for iEntry, oEntry in tUnitLZTeamData[M28Map.reftoUnitsWantingPriorityScouts] do
+                                if oEntry == oUnitToReceiveScout then
+                                    table.remove(tUnitLZTeamData[M28Map.reftoUnitsWantingPriorityScouts], iEntry)
+                                    break
+                                end
                             end
                         end
                     end
                 end
+                table.insert(toEscortScouts, tAvailableScouts[1])
+                table.remove(tAvailableScouts, 1)
             end
             --If not a core zone and have ACU in this zone that lacks a decided scout, no nearby omni, and has an upgrade with decent df range (so guncom) then assign scout to it
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and tLZTeamData[M28Map.refiRadarCoverage] < math.min(300, math.max(200, M28UnitInfo.iT3RadarSize - 90)) then
@@ -1397,7 +1406,27 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                     if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished assigning scouts to priority units if any, is reftoUnitsWantingPriorityScouts empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]))..'; is tAvailableScouts empty='..tostring(M28Utilities.IsTableEmpty(tAvailableScouts))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished assigning scouts to priority units if any, is reftoUnitsWantingPriorityScouts empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]))..'; is tAvailableScouts empty='..tostring(M28Utilities.IsTableEmpty(tAvailableScouts))..'; bAssignedScoutToUnit='..tostring(bAssignedScoutToUnit)..'; subrefLZAllyBestCombatRange='..tLZTeamData[M28Map.subrefLZAllyBestCombatRange]..'; subrefbEnemiesInThisOrAdjacentLZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
+            if not(bAssignedScoutToUnit) and M28Utilities.IsTableEmpty(tAvailableScouts) == false and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and tLZTeamData[M28Map.subrefLZAllyBestCombatRange] >= 26 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) == false then
+                local oClosestFriendlyToEnemyBase, iCurDist
+                local iClosestFriendlyToEnemyBaseDist = 100000
+                for iUnit, oUnit in tLZTeamData[M28Map.subrefLZTAlliedCombatUnits] do
+                    if oUnit[M28UnitInfo.refiCombatRange] >= 26 then
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])
+                        if iCurDist < iClosestFriendlyToEnemyBaseDist then
+                            iClosestFriendlyToEnemyBaseDist = iCurDist
+                            oClosestFriendlyToEnemyBase = oUnit
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': We have units with a decent range in this zone, so want to go towards the friendly unit closest to the enemy base to give it intel coverage, oClosestFriendlyToEnemyBase='..(oClosestFriendlyToEnemyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestFriendlyToEnemyBase) or 'nil')) end
+                if oClosestFriendlyToEnemyBase then
+                    if not(oClosestFriendlyToEnemyBase[refoAssignedLandScout]) or oClosestFriendlyToEnemyBase[refoAssignedLandScout] == tAvailableScouts[1] then
+                        --dont permanently assign
+                        AssignLandScoutToUnit(oClosestFriendlyToEnemyBase, true)
+                    end
+                end
+            end
             if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
                 --First assign any available scouts to adjacent land zones wanting scouts
                 --Early game - prioritise zones with combat threat if we only have one scout available
@@ -1568,6 +1597,10 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                         else
                             LOG(sFunctionRef..': Scout is moving towards its refoLandScoutTarget='..oScout[refoLandScoutTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout[refoLandScoutTarget])..'; Cur dist to target='..M28Utilities.GetDistanceBetweenPositions(oScout:GetPosition(), oScout[refoLandScoutTarget]:GetPosition()))
                         end
+                    end
+                    if oScout[refbTemporaryLandScoutTarget] then
+                        if oScout[refoLandScoutTarget][refoAssignedLandScout] == oScout then oScout[refoLandScoutTarget][refoAssignedLandScout] = nil end --redundancy
+                        oScout[refoLandScoutTarget] = nil
                     end
                 end
             end

@@ -17474,7 +17474,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if bDebugMessages == true then LOG(sFunctionRef..': LZ mex count='..tLZData[M28Map.subrefLZOrWZMexCount]..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Air fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; Team mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; tLZTeamData[M28Map.refiModDistancePercent]='..tLZTeamData[M28Map.refiModDistancePercent]..'; P='..iPlateau..'Z='..iLandZone..'; subrefTotalSignificantMassReclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]) end
     if not(bEngineersRecentlyRunFromEnemy) and not(tLZTeamData[M28Map.subrefLZCoreExpansion]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then
         local bLotsOfReclaim = false
-        if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 4000 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] then bLotsOfReclaim = true end
+        if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= math.max(600, 4000 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]) then bLotsOfReclaim = true end
         if ((tLZData[M28Map.subrefLZOrWZMexCount] >= 3 and tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 2) or (M28Map.bIsCampaignMap and tLZTeamData[M28Map.refiModDistancePercent] >= 0.3 and tLZTeamData[M28Map.subrefLZSValue] > 0 and GetGameTimeSeconds() >= 1800) or ((bLotsOfReclaim or (tLZData[M28Map.subrefLZOrWZMexCount] < 3 and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 4000 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] - tLZData[M28Map.subrefLZOrWZMexCount] * 1000)) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]))) and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 150 + 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1.5 + 2.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))) then
             if not(bTeammateHasBuiltHere) or tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] < 2 or tLZTeamData[M28Map.refiNonM28TeammateMexCount] <= math.max(5, tLZData[M28Map.subrefLZOrWZMexCount] * 0.75) then
                 if tLZTeamData[M28Map.refiModDistancePercent] >= 0.1 or tLZData[M28Map.subrefLZOrWZMexCount] >= 5 then
@@ -21325,17 +21325,37 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
                             table.insert(tDetailedPath, 1, tFullPath[iCurEntry - 1])
                             table.insert(tFullPath, tViaPoint)
                         end
+                        local tAltViaPoint, iAngleToPrevEntry
                         if M28Utilities.IsTableEmpty(tDetailedPath) == false and iDetailedPathEntries >= 1 then
                             for iDetailedEntry, tDetailedViaPoint in tDetailedPath do
                                 if iDetailedEntry > 1 then
                                     iCurDetailedPathDistance = M28Utilities.GetDistanceBetweenPositions(tDetailedViaPoint, tDetailedPath[iDetailedEntry - 1])
                                     iCumulativeDetailedPathDistance = iCumulativeDetailedPathDistance + iCurDetailedPathDistance
                                     iDetailedCurSegmentX, iDetailedCurSegmentZ = M28Map.GetPathingSegmentFromPosition(tDetailedViaPoint)
-                                    if M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] == iLandZone then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iDetailedEntry='..iDetailedEntry..'; iCurDetailedPathDistance='..iCurDetailedPathDistance..'; iCumulativeDetailedPathDistance='..iCumulativeDetailedPathDistance..';LZ of this position='..(M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] or 'nil')) end
+                                    if M28Map.tLandZoneBySegment[iDetailedCurSegmentX][iDetailedCurSegmentZ] == iLandZone then
                                         if iCurDetailedPathDistance >= iDistToMoveFromEnemyToLZ then
                                             tPointToMoveFrom = M28Utilities.MoveInDirection(tDetailedPath[iDetailedEntry - 1], M28Utilities.GetAngleFromAToB(tDetailedPath[iDetailedEntry - 1], tDetailedViaPoint), math.max(0, iDistToMoveFromEnemyToLZ - iCumulativeDetailedPathDistance + iCurPathDistance), true, false, true)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Setting PD placement using detailed path, tPointToMoveFrom='..repru(tPointToMoveFrom)..'; iDistToMoveFromEnemyToLZ='..iDistToMoveFromEnemyToLZ..'; iCumulativeDetailedPathDistance='..iCumulativeDetailedPathDistance..'; iCurPathDistance='..iCurPathDistance..'; Dist that will actually have moved='..math.max(0, iDistToMoveFromEnemyToLZ - iCumulativeDetailedPathDistance + iCurPathDistance)) end
                                             break
+                                        elseif not(tPointToMoveFrom) then
+                                            tPointToMoveFrom = {tDetailedViaPoint[1], tDetailedViaPoint[2], tDetailedViaPoint[3]}
+                                        end
+                                    elseif iDetailedEntry == 2 and not(tPointToMoveFrom) and iCurDetailedPathDistance >= 10 then
+                                        --Move towards point 1 until reach desired zone
+                                        iAngleToPrevEntry = M28Utilities.GetAngleFromAToB(tDetailedPath[iDetailedEntry], tDetailedPath[iDetailedEntry - 1])
+                                        for iDistTowardsPrevEntry = 5, iCurDetailedPathDistance - 5, 5 do
+
+                                            tAltViaPoint = M28Utilities.MoveInDirection(tDetailedPath[iDetailedEntry], iAngleToPrevEntry, iDistTowardsPrevEntry, true, false, true)
+                                            if tAltViaPoint then
+                                                iDetailedCurSegmentX, iDetailedCurSegmentZ = M28Map.GetPathingSegmentFromPosition(tAltViaPoint)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering moving back to first entry andi f in same zone, iDistTowardsPrevEntry='..iDistTowardsPrevEntry..'; LZ of this='..(M28Map.tLandZoneBySegment[iDetailedCurSegmentX][iDetailedCurSegmentZ] or 'nil')) end
+                                                if M28Map.tLandZoneBySegment[iDetailedCurSegmentX][iDetailedCurSegmentZ] == iLandZone then
+                                                    tPointToMoveFrom = {tAltViaPoint[1], tAltViaPoint[2], tAltViaPoint[3]}
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will record this as the point to move from so we have at least one point to move from but will keep looking with main logic') end
+                                                    break
+                                                end
+                                            end
                                         end
                                     end
                                 end

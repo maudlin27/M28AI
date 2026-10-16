@@ -1,8 +1,8 @@
 name = "M28AI"
-uid = "fnewm028-v326-55b4-92b6-64398e7ge43f"
-version = 326
+uid = "fnewm028-v327-55b4-92b6-64398e7ge43f"
+version = 327
 copyright = "CC BY-NC-SA 4.0 Deed"
-description = "Competitive AI for FAF (and LOUD, steam and GOG) with strong macro and micro capabilities, AI variants (including M28Easy that disables most micro).  Customise how it plays through the various 'M28 prefix' game options.  Estimated as challenging for a 900-1200 global rated player. Supports campaign missions (as an AI teammate and/or in place of the default campaign AI). More info: https://forum.faforever.com/topic/5331/m28ai-devlog-v1"
+description = "Competitive AI for FAF (and LOUD, steam and GOG) with strong macro and micro capabilities, AI variants (including M28Easy that disables most micro). Customise playstyle with 'M28 prefix' game options. Estimated as challenging for a 1200 global rated player. Compatible with campaign missions (see FAF wiki). Contact maudlin27 via discord re bugs. More info: https://forum.faforever.com/topic/5331/m28ai-devlog-v1"
 author = "maudlin27"
 url = ""
 icon = "/mods/M28AI/M28AI.jpg"

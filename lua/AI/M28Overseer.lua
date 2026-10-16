@@ -87,6 +87,8 @@ refbPrioritiseDefence = 'M28PersDef'
 refbFirstBomber = 'M28FirstB'
 refbBomberSnipe = 'M28BombS' --true if want to try and snipe enemy ACU (intended for Cybran and sometimes Seraphim, to try with a T2 bomber snipe)
 refbStratsOverGunships = 'M28GtStrt' --true if want to try going heavy on strats instead of gunships first
+refbLowMaxGetEarlyLand = 'M28LMErLn' --true if want to get land fac and some combat units from it early on for a low/no mex map
+refbLowMaxGetEarlyAir = 'M28LMErAi' --true if want to get land fac and some combat units from it early on for a low/no mex map
 
 
 
@@ -744,6 +746,7 @@ end
 
 
 function TestCustom(aiBrain)
+    --M28Chat.SendMessage(aiBrain, 'Test', 'Recall damnit!', 2, 10, false, true, 'E01_Leopard11_M07_0029', 'E01_VO')
     --[[while true do
         local toDestroyers = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryDestroyer, false, true)
         if M28Utilities.IsTableEmpty(toDestroyers) == false then
