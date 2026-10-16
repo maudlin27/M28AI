@@ -2144,8 +2144,14 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])..'; T1 arti built='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryIndirect)) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.5 and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) <= 125 and (M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryIndirect) <= math.min(5, math.max(2, oFactory[refiTotalBuildCount] * 0.5))) and NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] then
-        if bDebugMessages == true then LOG(sFunctionRef..': Will try and get some early t1 arti') end
-        if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+        --Want equal number tanks to t1 arti though once we have got 1 t1 arti, as t1 arti will otherwise die easily to labs and tanks
+        if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryIndirect) <= M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryMobileDFLand - categories.COMMAND) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and get some early t1 arti') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+        elseif M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryMobileDFLand - categories.COMMAND) <= 2 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will get some tanks instead to support the t1 arti') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileDFLand) then return sBPIDToBuild end
+        end
     end
 
     --Priority engineers as we are being prevented from upgrading
