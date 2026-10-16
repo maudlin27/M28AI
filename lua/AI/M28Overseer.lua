@@ -746,7 +746,7 @@ end
 
 
 function TestCustom(aiBrain)
-    M28Chat.SendMessage(aiBrain, 'Test', 'Recall damnit!', 2, 10, false, true, 'E01_Leopard11_M07_0029', 'E01_VO')
+    --M28Chat.SendMessage(aiBrain, 'Test', 'Recall damnit!', 2, 10, false, true, 'E01_Leopard11_M07_0029', 'E01_VO')
     --[[while true do
         local toDestroyers = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryDestroyer, false, true)
         if M28Utilities.IsTableEmpty(toDestroyers) == false then
@@ -1599,7 +1599,7 @@ function OverseerManager(aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
-    ForkThread(TestCustom, aiBrain)
+    --ForkThread(TestCustom, aiBrain)
 
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging

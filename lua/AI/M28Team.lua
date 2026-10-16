@@ -5932,7 +5932,6 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                         oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
                     end
                 end
-                if true and GetGameTimeSeconds() <= 600 then oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true oBrain[M28Overseer.refbLowMaxGetEarlyAir] = false end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering low mex strategy for oBrain='..oBrain.Nickname..'; iRandom='..iRandom..'; iDistToNearestEnemy='..iDistToNearestEnemy..'; refbLowMaxGetEarlyLand='..tostring(oBrain[M28Overseer.refbLowMaxGetEarlyLand] or false)..'; refbLowMaxGetEarlyAir='..tostring(oBrain[M28Overseer.refbLowMaxGetEarlyAir] or false)) end
             end
         end
