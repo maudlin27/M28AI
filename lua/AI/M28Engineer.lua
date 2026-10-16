@@ -21325,17 +21325,37 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
                             table.insert(tDetailedPath, 1, tFullPath[iCurEntry - 1])
                             table.insert(tFullPath, tViaPoint)
                         end
+                        local tAltViaPoint, iAngleToPrevEntry
                         if M28Utilities.IsTableEmpty(tDetailedPath) == false and iDetailedPathEntries >= 1 then
                             for iDetailedEntry, tDetailedViaPoint in tDetailedPath do
                                 if iDetailedEntry > 1 then
                                     iCurDetailedPathDistance = M28Utilities.GetDistanceBetweenPositions(tDetailedViaPoint, tDetailedPath[iDetailedEntry - 1])
                                     iCumulativeDetailedPathDistance = iCumulativeDetailedPathDistance + iCurDetailedPathDistance
                                     iDetailedCurSegmentX, iDetailedCurSegmentZ = M28Map.GetPathingSegmentFromPosition(tDetailedViaPoint)
-                                    if M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] == iLandZone then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iDetailedEntry='..iDetailedEntry..'; iCurDetailedPathDistance='..iCurDetailedPathDistance..'; iCumulativeDetailedPathDistance='..iCumulativeDetailedPathDistance..';LZ of this position='..(M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] or 'nil')) end
+                                    if M28Map.tLandZoneBySegment[iDetailedCurSegmentX][iDetailedCurSegmentZ] == iLandZone then
                                         if iCurDetailedPathDistance >= iDistToMoveFromEnemyToLZ then
                                             tPointToMoveFrom = M28Utilities.MoveInDirection(tDetailedPath[iDetailedEntry - 1], M28Utilities.GetAngleFromAToB(tDetailedPath[iDetailedEntry - 1], tDetailedViaPoint), math.max(0, iDistToMoveFromEnemyToLZ - iCumulativeDetailedPathDistance + iCurPathDistance), true, false, true)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Setting PD placement using detailed path, tPointToMoveFrom='..repru(tPointToMoveFrom)..'; iDistToMoveFromEnemyToLZ='..iDistToMoveFromEnemyToLZ..'; iCumulativeDetailedPathDistance='..iCumulativeDetailedPathDistance..'; iCurPathDistance='..iCurPathDistance..'; Dist that will actually have moved='..math.max(0, iDistToMoveFromEnemyToLZ - iCumulativeDetailedPathDistance + iCurPathDistance)) end
                                             break
+                                        elseif not(tPointToMoveFrom) then
+                                            tPointToMoveFrom = {tDetailedViaPoint[1], tDetailedViaPoint[2], tDetailedViaPoint[3]}
+                                        end
+                                    elseif iDetailedEntry == 2 and not(tPointToMoveFrom) and iCurDetailedPathDistance >= 10 then
+                                        --Move towards point 1 until reach desired zone
+                                        iAngleToPrevEntry = M28Utilities.GetAngleFromAToB(tDetailedPath[iDetailedEntry], tDetailedPath[iDetailedEntry - 1])
+                                        for iDistTowardsPrevEntry = 5, iCurDetailedPathDistance - 5, 5 do
+
+                                            tAltViaPoint = M28Utilities.MoveInDirection(tDetailedPath[iDetailedEntry], iAngleToPrevEntry, iDistTowardsPrevEntry, true, false, true)
+                                            if tAltViaPoint then
+                                                iDetailedCurSegmentX, iDetailedCurSegmentZ = M28Map.GetPathingSegmentFromPosition(tAltViaPoint)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering moving back to first entry andi f in same zone, iDistTowardsPrevEntry='..iDistTowardsPrevEntry..'; LZ of this='..(M28Map.tLandZoneBySegment[iDetailedCurSegmentX][iDetailedCurSegmentZ] or 'nil')) end
+                                                if M28Map.tLandZoneBySegment[iDetailedCurSegmentX][iDetailedCurSegmentZ] == iLandZone then
+                                                    tPointToMoveFrom = {tAltViaPoint[1], tAltViaPoint[2], tAltViaPoint[3]}
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will record this as the point to move from so we have at least one point to move from but will keep looking with main logic') end
+                                                    break
+                                                end
+                                            end
                                         end
                                     end
                                 end
