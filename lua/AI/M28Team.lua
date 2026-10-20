@@ -2921,7 +2921,6 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                                 end
                             end
                         end
-
                         if bGetT2LandToStopACU then
                             bNearbyUpgradedEnemyACU = true
                             bInitiallyWantUpgrade = true
@@ -2931,21 +2930,7 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': bInitiallyWantUpgrade='..tostring(bInitiallyWantUpgrade)..'; subrefiTeamGrossMass='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; subrefiTeamAverageMassPercentStored %='..tTeamData[iM28Team][subrefiTeamAverageMassPercentStored]..'; GetTeamLifetimeBuildCount land and air='..M28Conditions.GetTeamLifetimeBuildCount(iM28Team, M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber)) end
-        if M28Map.bIsLowMexMap and bInitiallyWantUpgrade and tTeamData[iM28Team][subrefiTeamGrossMass] < 1 and tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] < 0.7 and M28Conditions.GetTeamLifetimeBuildCount(iM28Team, M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) < 6 + 6 * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
-            --Do we have brains that want to build land/air?
-
-            for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-                if oBrain[M28Overseer.refbLowMaxGetEarlyAir] and M28Conditions.GetLifetimeBuildCount(oBrain, M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) < 2 then
-                    bInitiallyWantUpgrade = false
-                    break
-                elseif oBrain[M28Overseer.refbLowMaxGetEarlyLand] and M28Conditions.GetLifetimeBuildCount(oBrain, M28UnitInfo.refCategoryLandCombat) < 5 then
-                    bInitiallyWantUpgrade = false
-                    break
-                end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': bInitiallyWantUpgrade after low mex adjustment='..tostring(bInitiallyWantUpgrade)) end
-        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bInitiallyWantUpgrade='..tostring(bInitiallyWantUpgrade)) end
         if bInitiallyWantUpgrade then
             if not(M28Map.bIsCampaignMap) or tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
 
