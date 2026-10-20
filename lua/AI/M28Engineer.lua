@@ -12945,7 +12945,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iCurPDThreat='..iCurPDThreat) end
-            if iCurPDThreat < iApproachingACUThreat * 0.75 and (iCurPDThreat == 0 or (iDistFromACUToBase <= 125 and (iDistFromACUToBase <= 100 or oNearestEnemyACU[M28ACU.refiUpgradeCount] == 0))) then
+            if iCurPDThreat < iApproachingACUThreat * 0.75 and (iCurPDThreat == 0 or (iDistFromACUToBase <= 125 and (iDistFromACUToBase <= 100 or oNearestEnemyACU[M28ACU.refiUpgradeCount] == 0)))  then
                 iBPWanted = 15
                 local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone, tLZData, tLZTeamData, 1)
                 HaveActionToAssign(refActionBuildEmergencyPD, 1, iBPWanted, tTargetBuildLocation)
@@ -14702,6 +14702,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                                 if bDebugMessages == true then LOG(sFunctionRef..': We probably have enough T2 PD and have low mass so will hold off getting more PD') end
                                 bWantToGetPD = false
                             end
+                        end
+                        if M28Map.bIsLowMexMap and bWantToGetPD and tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 0.6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                            bWantToGetPD = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': Wont get T1 PD afterall due to low mex map') end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': bWantToGetPD='..tostring(bWantToGetPD)..'; iEnemyThreat='..iEnemyThreat..'; Highest tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
                         if bWantToGetPD then
