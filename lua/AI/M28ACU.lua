@@ -2102,7 +2102,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Considering sUpgrade=' .. sUpgrade .. '; tUpgrade=' .. reprs(tUpgrade))
                 end
-                if (oACU[refbStartedUnderwater] and (tUpgrade.NewBuildRate or 0) > 10) or (tUpgrade.NewMaxRadius or tUpgrade.NewRateOfFire) then
+                if (oACU[refbStartedUnderwater] and (tUpgrade.NewBuildRate or 0) > 10) or (tUpgrade.NewMaxRadius or tUpgrade.NewRateOfFire or tUpgrade.NewDamage or (tUpgrade.NewBeamRadius and tUpgrade.NewBeamRadius > (oACU[M28UnitInfo.refiDFRange] or 0)) or (tUpgrade.GatlingRange and tUpgrade.GatlingRange > (oACU[M28UnitInfo.refiDFRange] or 0))) then
                     if tUpgrade.BuildCostMass < iLowestMassCost and not (tUpgrade.Prerequisite) and not (tRestrictedEnhancements[sUpgrade]) then
                         sLowestUpgrade = sUpgrade
                         iLowestMassCost = tUpgrade.BuildCostMass
