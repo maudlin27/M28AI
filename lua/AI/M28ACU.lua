@@ -450,7 +450,7 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, aiBrain[M28Economy.refiGrossEnergyBaseIncome]='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; aiBrain[M28Economy.refiGrossMassBaseIncome]='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for brain '..aiBrain.Nickname..'; aiBrain[M28Economy.refiGrossEnergyBaseIncome]='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; aiBrain[M28Economy.refiGrossMassBaseIncome]='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; refbLowMexGetEarlyGun='..tostring(aiBrain[M28Overseer.refbLowMexGetEarlyGun] or false)..'; refiUpgradeCount='..(oACU[refiUpgradeCount] or 'nil')) end
 
     --more specific initial build order
     local iMexInLandZone = 0
@@ -459,12 +459,13 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
     if iMexInLandZone > 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) then
         ACUActionBuildMex(aiBrain, oACU)
         --want 40 energy for every 2 mass
-    elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(math.min(8, iMexInLandZone * 4 + 4), math.min(25, aiBrain[M28Economy.refiGrossMassBaseIncome] * 14)) then
+    elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(math.min(8, iMexInLandZone * 4 + 4), math.min(25, aiBrain[M28Economy.refiGrossMassBaseIncome] * 14))
+            or ((oACU[refiUpgradeCount] or 0) == 0 and aiBrain[M28Overseer.refbLowMexGetEarlyGun] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(aiBrain[M28Economy.refiGrossMassBaseIncome] * 40, 10 * aiBrain[M28Economy.refiBrainResourceMultiplier])) then
         local bHydroBuildOrder = false
         local tClosestHydroToACU
         local iClosestDistToACU = 100000
         local iCurHydroDist
-        local bHaveUnderConstructionFirstHydro = false
+        --local bHaveUnderConstructionFirstHydro = false
         local oOptionalUnderConstructionHydro --used for redundancy
         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then
             for iEntry, tHydro in tLZOrWZData[M28Map.subrefHydroLocations] do
@@ -483,6 +484,20 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
             ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOptionalUnderConstructionHydro)
         else
             ACUActionBuildPower(aiBrain, oACU)
+        end
+    elseif aiBrain[M28Overseer.refbLowMexGetEarlyGun] then
+        --Get upgrade if havent already
+        if oACU[refiUpgradeCount] == 0 or (EntityCategoryContains(categories.AEON, oACU.UnitId) and ACU[refiUpgradeCount] == 1) then
+            local sUpgradeToGet, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeToGet='..(sUpgradeToGet or 'nil')) end
+            if not(sUpgradeToGet) and oACU:GetBlueprint().Enhancements.AdvancedEngineering and not(oACU:HasEnhancement('AdvancedEngineering')) then sUpgradeToGet = 'AdvancedEngineering' end
+            if not(sUpgradeToGet) then
+                aiBrain[M28Overseer.refbLowMexGetEarlyGun] = false aiBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
+            else
+                M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACULowMexUpgrade')
+            end
+        else
+            oACU[refbDoingInitialBuildOrder] = false
         end
     else
         --Build factory if dont have one and have lots of mass stored, or there are other mexes we want to get
@@ -628,7 +643,7 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
         end
 
     end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
@@ -2239,7 +2254,7 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
     local sFunctionRef = 'GetACUUpgradeWanted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    
+
 
     local sUpgradeWanted, bIgnoreOtherConditions
 
@@ -2353,7 +2368,11 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iTimeLastUpgradeCompleted='..iTimeLastUpgradeCompleted..'; iNetEPreviousEnhancementCostPerTick='..iNetEPreviousEnhancementCostPerTick..'; brain refiNetEnergyBaseIncome='..aiBrain[M28Economy.refiNetEnergyBaseIncome]) end
-                if tEnhancement.BuildCostMass <= 100 and tEnhancement.BuildCostEnergy <= 100 and (oACU:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 600 or not(sUpgradeWanted == 'CloakingGenerator' or sUpgradeWanted == 'Sheild')) then
+                --Lowmex where prioritising upgrade
+                if bIgnoreEcoCondition and M28Map.bIsLowMexMap and aiBrain[M28Overseer.refbLowMexGetEarlyGun] and ((oACU[refiUpgradeCount] or 0) == 0 or (oACU[refiUpgradeCount] == 1 and EntityCategoryContains(categories.AEON, oACU.UnitId))) then
+                    sUpgradeWanted = sPotentialUpgrade
+                    if bDebugMessages == true then LOG(sFunctionRef..': Low mex map so getting upgrade') end
+                elseif tEnhancement.BuildCostMass <= 100 and tEnhancement.BuildCostEnergy <= 100 and (oACU:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 600 or not(sUpgradeWanted == 'CloakingGenerator' or sUpgradeWanted == 'Sheild')) then
                     sUpgradeWanted = sPotentialUpgrade
                     if tEnhancement.BuildTime <= 100 then
                         bIgnoreOtherConditions = true

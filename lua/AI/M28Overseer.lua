@@ -89,6 +89,7 @@ refbBomberSnipe = 'M28BombS' --true if want to try and snipe enemy ACU (intended
 refbStratsOverGunships = 'M28GtStrt' --true if want to try going heavy on strats instead of gunships first
 refbLowMaxGetEarlyLand = 'M28LMErLn' --true if want to get land fac and some combat units from it early on for a low/no mex map
 refbLowMaxGetEarlyAir = 'M28LMErAi' --true if want to get land fac and some combat units from it early on for a low/no mex map
+refbLowMexGetEarlyGun = 'M28LMErGn' --true if we want to get a gun upgrade ahead of almost anything else
 
 
 

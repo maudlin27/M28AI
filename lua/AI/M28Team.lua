@@ -5918,6 +5918,29 @@ function ConsiderSpecialStrategyAssignment(iTeam)
         elseif M28Map.bIsLowMexMap then
             --Set special brain strategies
             local iDistToNearestEnemy
+            local bGettingAir = false
+            local bGettingLand = false
+            local bGettingGun = false
+            local iBaseAirValue = 30
+            local iBaseLandValue = 30
+            local iBaseGunValue = 6 --If just 1 ACU then going gun upgrade makes us die if enemy goes for either t1 arti or t1 bomber if we lack teammates
+            local iBaseAirAndLandValue = 30
+            local iCurAirValue
+            local iCurLandValue
+            local iCurGunValue
+            local iCurAirAndLandValue
+            local iTotalCurValue
+
+            --If we have 2+ ACUs on team and 2+ enemy players then reduce land value chance since good chance enemy
+            if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2  then
+                --Increase gun chance
+                iBaseGunValue = 30
+                if iPlayersAtGameStart >= 4 then
+                    iBaseLandValue = 20
+                    iBaseAirAndLandValue = 20
+                end
+            end
+
             for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
                 --Get nearest enemy
                 iDistToNearestEnemy = M28Map.iMapSize
@@ -5927,27 +5950,51 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                 if tLZTeamData[M28Map.reftClosestEnemyBase] then
                     iDistToNearestEnemy = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tStart)
                 end
-                local iRandom = math.random(1, 100)
-                if iDistToNearestEnemy <= 350 then --going early land viable
-                    if iRandom <= 33 then
-                        oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
-                        oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
-                    elseif iRandom <= 67 then
-                        oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
-                    else--if iRandom <= 75 then
-                        oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
-                    end
-                else
-                    if iRandom <= 75 then
-                        oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
-                    elseif iRandom <= 88 then
-                        oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
+                iCurAirValue = iBaseAirValue
+                iCurLandValue = iBaseLandValue
+                iCurGunValue = iBaseGunValue
+                iCurAirAndLandValue = iBaseAirAndLandValue
+                if iDistToNearestEnemy > 350 then --going early land viable
+                    iCurLandValue = iCurLandValue * 0.3
+                    iCurAirAndLandValue = iCurAirAndLandValue * 0.3
+                    iCurGunValue = iCurGunValue * 0.3
+                end
+                if bGettingGun and (not(bGettingAir) or not(bGettingLand)) then
+                    iCurGunValue = iCurGunValue * 0.3
+                end
+                if bGettingAir and (not(bGettingLand) or not(bGettingGun)) then
+                    if iDistToNearestEnemy > 350 then
+                        iCurAirValue = iCurAirValue * 0.5
+                        iCurAirAndLandValue = iCurAirAndLandValue * 0.5
                     else
-                        oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
-                        oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
+                        iCurAirValue = iCurAirValue * 0.2
+                        iCurAirAndLandValue = iCurAirAndLandValue * 0.2
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering low mex strategy for oBrain='..oBrain.Nickname..'; iRandom='..iRandom..'; iDistToNearestEnemy='..iDistToNearestEnemy..'; refbLowMaxGetEarlyLand='..tostring(oBrain[M28Overseer.refbLowMaxGetEarlyLand] or false)..'; refbLowMaxGetEarlyAir='..tostring(oBrain[M28Overseer.refbLowMaxGetEarlyAir] or false)) end
+                if bGettingLand and (not(bGettingAir) or not(bGettingGun)) then
+                    iCurLandValue = iCurLandValue * 0.2
+                    iCurAirAndLandValue = iCurAirAndLandValue * 0.2
+                end
+                iTotalCurValue = math.ceil(iCurAirValue + iCurLandValue + iCurGunValue + iCurAirAndLandValue)
+                local iRandom = math.random(1, iTotalCurValue)
+                if iRandom <= iCurAirValue then
+                    oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
+                    bGettingAir = true
+
+                elseif iRandom <= iCurAirValue + iCurLandValue then
+                    oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
+                    bGettingLand = true
+                elseif iRandom <= iCurAirValue + iCurLandValue + iCurGunValue then
+                    oBrain[M28Overseer.refbLowMexGetEarlyGun] = true
+                    bGettingGun = true
+                else
+                    oBrain[M28Overseer.refbLowMaxGetEarlyLand] = true
+                    oBrain[M28Overseer.refbLowMaxGetEarlyAir] = true
+                    bGettingLand = true
+                    bGettingAir = true
+                end
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering low mex strategy for oBrain='..oBrain.Nickname..'; iRandom='..iRandom..'; iDistToNearestEnemy='..iDistToNearestEnemy..'; iCurAirValue='..iCurAirValue..'; iCurLandValue='..iCurLandValue..'; iCurGunValue='..iCurGunValue..'; iCurAirAndLandValue='..iCurAirAndLandValue..'; iTotalCurValue='..iTotalCurValue..'; refbLowMaxGetEarlyLand='..tostring(oBrain[M28Overseer.refbLowMaxGetEarlyLand] or false)..'; refbLowMaxGetEarlyAir='..tostring(oBrain[M28Overseer.refbLowMaxGetEarlyAir] or false)) end
             end
         end
     end
