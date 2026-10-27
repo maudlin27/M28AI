@@ -460,7 +460,9 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
         ACUActionBuildMex(aiBrain, oACU)
         --want 40 energy for every 2 mass
     elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(math.min(8, iMexInLandZone * 4 + 4), math.min(25, aiBrain[M28Economy.refiGrossMassBaseIncome] * 14))
-            or ((oACU[refiUpgradeCount] or 0) == 0 and aiBrain[M28Overseer.refbLowMexGetEarlyGun] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(aiBrain[M28Economy.refiGrossMassBaseIncome] * 40, 10 * aiBrain[M28Economy.refiBrainResourceMultiplier])) then
+            or ((oACU[refiUpgradeCount] or 0) == 0 and aiBrain[M28Overseer.refbLowMexGetEarlyGun] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(aiBrain[M28Economy.refiGrossMassBaseIncome] * 40, 10 * aiBrain[M28Economy.refiBrainResourceMultiplier]))
+            or (aiBrain[M28Overseer.refbLowMaxGetEarlyAir] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= 5 * aiBrain[M28Economy.refiBrainResourceMultiplier] and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) > 0)
+             then
         local bHydroBuildOrder = false
         local tClosestHydroToACU
         local iClosestDistToACU = 100000
