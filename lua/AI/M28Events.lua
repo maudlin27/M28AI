@@ -2638,6 +2638,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                         ForkThread(M28Land.DelayedGetFirstEnhancementOnUnit, oJustBuilt, 6)
                         --Sniperbots - if we have built 4+ by the same player then also prioritise omni
                     elseif (oJustBuilt[M28UnitInfo.refiDFRange] or 0) >= 55 and M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 4 then oBrainJustBuilt[M28Overseer.refbBuiltLongRangeLandUnit] = true
+                        --Low mex maps - prioritise t1 arti for land scout
+                    elseif M28Map.bIsLowMexMap and M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) <= 3 and (oJustBuilt[M28UnitInfo.refiIndirectRange] or 0) >= 25 and EntityCategoryContains(M28UnitInfo.refCategoryIndirect * categories.TECH1, oJustBuilt.UnitId) then
+                        M28Land.ConsiderPriorityLandScoutFlag(oJustBuilt)
                     end
 
                     --Experimental air - no longer record in land/water zone
