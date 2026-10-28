@@ -5503,8 +5503,12 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     --Engineers for start of game (e.g. relevant for if gone first bomber)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iFactoryTechLevel == 1 and M28UnitInfo.GetUnitLifetimeCount(oFactory) == 1 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer) < 7 and tLZTeamData[M28Map.subrefTbWantBP] then
-        if bDebugMessages == true then LOG(sFunctionRef..': Will try and get early engi') end
-        if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        --Exception for low mex if already have an engineer
+        if not(M28Map.bIsLowMexMap) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 or tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 200 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) == 0 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryGunship) >= 2) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and get early engi, subrefiTeamAverageMassPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Cur engineers='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer)..'; bIsLowMexMap='..tostring(M28Map.bIsLowMexMap)) end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        elseif bDebugMessages == true then LOG(sFunctionRef..': Low mex map and have an engineer already')
+        end
     end
 
 
@@ -5799,8 +5803,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         if not (bHaveLowMass) and tLZTeamData[M28Map.subrefTbWantBP] then
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.25 and iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) then
                 if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 or iFactoryTechLevel > 1 or M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryEngineer) < 2 then
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
-                        return sBPIDToBuild
+                    if not(M28Map.bIsLowMexMap) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 or tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 200 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) == 0 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryGunship) >= 2) then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
+                            return sBPIDToBuild
+                        end
                     end
                 end
             end
@@ -5934,8 +5940,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     iMinEngisWanted = -iMinEngisWanted - 1
                 end
             end
+            if M28Map.bIsLowMexMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.7 and tLZData[M28Map.subrefTotalSignificantMassReclaim] < 200 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.4 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryGunship) < 2) then iMinEngisWanted = 1 end
             if bDebugMessages == true then LOG(sFunctionRef..': iMinEngisWanted='..iMinEngisWanted..'; iEngisOfTechInZone='..iEngisOfTechInZone..'; subrefiTeamAverageMassPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; iBPWanted='..iBPWanted..'; iFactoryTechLevel='..iFactoryTechLevel..'; M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; Nmber of T3 engis being built in zone='..M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * categories.TECH3)) end
-            if iEngisOfTechInZone < 3 or (iEngisOfTechInZone < iMinEngisWanted and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0) or (iEngisOfTechInZone < iMinEngisWanted + 5 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 1000 or iBPWanted >= 100) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.05 or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * categories.TECH3) == 0))
+            if (iEngisOfTechInZone < 3 and not(M28Map.bIsLowMexMap)) or (iEngisOfTechInZone < iMinEngisWanted and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0) or (iEngisOfTechInZone < iMinEngisWanted + 5 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 1000 or iBPWanted >= 100) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.05 or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * categories.TECH3) == 0))
                     or (iEngisOfTechInZone < 50 and iBPWanted / 10 > iEngisOfTechInZone and iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > 0.06 or iEngisOfTechInZone < math.max(6, iMinEngisWanted)) and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * categories.TECH3) <= math.min(2, iBPWanted * 0.2 / M28Engineer.tiBPByTech[3]))) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
                     return sBPIDToBuild

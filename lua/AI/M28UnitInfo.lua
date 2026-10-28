@@ -2709,6 +2709,11 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
             for sEnhancement, tEnhancement in oBP.Enhancements do
                 if tEnhancement.NewMaxRadius and oUnit.HasEnhancement and oUnit:HasEnhancement(sEnhancement) then
                     oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), tEnhancement.NewMaxRadius)
+                    --Blackops upgrade esupport
+                elseif tEnhancement.GatlingRange and oUnit.HasEnhancement and oUnit:HasEnhancement(sEnhancement) then
+                    oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), tEnhancement.GatlingRange)
+                elseif tEnhancement.NewBeamRadius and oUnit.HasEnhancement and oUnit:HasEnhancement(sEnhancement) then
+                    oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), tEnhancement.NewBeamRadius)
                 end
             end
             if oUnit.UnitId == 'ual0204' and oUnit:HasEnhancement('EnhancedWeapon') then

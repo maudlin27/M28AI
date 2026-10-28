@@ -13028,8 +13028,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 end
             end
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 then
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..': Will try and build PGens') end
-            HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 5)
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..': Will try and build PGens unless low mex override') end
+            if M28Map.bIsLowMexMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Low mass map and have good ratio of energy to mass so wont build power afterall') end
+            else
+                HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 5)
+            end
         end
     else
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefHydroUnbuiltLocations]) == false and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 20 >=  M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] or (bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or (bWantMorePower and aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= 16 and aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.3 and aiBrain[M28Economy.refiNetEnergyBaseIncome] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.01)) then
