@@ -5923,7 +5923,7 @@ function ConsiderSpecialStrategyAssignment(iTeam)
             local bGettingGun = false
             local iBaseAirValue = 30
             local iBaseLandValue = 30
-            local iBaseGunValue = 6 --If just 1 ACU then going gun upgrade makes us die if enemy goes for either t1 arti or t1 bomber if we lack teammates
+            local iBaseGunValue = 1 --If just 1 ACU then going gun upgrade makes us die if enemy goes for either t1 arti or t1 bomber if we lack teammates
             local iBaseAirAndLandValue = 30
             local iCurAirValue
             local iCurLandValue
@@ -5933,6 +5933,7 @@ function ConsiderSpecialStrategyAssignment(iTeam)
 
             --If we have 2+ ACUs on team and 2+ enemy players then reduce land value chance since good chance enemy
             if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2  then
+                iBaseAirAndLandValue = 10 --better to have one go land, one go air
                 --Increase gun chance
                 iBaseGunValue = 30
                 if iPlayersAtGameStart >= 4 then
