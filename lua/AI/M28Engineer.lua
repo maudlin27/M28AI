@@ -6498,7 +6498,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                     if oNearestReclaim then
                         if oEngineer:IsUnitState('Capturing') then M28Utilities.ErrorHandler('Are aborting an engineer that was capturing and telling it to reclaim instead', true, true) end
                         bGivenOrder = true
-                        if oEngineer[M28UnitInfo.refbEasyBrain] then
+                        if oEngineer[M28UnitInfo.refbEasyBrain] and M28Map.WithinMarginOfPlayableArea(oNearestReclaim:GetPosition(), 1) then
                             M28Orders.IssueTrackedAggressiveMove(oEngineer, oNearestReclaim:GetPosition(), 3, false, 'ReclLZeSeg', false)
                         else
                             M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclLZSeg')
