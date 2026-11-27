@@ -9211,6 +9211,16 @@ function InPlayableArea(tLocation) --NOTE - also have the same function in M28Co
     end
 end
 
+function WithinMarginOfPlayableArea(tLocation, iInsideMargin)
+    --iInsideMargin: Positive requires location to be that much inside the playable area, negative allows it to be outside the playable area by that much
+    if tLocation[1] - iInsideMargin >= rMapPlayableArea[1] and tLocation[1] + iInsideMargin <= rMapPlayableArea[3]
+            and tLocation[3] - iInsideMargin >= rMapPlayableArea[2] and tLocation[3] + iInsideMargin <= rMapPlayableArea[4] then
+        return true
+    else
+        return false
+    end
+end
+
 function GetLandOrWaterZoneData(tLocation, bReturnTeamDataAsWell, iOptionalTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetLandOrWaterZoneData'
